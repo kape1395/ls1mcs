@@ -1,0 +1,9 @@
+{application, gen_ax25u, [
+    {description, "Erlang port for accessing AX.25 interface."},
+    {vsn, git},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]}
+]}.
