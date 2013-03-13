@@ -49,7 +49,7 @@ struct state
 };
 
 int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state);
-int handle_cmd_info(char *buf, int len, int *ptr);
+int handle_cmd_info(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_send(char *buf, int len, int *ptr, struct state *state);
 void* handle_sock_recv(void* ptr);
 
@@ -61,6 +61,7 @@ int sock_config(struct state* state, char *local_port, char *remote_call);
 int sock_open(struct state* state);
 int sock_close(struct state* state);
 int sock_send(struct state* state, char *buf, int len);
+int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sockaddr * src_addr, socklen_t *src_addr_len);
 
 int decode_record(char *buf, int len, int *ptr, char* name, int* arity);
 int decode_message_hdr(char* buf, int len, int* ptr);
@@ -90,13 +91,13 @@ int main(int argn, char** argv)
     
     erl_init(0, 0);
 
-    if ((rc = recv_thread_init(&state)) != 0)
-        return rc;
-
     if ((rc = sock_config(&state, local_port, remote_call)) != 0)
         return rc;
 
     if ((rc = sock_open(&state)) != 0)
+        return rc;
+
+    if ((rc = recv_thread_init(&state)) != 0)
         return rc;
 
     while (1)
@@ -119,7 +120,7 @@ int main(int argn, char** argv)
         }
         else if (strcmp("info", recName) == 0 && recArity == 2)
         {
-            if ((rc = handle_cmd_info(buf, len, &ptr)) != 0)
+            if ((rc = handle_cmd_info(buf, len, &ptr, &state)) != 0)
                 return rc;
         }
         else if (strcmp("send", recName) == 0 && recArity == 2)
@@ -142,26 +143,34 @@ int main(int argn, char** argv)
  */
 int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state)
 {
+    fprintf(stderr, "handle_cmd_stop... \n");
+
     recv_thread_join(state);
+    fprintf(stderr, "handle_cmd_stop... Joined\n");
+
     sock_close(state);
+    fprintf(stderr, "handle_cmd_stop... Socket closed, done\n");
+
     return 0;
 }
 
 /**
  *  Handles INFO command.
  */
-int handle_cmd_info(char *buf, int len, int *ptr)
+int handle_cmd_info(char *buf, int len, int *ptr, struct state *state)
 {
     erlang_pid pid;
     if (ei_decode_pid(buf, ptr, &pid) == -1)
         return ERR_CMD_INFO_PID;
 
+    fprintf(stderr, "handle_cmd_info\n");
+
     *ptr = 0;
     ei_encode_version(buf, ptr);
     ei_encode_tuple_header(buf, ptr, 3);
     ei_encode_atom(buf, ptr, "info");
-    ei_encode_string(buf, ptr, "call-1");
-    ei_encode_string(buf, ptr, "call-2");
+    ei_encode_string(buf, ptr, state->local_call);
+    ei_encode_string(buf, ptr, state->remote_call);
     len = *ptr;
     write_command(buf, len);
     return 0;
@@ -179,6 +188,8 @@ int handle_cmd_send(char *buf, int len, int *ptr, struct state *state)
     if (ei_decode_binary(buf, ptr, message, &msg_len) == -1)
         return ERR_CMD_SEND_MSG;
 
+    fprintf(stderr, "handle_cmd_send: len=%ld\n", msg_len);
+
     if ((rc = sock_send(state, message, msg_len)) != 0)
         return rc;
 
@@ -194,28 +205,36 @@ void* handle_sock_recv(void* ptr)
 {
     struct state *state = (struct state*) ptr;
     char recv_buf[BUF_SIZE];
-    int  recv_len;
+    int  recv_len = 0;
     char term_buf[BUF_SIZE];
     int  term_ptr;
     int  term_len;
+    int rc;
     while (1)
     {
-        /* TODO: Socket RECV here */
-        recv_buf[0] = 'j';
-        recv_buf[1] = 'o';
-        recv_len = 2;
+        rc = sock_recv(state, recv_buf, BUF_SIZE, &recv_len, NULL, NULL);
+        if (rc == 0)
+        {
+            term_ptr = 0;
+            ei_encode_version(term_buf, &term_ptr);
+            ei_encode_tuple_header(term_buf, &term_ptr, 2);
+            ei_encode_atom(term_buf, &term_ptr, "recv");
+            ei_encode_binary(term_buf, &term_ptr, recv_buf, recv_len);
+            term_len = term_ptr;
+            write_command(term_buf, term_len);
+        }
+        else if (rc == EAGAIN || rc == EWOULDBLOCK)
+        {
+            /* OK, just check if we are not stopping yet. */
+        }
+        else
+        {
+            fprintf(stderr, "Error wile doing recv, rc=%d\n", rc);
+            return NULL;
+        }
 
-        term_ptr = 0;
-        ei_encode_version(term_buf, &term_ptr);
-        ei_encode_tuple_header(term_buf, &term_ptr, 2);
-        ei_encode_atom(term_buf, &term_ptr, "recv");
-        ei_encode_binary(term_buf, &term_ptr, recv_buf, recv_len);
-        term_len = term_ptr;
-        write_command(term_buf, term_len);
-
-        sleep(1);
         if (recv_thread_stopping(state))
-          break;
+            break;
     }
     return NULL;
 }
@@ -261,11 +280,16 @@ int recv_thread_stopping(struct state* state)
 
 int sock_config(struct state* state, char *local_port, char *remote_call)
 {
+    memset(&state->local_addr, 0, sizeof(struct full_sockaddr_ax25));
+    memset(&state->remote_addr, 0, sizeof(struct full_sockaddr_ax25));
+
     if (ax25_config_load_ports() == 0)
         return ERR_AX_LOAD;
 
     if ((state->local_call = ax25_config_get_addr(local_port)) == NULL)
         return ERR_AX_ADDR_LOCAL;
+
+    state->remote_call = remote_call;
 
     if ((state->local_addr_len = ax25_aton(state->local_call, &state->local_addr)) == -1)
         return ERR_AX_ATON_LOCAL;
@@ -287,7 +311,7 @@ int sock_open(struct state* state)
     if (bind(state->sockfd, (struct sockaddr *) &state->local_addr, state->local_addr_len) == -1)
         return errno;
 
-    timeout.tv_sec = 10;
+    timeout.tv_sec = 1;
     timeout.tv_usec = 0;
     if (setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0)
         return errno;
@@ -303,7 +327,21 @@ int sock_close(struct state* state)
 
 int sock_send(struct state* state, char *buf, int len)
 {
+    fprintf(stderr, "sock_send: len=%d ...\n", len);
+
     if (sendto(state->sockfd, buf, len, 0, (struct sockaddr *) &state->remote_addr, state->remote_addr_len) == -1)
+    {
+        fprintf(stderr, "sock_send: len=%d ... errno=%d\n", len, errno);
+        return errno;
+    }
+
+    fprintf(stderr, "sock_send: len=%d ... Done\n", len);
+    return 0;
+}
+
+int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sockaddr * src_addr, socklen_t *src_addr_len)
+{
+    if ((*msg_len = recvfrom(state->sockfd, buf, len, 0, src_addr, src_addr_len)) == -1)
         return errno;
 
     return 0;
@@ -375,6 +413,7 @@ int read_command(char* buf)
     {
         len = len << 8 | buf[i];
     }
+    fprintf(stderr, "read_command: len=%d\n", len);
     return read_exact(buf, len);
 }
 
