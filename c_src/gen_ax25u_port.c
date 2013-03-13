@@ -1,14 +1,23 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <ei.h>
 #include <erl_interface.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netax25/axlib.h>
+#include <netax25/ax25.h>
+#include <netax25/axconfig.h>
+
 
 #define PACKET_N           2
 #define BINARY_VERSION     131
 #define BUF_SIZE           1024
 
+#define ERR_BAD_ARGS       100
 #define ERR_READ_CMD       101
 #define ERR_UNKNOWN_CMD    102
 #define ERR_MESSAGE_HDR    103
@@ -16,25 +25,42 @@
 #define ERR_REC_NO_TUPHDR  112
 #define ERR_REC_NOT_ATOM   113
 #define ERR_REC_ATOM       114
-#define ERR_CMD_INFO_PID   200
-#define ERR_CMD_SEND_MSG   201
-#define ERR_RECV_THREAD    300
+#define ERR_CMD_INFO_PID   120
+#define ERR_CMD_SEND_MSG   121
+#define ERR_RECV_THREAD    130
+#define ERR_AX_LOAD        140
+#define ERR_AX_ADDR_LOCAL  141
+#define ERR_AX_ATON_LOCAL  142
+#define ERR_AX_ATON_REMOTE 143
 
 struct state
 {
     pthread_t thread;
     pthread_mutex_t stop_mutex;
     int stop_indicator;
+
+    int sockfd;
+    char* local_call;
+    char* remote_call;
+    struct full_sockaddr_ax25 local_addr;
+    struct full_sockaddr_ax25 remote_addr;
+    unsigned local_addr_len;
+    unsigned remote_addr_len;
 };
 
 int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_info(char *buf, int len, int *ptr);
-int handle_cmd_send(char *buf, int len, int *ptr);
+int handle_cmd_send(char *buf, int len, int *ptr, struct state *state);
 void* handle_sock_recv(void* ptr);
 
 int recv_thread_init(struct state* state);
 int recv_thread_join(struct state* state);
 int recv_thread_stopping(struct state* state);
+
+int sock_config(struct state* state, char *local_port, char *remote_call);
+int sock_open(struct state* state);
+int sock_close(struct state* state);
+int sock_send(struct state* state, char *buf, int len);
 
 int decode_record(char *buf, int len, int *ptr, char* name, int* arity);
 int decode_message_hdr(char* buf, int len, int* ptr);
@@ -54,10 +80,23 @@ int main(int argn, char** argv)
     char recName[BUF_SIZE];
     int recArity = 0;
     struct state state;
+    char *local_port;
+    char *remote_call;
+
+    if (argn != 3)
+        return ERR_BAD_ARGS;
+    local_port = argv[1];
+    remote_call = argv[2];
     
     erl_init(0, 0);
 
     if ((rc = recv_thread_init(&state)) != 0)
+        return rc;
+
+    if ((rc = sock_config(&state, local_port, remote_call)) != 0)
+        return rc;
+
+    if ((rc = sock_open(&state)) != 0)
         return rc;
 
     while (1)
@@ -85,7 +124,7 @@ int main(int argn, char** argv)
         }
         else if (strcmp("send", recName) == 0 && recArity == 2)
         {
-            if ((rc = handle_cmd_send(buf, len, &ptr)) != 0)
+            if ((rc = handle_cmd_send(buf, len, &ptr, &state)) != 0)
                 return rc;
         }
         else
@@ -104,7 +143,7 @@ int main(int argn, char** argv)
 int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state)
 {
     recv_thread_join(state);
-    /* TODO: close socket */
+    sock_close(state);
     return 0;
 }
 
@@ -131,17 +170,22 @@ int handle_cmd_info(char *buf, int len, int *ptr)
 /**
  *  Handles SEND command.
  */
-int handle_cmd_send(char *buf, int len, int *ptr)
+int handle_cmd_send(char *buf, int len, int *ptr, struct state *state)
 {
     char message[BUF_SIZE];
     long msg_len = 0;
+    int rc;
+
     if (ei_decode_binary(buf, ptr, message, &msg_len) == -1)
         return ERR_CMD_SEND_MSG;
 
-    /* TODO: Do send here */
+    if ((rc = sock_send(state, message, msg_len)) != 0)
+        return rc;
 
     return 0;
 }
+
+/* ************************************************************************** */
 
 /**
  *  Handle Socket RECV.
@@ -206,6 +250,64 @@ int recv_thread_stopping(struct state* state)
     return stopping;
 }
 
+
+/* ************************************************************************** */
+
+/*
+ *  AX.25 Socket functions.
+ *  http://www.spinics.net/lists/linux-hams/msg02958.html
+ *  apt-get install libax25-dev 
+ */
+
+int sock_config(struct state* state, char *local_port, char *remote_call)
+{
+    if (ax25_config_load_ports() == 0)
+        return ERR_AX_LOAD;
+
+    if ((state->local_call = ax25_config_get_addr(local_port)) == NULL)
+        return ERR_AX_ADDR_LOCAL;
+
+    if ((state->local_addr_len = ax25_aton(state->local_call, &state->local_addr)) == -1)
+        return ERR_AX_ATON_LOCAL;
+
+    if ((state->remote_addr_len = ax25_aton(state->remote_call, &state->remote_addr)) == -1)
+        return ERR_AX_ATON_REMOTE;
+
+    return 0;
+}
+
+int sock_open(struct state* state)
+{
+    int protocol = 0;
+    struct timeval timeout;
+
+    if ((state->sockfd = socket(AF_AX25, SOCK_DGRAM, protocol)) == -1)
+        return errno;
+
+    if (bind(state->sockfd, (struct sockaddr *) &state->local_addr, state->local_addr_len) == -1)
+        return errno;
+
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
+    if (setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0)
+        return errno;
+
+    return 0;
+}
+
+int sock_close(struct state* state)
+{
+    /* TODO: Close. */
+    return 0;
+}
+
+int sock_send(struct state* state, char *buf, int len)
+{
+    if (sendto(state->sockfd, buf, len, 0, (struct sockaddr *) &state->remote_addr, state->remote_addr_len) == -1)
+        return errno;
+
+    return 0;
+}
 
 /* ************************************************************************** */
 
