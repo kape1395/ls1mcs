@@ -63,10 +63,10 @@ init({LocalPort, RemoteCall}) ->
 %%  Synchronous calls.
 %%
 handle_call({info}, _From, State = #state{port = Port}) ->
-    send_port_info(Port),
+    ok = send_port_msg(Port, {info, self()}),
     receive
-        {Port, {data, {info, LocalCall, RemoteCall}}} ->
-            {reply, {ok, {LocalCall, RemoteCall}}, State}
+        {Port, {data, Binary}} ->
+            {reply, {ok, erlang:binary_to_term(Binary)}, State}
     after 10000 ->
             {stop, no_response_from_port, State}
     end.
@@ -75,15 +75,19 @@ handle_call({info}, _From, State = #state{port = Port}) ->
 %%
 %%  Asynchronous calls.
 %%
+handle_cast({send, BinMsg}, State = #state{port = Port}) ->
+    send_port_msg(Port, {send, BinMgs}),
+    {noreply, State};
+
 handle_cast({stop}, State = #state{port = Port}) ->
-    send_port_stop(Port),
+    ok = send_port_msg(Port, {stop}),
     {noreply, State}.
 
 
 %%
 %%  Messages from the port.
 %%
-handle_info({Port, {data, Data}}, State = #state{port = Port}) ->
+handle_info({Port, {data, Binary}}, State = #state{port = Port}) ->
     error_logger:info_msg("Data from the port received: ~p~n", [Data]),
     {noreply, State};
 
@@ -117,14 +121,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%  Internal Functions.
 %% =============================================================================
 
-send_port_stop(Port) ->
-    erlang:port_command(Port, erlang:term_to_binary(
-        {stop},
+send_port_msg(Port, Message) ->
+    true = erlang:port_command(Port, erlang:term_to_binary(
+        Message,
         [{minor_version, 1}]
-    )).
-
-send_port_info(Port) ->
-    erlang:port_command(Port, erlang:term_to_binary(
-        {info, self()},
-        [{minor_version, 1}]
-    )).
+    )),
+    ok.
