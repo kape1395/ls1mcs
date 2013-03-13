@@ -1,6 +1,6 @@
 -module(gen_ax25u).
 -behaviour(gen_server).
--export([start/3, start_link/3, stop/1, info/1, send/2, recv/1]).
+-export([start/4, start_link/4, stop/1, info/1, send/2, recv/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 
@@ -9,11 +9,11 @@
 %%  Public API
 %% =============================================================================
 
-start(Name, LocalPort, RemoteCall) ->
-    gen_server:start(Name, ?MODULE, {LocalPort, RemoteCall}, []).
+start(Name, LocalPort, RemoteCall, Options) ->
+    gen_server:start(Name, ?MODULE, {LocalPort, RemoteCall, Options}, []).
 
-start_link(Name, LocalPort, RemoteCall) ->
-    gen_server:start_link(Name, ?MODULE, {LocalPort, RemoteCall}, []).
+start_link(Name, LocalPort, RemoteCall, Options) ->
+    gen_server:start_link(Name, ?MODULE, {LocalPort, RemoteCall, Options}, []).
 
 stop(Name) ->
     gen_server:cast(Name, {stop}).
@@ -47,15 +47,18 @@ recv(Name) ->
 %%
 %%  Gen server initialization. Creates the corresponding port.
 %%
-init({LocalPort, RemoteCall}) ->
+init({LocalPort, RemoteCall, Options}) ->
     process_flag(trap_exit, true),
-    Port = erlang:open_port({spawn_executable, "priv/gen_ax25u_port"}, [
-        {packet, 2},
-        {args, [LocalPort, RemoteCall]},
-        exit_status,
-        use_stdio,
-        binary
-    ]),
+    PortExec = "priv/gen_ax25u_port",
+    case proplists:get_value(port_proxy, Options) of
+        undefined ->
+            PortName = {spawn_executable, PortExec},
+            PortArgs = {args, [LocalPort, RemoteCall]};
+        PortProxy ->
+            PortName = {spawn_executable, PortProxy},
+            PortArgs = {args, [PortExec, LocalPort, RemoteCall]}
+    end,
+    Port = erlang:open_port(PortName, [PortArgs, {packet, 2}, exit_status, use_stdio, binary]),
     {ok, #state{port = Port}}.
 
 
@@ -76,7 +79,7 @@ handle_call({info}, _From, State = #state{port = Port}) ->
 %%  Asynchronous calls.
 %%
 handle_cast({send, BinMsg}, State = #state{port = Port}) ->
-    send_port_msg(Port, {send, BinMgs}),
+    send_port_msg(Port, {send, BinMsg}),
     {noreply, State};
 
 handle_cast({stop}, State = #state{port = Port}) ->
@@ -88,6 +91,7 @@ handle_cast({stop}, State = #state{port = Port}) ->
 %%  Messages from the port.
 %%
 handle_info({Port, {data, Binary}}, State = #state{port = Port}) ->
+    Data = erlang:binary_to_term(Binary),
     error_logger:info_msg("Data from the port received: ~p~n", [Data]),
     {noreply, State};
 

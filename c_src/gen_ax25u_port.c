@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ei.h>
 #include <erl_interface.h>
+#include <pthread.h>
 
 #define PACKET_N           2
 #define BINARY_VERSION     131
@@ -17,9 +18,23 @@
 #define ERR_REC_ATOM       114
 #define ERR_CMD_INFO_PID   200
 #define ERR_CMD_SEND_MSG   201
+#define ERR_RECV_THREAD    300
 
+struct state
+{
+    pthread_t thread;
+    pthread_mutex_t stop_mutex;
+    int stop_indicator;
+};
+
+int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_info(char *buf, int len, int *ptr);
 int handle_cmd_send(char *buf, int len, int *ptr);
+void* handle_sock_recv(void* ptr);
+
+int recv_thread_init(struct state* state);
+int recv_thread_join(struct state* state);
+int recv_thread_stopping(struct state* state);
 
 int decode_record(char *buf, int len, int *ptr, char* name, int* arity);
 int decode_message_hdr(char* buf, int len, int* ptr);
@@ -38,8 +53,12 @@ int main(int argn, char** argv)
     int ptr;
     char recName[BUF_SIZE];
     int recArity = 0;
+    struct state state;
     
     erl_init(0, 0);
+
+    if ((rc = recv_thread_init(&state)) != 0)
+        return rc;
 
     while (1)
     {
@@ -55,7 +74,7 @@ int main(int argn, char** argv)
 
         if (strcmp("stop", recName) == 0 && recArity == 1)
         {
-            if ((rc = handle_cmd_stop(buf, len, &ptr)) != 0)
+            if ((rc = handle_cmd_stop(buf, len, &ptr, &state)) != 0)
                 return rc;
             return EXIT_SUCCESS;
         }
@@ -82,9 +101,11 @@ int main(int argn, char** argv)
 /**
  *  Handles STOP command.
  */
-int handle_cmd_info(char *buf, int len, int *ptr)
+int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state)
 {
-    /* TODO: Stop thread, join, close socket */
+    recv_thread_join(state);
+    /* TODO: close socket */
+    return 0;
 }
 
 /**
@@ -114,10 +135,75 @@ int handle_cmd_send(char *buf, int len, int *ptr)
 {
     char message[BUF_SIZE];
     long msg_len = 0;
-    if (ei_decode_binary(buf, ptr, message, msg_len) == -1)
+    if (ei_decode_binary(buf, ptr, message, &msg_len) == -1)
         return ERR_CMD_SEND_MSG;
 
+    /* TODO: Do send here */
+
     return 0;
+}
+
+/**
+ *  Handle Socket RECV.
+ */
+void* handle_sock_recv(void* ptr)
+{
+    struct state *state = (struct state*) ptr;
+    char recv_buf[BUF_SIZE];
+    int  recv_len;
+    char term_buf[BUF_SIZE];
+    int  term_ptr;
+    int  term_len;
+    while (1)
+    {
+        /* TODO: Socket RECV here */
+        recv_buf[0] = 'j';
+        recv_buf[1] = 'o';
+        recv_len = 2;
+
+        term_ptr = 0;
+        ei_encode_version(term_buf, &term_ptr);
+        ei_encode_tuple_header(term_buf, &term_ptr, 2);
+        ei_encode_atom(term_buf, &term_ptr, "recv");
+        ei_encode_binary(term_buf, &term_ptr, recv_buf, recv_len);
+        term_len = term_ptr;
+        write_command(term_buf, term_len);
+
+        sleep(1);
+        if (recv_thread_stopping(state))
+          break;
+    }
+    return NULL;
+}
+
+
+int recv_thread_init(struct state* state)
+{
+    pthread_mutex_init(&state->stop_mutex, NULL);
+    state->stop_indicator = 0;
+
+    if (pthread_create(&state->thread, NULL, handle_sock_recv, state) != 0)
+        return ERR_RECV_THREAD;
+
+    return 0;
+}
+
+int recv_thread_join(struct state* state)
+{
+    pthread_mutex_lock(&state->stop_mutex);
+    state->stop_indicator = 1;
+    pthread_mutex_unlock(&state->stop_mutex);
+    pthread_join(state->thread, NULL);
+    return 0;
+}
+
+int recv_thread_stopping(struct state* state)
+{
+    int stopping;
+    pthread_mutex_lock(&state->stop_mutex);
+    stopping = state->stop_indicator;
+    pthread_mutex_unlock(&state->stop_mutex);
+    return stopping;
 }
 
 
