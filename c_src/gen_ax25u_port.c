@@ -63,7 +63,7 @@ int sock_close(struct state* state);
 int sock_send(struct state* state, char *buf, int len);
 int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sockaddr * src_addr, socklen_t *src_addr_len);
 
-int decode_record(char *buf, int len, int *ptr, char* name, int* arity);
+int decode_record_hdr(char *buf, int len, int *ptr, char* name, int* arity);
 int decode_message_hdr(char* buf, int len, int* ptr);
 
 int read_command(char* buf);
@@ -88,7 +88,7 @@ int main(int argn, char** argv)
         return ERR_BAD_ARGS;
     local_port = argv[1];
     remote_call = argv[2];
-    
+
     erl_init(0, 0);
 
     if ((rc = sock_config(&state, local_port, remote_call)) != 0)
@@ -109,7 +109,7 @@ int main(int argn, char** argv)
         if ((rc = decode_message_hdr(buf, len, &ptr)) != 0)
             return rc;
 
-        if ((rc = decode_record(buf, len, &ptr, recName, &recArity)) != 0)
+        if ((rc = decode_record_hdr(buf, len, &ptr, recName, &recArity)) != 0)
             return rc;
 
         if (strcmp("stop", recName) == 0 && recArity == 1)
@@ -354,7 +354,7 @@ int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sock
  *  ptr will point to the second element of the record and
  *  name and arity will be filled with record name and arity.
  */
-int decode_record(char *buf, int len, int *ptr, char* name, int* arity)
+int decode_record_hdr(char *buf, int len, int *ptr, char* name, int* arity)
 {
     int eirc;
     int termType = 0;

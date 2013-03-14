@@ -27,3 +27,9 @@ One can use the following calls for testing:
   * LY2EN - Simonas
   * LY1BVB - VU HAM Club
 
+libax25
+=======
+
+See `using socket udp pthread`
+[broadcast](http://stackoverflow.com/questions/6374122/network-udp-broadcast-design)
+[sock and pthreads](http://www.cs.allegheny.edu/sites/cs440S2007/12)
