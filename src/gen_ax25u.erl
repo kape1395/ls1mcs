@@ -49,14 +49,15 @@ recv(Name) ->
 %%
 init({LocalPort, RemoteCall, Options}) ->
     process_flag(trap_exit, true),
-    PortExec = "priv/gen_ax25u_port",
+    Exec = "priv/gen_ax25u_port",
+    Args = ["send", LocalPort, RemoteCall],
     case proplists:get_value(port_proxy, Options) of
         undefined ->
-            PortName = {spawn_executable, PortExec},
-            PortArgs = {args, [LocalPort, RemoteCall]};
-        PortProxy ->
-            PortName = {spawn_executable, PortProxy},
-            PortArgs = {args, [PortExec, LocalPort, RemoteCall]}
+            PortName = {spawn_executable, Exec},
+            PortArgs = {args, Args};
+        Proxy ->
+            PortName = {spawn_executable, Proxy},
+            PortArgs = {args, [Exec | Args]}
     end,
     Port = erlang:open_port(PortName, [PortArgs, {packet, 2}, exit_status, use_stdio, binary]),
     {ok, #state{port = Port}}.

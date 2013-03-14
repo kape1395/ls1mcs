@@ -13,25 +13,28 @@
 #include <netax25/axconfig.h>
 
 
-#define PACKET_N           2
-#define BINARY_VERSION     131
-#define BUF_SIZE           1024
+#define PACKET_N            2
+#define BINARY_VERSION      131
+#define BUF_SIZE            1024
+#define SOCK_MODE_SEND      "send"
+#define SOCK_MODE_RECV      "recv"
 
-#define ERR_BAD_ARGS       100
-#define ERR_READ_CMD       101
-#define ERR_UNKNOWN_CMD    102
-#define ERR_MESSAGE_HDR    103
-#define ERR_REC_NOT_TUPLE  111
-#define ERR_REC_NO_TUPHDR  112
-#define ERR_REC_NOT_ATOM   113
-#define ERR_REC_ATOM       114
-#define ERR_CMD_INFO_PID   120
-#define ERR_CMD_SEND_MSG   121
-#define ERR_RECV_THREAD    130
-#define ERR_AX_LOAD        140
-#define ERR_AX_ADDR_LOCAL  141
-#define ERR_AX_ATON_LOCAL  142
-#define ERR_AX_ATON_REMOTE 143
+#define ERR_BAD_ARGS        100
+#define ERR_READ_CMD        101
+#define ERR_UNKNOWN_CMD     102
+#define ERR_MESSAGE_HDR     103
+#define ERR_REC_NOT_TUPLE   111
+#define ERR_REC_NO_TUPHDR   112
+#define ERR_REC_NOT_ATOM    113
+#define ERR_REC_ATOM        114
+#define ERR_CMD_INFO_PID    120
+#define ERR_CMD_SEND_MSG    121
+#define ERR_CMD_UNSUPPORTED 122
+#define ERR_RECV_THREAD     130
+#define ERR_AX_LOAD         140
+#define ERR_AX_ADDR_LOCAL   141
+#define ERR_AX_ATON_LOCAL   142
+#define ERR_AX_ATON_REMOTE  143
 
 struct state
 {
@@ -81,13 +84,15 @@ int main(int argn, char** argv)
     char recName[BUF_SIZE];
     int recArity = 0;
     struct state state;
+    char *sock_mode;
     char *local_port;
     char *remote_call;
 
-    if (argn != 3)
+    if (argn != 4)
         return ERR_BAD_ARGS;
-    local_port = argv[1];
-    remote_call = argv[2];
+    sock_mode = argv[1];
+    local_port = argv[2];
+    remote_call = argv[3];
 
     erl_init(0, 0);
 
@@ -97,8 +102,11 @@ int main(int argn, char** argv)
     if ((rc = sock_open(&state)) != 0)
         return rc;
 
-    if ((rc = recv_thread_init(&state)) != 0)
-        return rc;
+    if (strcmp(sock_mode, SOCK_MODE_RECV) == 0)
+    {
+        if ((rc = recv_thread_init(&state)) != 0)
+            return rc;
+    }
 
     while (1)
     {
@@ -125,8 +133,15 @@ int main(int argn, char** argv)
         }
         else if (strcmp("send", recName) == 0 && recArity == 2)
         {
-            if ((rc = handle_cmd_send(buf, len, &ptr, &state)) != 0)
-                return rc;
+            if (strcmp(sock_mode, SOCK_MODE_SEND) == 0)
+            {
+                if ((rc = handle_cmd_send(buf, len, &ptr, &state)) != 0)
+                    return rc;
+            }
+            else
+            {
+                return ERR_CMD_UNSUPPORTED;
+            }
         }
         else
         {
