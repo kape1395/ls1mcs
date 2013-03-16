@@ -7,7 +7,7 @@ deps:
 	$(REBAR) get-deps
 
 compile:
-	env LDFLAGS=-lutil $(REBAR) compile
+	env LDFLAGS=-lutil CFLAGS="-include /usr/include/string.h" $(REBAR) compile
 
 check: test itest
 

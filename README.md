@@ -80,12 +80,18 @@ For the first attempt, the `uart` application was choosen.
     env ERL_LIBS=deps erl
         application:start(uart).
         {ok, U} = uart:open("/dev/ttyS0", []).
+        % {ok, U} = uart:open("/dev/tnt2", []). % Session one.
+        % {ok, U} = uart:open("/dev/tnt3", []). % Session two.
         uart:send(U, "asd").
         uart:recv(U, 1, 1000).
+
+
+    sudo chmod o+rw /dev/tnt2 /dev/tnt3
+
+
 
 Known problems:
 
   * Some bug in the `uart` application. Driver is not linked with `libutil` by default.
     As a workaround, one should compile this application as follows:
   * A lot of warnings due to missing `#include <string.h>`
-
