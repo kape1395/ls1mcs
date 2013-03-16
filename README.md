@@ -75,9 +75,6 @@ For the first attempt, the `uart` application was choosen.
 `uart`
 ------
 
-Some bug in the `uart` application. Driver is not linked with `libutil` by default.
-As a workaround, one should compile this application as follows:
-
     env LDFLAGS=-lutil rebar compile
 
     env ERL_LIBS=deps erl
@@ -85,3 +82,10 @@ As a workaround, one should compile this application as follows:
         {ok, U} = uart:open("/dev/ttyS0", []).
         uart:send(U, "asd").
         uart:recv(U, 1, 1000).
+
+Known problems:
+
+  * Some bug in the `uart` application. Driver is not linked with `libutil` by default.
+    As a workaround, one should compile this application as follows:
+  * A lot of warnings due to missing `#include <string.h>`
+

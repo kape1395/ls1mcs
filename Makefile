@@ -1,4 +1,4 @@
-REBAR=/opt/rebar/bin/rebar
+REBAR=rebar
 APP=gen_ax25u
 
 all: compile
