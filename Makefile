@@ -1,5 +1,5 @@
 REBAR=rebar
-APP=gen_ax25u
+APP=ls1mcs
 
 all: compile
 
@@ -7,7 +7,7 @@ deps:
 	$(REBAR) get-deps
 
 compile:
-	env LDFLAGS=-lutil CFLAGS="-include /usr/include/string.h" $(REBAR) compile
+	env LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations" $(REBAR) compile
 
 check: test itest
 

@@ -1,5 +1,5 @@
-{application, gen_ax25u, [
-    {description, "Erlang port for accessing AX.25 interface."},
+{application, ls1mcs, [
+    {description, "LituanicaSat-1 MCS"},
     {vsn, git},
     {registered, []},
     {applications, [
