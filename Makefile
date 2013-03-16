@@ -7,7 +7,7 @@ deps:
 	$(REBAR) get-deps
 
 compile:
-	$(REBAR) compile
+	env LDFLAGS=-lutil $(REBAR) compile
 
 check: test itest
 
