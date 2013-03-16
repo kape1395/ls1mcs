@@ -16,13 +16,15 @@
 #define PACKET_N            2
 #define BINARY_VERSION      131
 #define BUF_SIZE            1024
-#define SOCK_MODE_SEND      "send"
-#define SOCK_MODE_RECV      "recv"
+#define SOCK_MODE_SEND      1
+#define SOCK_MODE_RECV      2
 
+#define ERR_OK              0
 #define ERR_BAD_ARGS        100
 #define ERR_READ_CMD        101
 #define ERR_UNKNOWN_CMD     102
 #define ERR_MESSAGE_HDR     103
+#define ERR_MODE_UNKNOWN    104
 #define ERR_REC_NOT_TUPLE   111
 #define ERR_REC_NO_TUPHDR   112
 #define ERR_REC_NOT_ATOM    113
@@ -38,11 +40,14 @@
 
 struct state
 {
-    pthread_t thread;
+    int             sock_mode;
+
+    pthread_t       thread;
     pthread_mutex_t stop_mutex;
-    int stop_indicator;
+    int             stop_indicator;
 
     int sockfd;
+    char* local_port;
     char* local_call;
     char* remote_call;
     struct full_sockaddr_ax25 local_addr;
@@ -51,6 +56,10 @@ struct state
     unsigned remote_addr_len;
 };
 
+void checkerr(int err);
+int parse_args(int argn, char **argv, char **local_port, char **remote_call, int *sock_mode);
+
+int handle_cmd_start(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_info(char *buf, int len, int *ptr, struct state *state);
 int handle_cmd_send(char *buf, int len, int *ptr, struct state *state);
@@ -77,36 +86,23 @@ int write_command(char *buf, int len);
  */
 int main(int argn, char** argv)
 {
-    int rc;
     char buf[BUF_SIZE];
     int len;
     int ptr;
     char recName[BUF_SIZE];
     int recArity = 0;
     struct state state;
-    char *sock_mode;
-    char *local_port;
-    char *remote_call;
 
-    if (argn != 4)
-        return ERR_BAD_ARGS;
-    sock_mode = argv[1];
-    local_port = argv[2];
-    remote_call = argv[3];
+    checkerr(parse_args(argn, argv, &state.local_port, &state.remote_call, &state.sock_mode));
 
     erl_init(0, 0);
 
-    if ((rc = sock_config(&state, local_port, remote_call)) != 0)
-        return rc;
-
-    if ((rc = sock_open(&state)) != 0)
-        return rc;
-
-    if (strcmp(sock_mode, SOCK_MODE_RECV) == 0)
-    {
-        if ((rc = recv_thread_init(&state)) != 0)
-            return rc;
-    }
+    /**
+     *  Assuming start is implicit.
+     */
+    len = 0;
+    ptr = 0;
+    checkerr(handle_cmd_start(buf, len, &ptr, &state));
 
     while (1)
     {
@@ -114,34 +110,21 @@ int main(int argn, char** argv)
             return ERR_READ_CMD;
 
         ptr = 0;
-        if ((rc = decode_message_hdr(buf, len, &ptr)) != 0)
-            return rc;
-
-        if ((rc = decode_record_hdr(buf, len, &ptr, recName, &recArity)) != 0)
-            return rc;
+        checkerr(decode_message_hdr(buf, len, &ptr));
+        checkerr(decode_record_hdr(buf, len, &ptr, recName, &recArity));
 
         if (strcmp("stop", recName) == 0 && recArity == 1)
         {
-            if ((rc = handle_cmd_stop(buf, len, &ptr, &state)) != 0)
-                return rc;
+            checkerr(handle_cmd_stop(buf, len, &ptr, &state));
             return EXIT_SUCCESS;
         }
         else if (strcmp("info", recName) == 0 && recArity == 2)
         {
-            if ((rc = handle_cmd_info(buf, len, &ptr, &state)) != 0)
-                return rc;
+            checkerr(handle_cmd_info(buf, len, &ptr, &state));
         }
         else if (strcmp("send", recName) == 0 && recArity == 2)
         {
-            if (strcmp(sock_mode, SOCK_MODE_SEND) == 0)
-            {
-                if ((rc = handle_cmd_send(buf, len, &ptr, &state)) != 0)
-                    return rc;
-            }
-            else
-            {
-                return ERR_CMD_UNSUPPORTED;
-            }
+            checkerr(handle_cmd_send(buf, len, &ptr, &state));
         }
         else
         {
@@ -150,8 +133,64 @@ int main(int argn, char** argv)
     }
 }
 
+/* ************************************************************************** */
+/**
+ *  Error handling.
+ */
+void checkerr(int err)
+{
+    exit(err);
+}
+
 
 /* ************************************************************************** */
+/**
+ *  Handles command line arguments.
+ */
+int parse_args(int argn, char **argv, char **local_port, char **remote_call, int *sock_mode)
+{
+    char *sm;
+
+    if (argn != 4)
+        return ERR_BAD_ARGS;
+
+    sm = argv[1];
+    *local_port = argv[2];
+    *remote_call = argv[3];
+
+    if (strcmp(sm, "send") == 0)
+    {
+        *sock_mode = SOCK_MODE_SEND;
+    }
+    else if (strcmp(sm, "recv") == 0)
+    {
+        *sock_mode = SOCK_MODE_RECV;
+    }
+    else
+    {
+        return ERR_MODE_UNKNOWN;
+    }
+    return ERR_OK;
+}
+
+
+/* ************************************************************************** */
+
+/**
+ *  Handles START command.
+ */
+int handle_cmd_start(char *buf, int len, int *ptr, struct state *state)
+{
+    checkerr(sock_config(state, state->local_port, state->remote_call));
+    checkerr(sock_open(state));
+
+    if (state->sock_mode & SOCK_MODE_RECV)
+    {
+        checkerr(recv_thread_init(state));
+    }
+
+    return ERR_OK;
+}
 
 /**
  *  Handles STOP command.
@@ -160,13 +199,16 @@ int handle_cmd_stop(char *buf, int len, int *ptr, struct state *state)
 {
     fprintf(stderr, "handle_cmd_stop... \n");
 
-    recv_thread_join(state);
-    fprintf(stderr, "handle_cmd_stop... Joined\n");
+    if (state->sock_mode & SOCK_MODE_RECV)
+    {
+        recv_thread_join(state);
+        fprintf(stderr, "handle_cmd_stop... Joined\n");
+    }
 
     sock_close(state);
     fprintf(stderr, "handle_cmd_stop... Socket closed, done\n");
 
-    return 0;
+    return ERR_OK;
 }
 
 /**
@@ -188,7 +230,7 @@ int handle_cmd_info(char *buf, int len, int *ptr, struct state *state)
     ei_encode_string(buf, ptr, state->remote_call);
     len = *ptr;
     write_command(buf, len);
-    return 0;
+    return ERR_OK;
 }
 
 /**
@@ -200,6 +242,9 @@ int handle_cmd_send(char *buf, int len, int *ptr, struct state *state)
     long msg_len = 0;
     int rc;
 
+    if ((state->sock_mode & SOCK_MODE_SEND) == 0)
+        return ERR_CMD_UNSUPPORTED;
+
     if (ei_decode_binary(buf, ptr, message, &msg_len) == -1)
         return ERR_CMD_SEND_MSG;
 
@@ -208,7 +253,7 @@ int handle_cmd_send(char *buf, int len, int *ptr, struct state *state)
     if ((rc = sock_send(state, message, msg_len)) != 0)
         return rc;
 
-    return 0;
+    return ERR_OK;
 }
 
 /* ************************************************************************** */
@@ -263,7 +308,7 @@ int recv_thread_init(struct state* state)
     if (pthread_create(&state->thread, NULL, handle_sock_recv, state) != 0)
         return ERR_RECV_THREAD;
 
-    return 0;
+    return ERR_OK;
 }
 
 int recv_thread_join(struct state* state)
@@ -272,7 +317,7 @@ int recv_thread_join(struct state* state)
     state->stop_indicator = 1;
     pthread_mutex_unlock(&state->stop_mutex);
     pthread_join(state->thread, NULL);
-    return 0;
+    return ERR_OK;
 }
 
 int recv_thread_stopping(struct state* state)
@@ -312,7 +357,7 @@ int sock_config(struct state* state, char *local_port, char *remote_call)
     if ((state->remote_addr_len = ax25_aton(state->remote_call, &state->remote_addr)) == -1)
         return ERR_AX_ATON_REMOTE;
 
-    return 0;
+    return ERR_OK;
 }
 
 int sock_open(struct state* state)
@@ -331,13 +376,13 @@ int sock_open(struct state* state)
     if (setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0)
         return errno;
 
-    return 0;
+    return ERR_OK;
 }
 
 int sock_close(struct state* state)
 {
     /* TODO: Close. */
-    return 0;
+    return ERR_OK;
 }
 
 int sock_send(struct state* state, char *buf, int len)
@@ -351,7 +396,7 @@ int sock_send(struct state* state, char *buf, int len)
     }
 
     fprintf(stderr, "sock_send: len=%d ... Done\n", len);
-    return 0;
+    return ERR_OK;
 }
 
 int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sockaddr * src_addr, socklen_t *src_addr_len)
@@ -359,7 +404,7 @@ int sock_recv(struct state* state, char *buf, int len, int *msg_len, struct sock
     if ((*msg_len = recvfrom(state->sockfd, buf, len, 0, src_addr, src_addr_len)) == -1)
         return errno;
 
-    return 0;
+    return ERR_OK;
 }
 
 /* ************************************************************************** */
@@ -391,7 +436,7 @@ int decode_record_hdr(char *buf, int len, int *ptr, char* name, int* arity)
     if (eirc != 0)
         return ERR_REC_ATOM;
 
-    return 0;
+    return ERR_OK;
 }
 
 /**
@@ -406,7 +451,7 @@ int decode_message_hdr(char* buf, int len, int* ptr)
     if (eirc == -1 || binVersion != BINARY_VERSION)
         return ERR_MESSAGE_HDR;
 
-    return 0;
+    return ERR_OK;
 }
 
 /* ************************************************************************** */
