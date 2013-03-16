@@ -3,6 +3,9 @@
 -export([start/4, start_link/4, stop/1, info/1, send/2, recv/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
+-define(AX25_PORT_EXEC, "priv/ax25_port").
+-define(AX25_MODE_SEND, "send").
+-define(AX25_MODE_RECV, "recv").
 
 
 %% =============================================================================
@@ -49,8 +52,8 @@ recv(Name) ->
 %%
 init({LocalPort, RemoteCall, Options}) ->
     process_flag(trap_exit, true),
-    Exec = "priv/gen_ax25u_port",
-    Args = ["send", LocalPort, RemoteCall],
+    Exec = ?AX25_PORT_EXEC,
+    Args = [?AX25_MODE_SEND, LocalPort, RemoteCall],
     case proplists:get_value(port_proxy, Options) of
         undefined ->
             PortName = {spawn_executable, Exec},
