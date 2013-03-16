@@ -10,6 +10,10 @@ Example:
         gen_ax25u:info(none).
         gen_ax25u:stop(none).
         gen_ax25u:send(none, <<"labas">>).
+        gen_ax25u:send(none, <<0, 0, 0, 123, 2, 3, 1>>).
+
+    ./priv/gen_ax25u_port recv 3 LY2EN
+    ./priv/gen_ax25u_port recv 4 LY1BWB
 
 Using valgrind:
 
