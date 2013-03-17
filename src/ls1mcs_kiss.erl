@@ -2,7 +2,7 @@
 %%  Implementation of the KISS protocol.
 %%  See http://www.ax25.net/kiss.aspx for more details.
 %%
--module(gs1mcs_kiss).
+-module(ls1mcs_kiss).
 -behaviour(gen_fsm).
 -export([start_link/2, encode/1, decode/2]). % Public API
 -export([idle/2, frame_start/2, frame_data/2, frame_esc/2]). %% FSM States
@@ -29,13 +29,16 @@ start_link(Name, Receiver) ->
     gen_fsm:start_link(Name, ?MODULE, {Receiver}, []).
 
 
-encode(Data) ->
+encode(Data) when is_binary(Data) ->
+    list_to_binary(encode(binary_to_list(Data)));
+
+encode(Data) when is_list(Data) ->
     EncodedData = [?FEND, ?FT_DATA, lists:map(fun escape_byte/1, Data), ?FEND],
-    {ok, lists:flatten(EncodedData)}.
+    lists:flatten(EncodedData).
 
 
 decode(Ref, Byte) ->
-    gen_server:send_event(Ref, {decode, Byte}).
+    gen_fsm:send_event(Ref, {decode, Byte}).
 
 
 
@@ -81,11 +84,11 @@ frame_data({decode, ?FESC}, StateData) ->
     {next_state, frame_esc, StateData};
 
 frame_data({decode, ?FEND}, StateData = #state{receiver = Receiver, data = Data}) ->
-    ok = Receiver(lists:reverse(Data)),
+    ok = ls1mcs_protocol:received(Receiver, (lists:reverse(Data))),
     {next_state, idle, StateData};
 
 frame_data({decode, Byte}, StateData = #state{data = Data}) when is_integer(Byte) ->
-    NewStateData = StateData#state{data = [?FESC | Data]},
+    NewStateData = StateData#state{data = [Byte | Data]},
     {next_state, frame_data, NewStateData}.
 
 
@@ -100,8 +103,9 @@ frame_esc({decode, ?TFEND}, StateData = #state{data = Data}) ->
     NewStateData = StateData#state{data = [?FEND | Data]},
     {next_state, frame_data, NewStateData};
 
-frame_esc({decode, Byte}, StateData) when is_integer(Byte) ->
-    {next_state, frame_data, StateData}.
+frame_esc({decode, Byte}, StateData = #state{data = Data}) when is_integer(Byte) ->
+    NewStateData = StateData#state{data = [Byte | Data]},
+    {next_state, frame_data, NewStateData}.
 
 
 %%

@@ -1,1 +1,0 @@
--module(gs1mcs_ax25).
