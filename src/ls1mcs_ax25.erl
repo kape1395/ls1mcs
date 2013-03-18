@@ -6,17 +6,32 @@
 %%  Only UI frames are supported.
 %%
 -module(ls1mcs_ax25).
--export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/3]).
+-behaviour(gen_fsm).
+-behaviour(ls1mcs_protocol).
+-export([send/2, received/2]).
+-export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1]). % For tests
+-include("ls1mcs.hrl").
 
 -define(AX25_FLAG, 2#01111110). %% Denotes start and end of an AX.25 frame.
 -define(AX25_PID_NOL3, 16#F0).  %% No Layer 3 Protocol
+-define(ADDR_RR_UNUSED, 2#11).  %% Address, RR bits, when unused.
+-define(CTRL_FRAME_U, 2#11).    %% Last 2 bits in the control field, indicating U frame.
 
--record(addr, {call, ssid}).
 
 
 %% =============================================================================
 %%  Public API
 %% =============================================================================
+
+
+send(_Ref, Data) when is_binary(Data) ->
+    ok.
+
+
+received(_Ref, Data) when is_binary(Data) ->
+    ok.
+
+
 
 %% =============================================================================
 %%  Internal data structures.
@@ -36,7 +51,7 @@
 %%  DstAddr = #addr{call = "LY2EN", ssid=0},
 %%  SrcAddr = #addr{call = "LY1BVB", ssid=0},
 %%
-encode(DstAddr, SrcAddr, Data) ->
+encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}) ->
     EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.
     EncodedSrcAddr = encode_address(SrcAddr, 0, 1), %% Command, Source addr.
     Address = reverse_bits(<<EncodedDstAddr/binary, EncodedSrcAddr/binary>>),
@@ -44,7 +59,7 @@ encode(DstAddr, SrcAddr, Data) ->
     ControlM1 = 2#000,  %% UI frame, see [1], section 4.3.3.
     ControlM2 = 2#00,   %% UI frame, see [1], section 4.3.3.
     ControlPF = 2#0,    %% Not used, see [1], sections 4.3.3, 4.3.3.6, 6.2.
-    Control = reverse_bits(<<ControlM1:3, ControlPF:1, ControlM2:2, 2#11:2>>),
+    Control = reverse_bits(<<ControlM1:3, ControlPF:1, ControlM2:2, ?CTRL_FRAME_U:2>>),
 
     Info = reverse_bits(Data),
     FrameContents = <<
@@ -64,31 +79,97 @@ encode(DstAddr, SrcAddr, Data) ->
     >>,
 
     %%  Do bitstuffing and add flags.
-    BitstuffedFrame = bitstuff(FrameWithFCS),
-    <<?AX25_FLAG:8, BitstuffedFrame/binary, ?AX25_FLAG:8>>.
+    {BitstuffedFrameContents, StuffedCount} = bitstuff(FrameWithFCS),
+    PaddingLen = case StuffedCount rem 8 > 0 of
+        true -> 8 - (StuffedCount rem 8);
+        false -> 0
+    end,
+    {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/bitstring, 0:PaddingLen, ?AX25_FLAG:8>>}.
+
 
 %%
-%%  SSID: http://aprs.org/aprs11/SSIDs.txt
 %%
-encode_address(#addr{call = Call, ssid = SSID}, CBit, LastExtBit) ->
+%%
+decode(BitstuffedFrame) ->
+    BFCLen = size(BitstuffedFrame) - 2,
+    <<?AX25_FLAG:8, BitstuffedFrameContentsWithPadding:BFCLen/binary, ?AX25_FLAG:8>> = BitstuffedFrame,
+    {FrameWithFCSWithPadding, DestuffedCount} = bitdestuff(BitstuffedFrameContentsWithPadding),
+    PaddingLen = case DestuffedCount rem 8 > 0 of
+        true -> 8 - (DestuffedCount rem 8);
+        false -> 0
+    end,
+    ContentLen = bit_size(FrameWithFCSWithPadding) - PaddingLen,
+    <<FrameWithFCS:ContentLen/bitstring, 0:PaddingLen>> = FrameWithFCSWithPadding,
+
+    FCLen = size(FrameWithFCS) - 2,
+    <<FrameContents:FCLen/binary, FCS:16>> = FrameWithFCS,
+    FCS = calculate_fcs(FrameContents),
+
+    <<DstAddrBin:7/binary, SrcAddrBin:7/binary, ControlPidInfo/binary>> = FrameContents,
+    {ok, DstCall, DstSSID, 0} = decode_address(reverse_bits(DstAddrBin)),
+    {ok, SrcCall, SrcSSID, 1} = decode_address(reverse_bits(SrcAddrBin)), %% 1 Means no repeater addressed follow.
+
+    <<_M1:3, _PF:1, _M2:2, ?CTRL_FRAME_U:2, _PID:8, Info/binary>> = reverse_bits(ControlPidInfo),
+
+    {ok, #ax25_frame{
+        dst = #ax25_addr{call = DstCall, ssid = DstSSID},
+        src = #ax25_addr{call = SrcCall, ssid = SrcSSID},
+        data = Info
+    }}.
+
+
+%%
+%%  Address: see [1], section 3.12.2.
+%%  SSID: see http://aprs.org/aprs11/SSIDs.txt
+%%
+encode_address(#ax25_addr{call = Call, ssid = SSID}, CBit, LastExtBit) ->
     BinCall = list_to_binary(Call),
-    <<A1:8, A2:8, A3:8, A4:8, A5:8, A6:8>> = encode_address_pad(BinCall, 6, 16#20),
+    <<A1:8, A2:8, A3:8, A4:8, A5:8, A6:8>> = rpad(BinCall, 6, 16#20),
     <<
         A1:7, 0:1, A2:7, 0:1, A3:7, 0:1,
         A4:7, 0:1, A5:7, 0:1, A6:7, 0:1,
-        CBit:1, 2#11:2, SSID:4, LastExtBit:1
+        CBit:1, ?ADDR_RR_UNUSED:2, SSID:4, LastExtBit:1
     >>.
 
-encode_address_pad(Addr, Len, Pad) when size(Addr) < Len ->
-    <<Addr/binary, Pad:8>>;
+decode_address(AddressBin) ->
+    <<
+        A1:7, 0:1, A2:7, 0:1, A3:7, 0:1,
+        A4:7, 0:1, A5:7, 0:1, A6:7, 0:1,
+        _C:1, _RR:2, SSID:4, LastExtBit:1
+    >> = AddressBin,
+    BinCall = rtrim(<<A1:8, A2:8, A3:8, A4:8, A5:8, A6:8>>, 16#20),
+    {ok, binary_to_list(BinCall), SSID, LastExtBit}.
 
-encode_address_pad(Addr, Len, _) when size(Addr) == Len ->
-    Addr.
+
+%%
+%%  Appends Byte-s to Data to make it exactly Len bytes length.
+%%
+rpad(Data, Len, Byte) when size(Data) < Len ->
+    rpad(<<Data/binary, Byte:8>>, Len, Byte);
+
+rpad(Data, Len, _) when size(Data) == Len ->
+    Data.
+
+
+%%
+%%
+%%
+rtrim(Data, Byte) ->
+    Len = size(Data) - 1,
+    case Data of
+        <<>> -> <<>>;
+        <<Byte:8>> -> <<>>;
+        <<Prefix:Len/binary, Byte:8>> -> rtrim(Prefix, Byte);
+        _ -> Data
+    end.
 
 
 %%
 %%  Reverse bits in each octet.
 %%
+reverse_bits(<<>>) ->
+    <<>>;
+
 reverse_bits(<<B0:1, B1:1, B2:1, B3:1, B4:1, B5:1, B6:1, B7:1, Rest/binary>>) ->
     ReversedRest = reverse_bits(Rest),
     <<B7:1, B6:1, B5:1, B4:1, B3:1, B2:1, B1:1, B0:1, ReversedRest/binary>>.
@@ -98,32 +179,38 @@ reverse_bits(<<B0:1, B1:1, B2:1, B3:1, B4:1, B5:1, B6:1, B7:1, Rest/binary>>) ->
 %%  Does bitstuffing, as described in section 3.6 of
 %%  the http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf.
 %%
-bitstuff(<<2#11111:5, Rest/bitstring>>) ->
-    RestStuffed = bitstuff(Rest),
-    <<2#111110:6, RestStuffed/bitstring>>;
+bitstuff(Data) ->
+    bitstuff(Data, 0).
 
-bitstuff(<<Head:1, Rest/bitstring>>) ->
-    RestStuffed = bitstuff(Rest),
-    <<Head:1, RestStuffed/bitstring>>;
+bitstuff(<<2#11111:5, Rest/bitstring>>, Count) ->
+    {RestStuffed, NewCount} = bitstuff(Rest, Count + 1),
+    {<<2#111110:6, RestStuffed/bitstring>>, NewCount};
 
-bitstuff(<<>>) ->
-    <<>>.
+bitstuff(<<Head:1, Rest/bitstring>>, Count) ->
+    {RestStuffed, NewCount} = bitstuff(Rest, Count),
+    {<<Head:1, RestStuffed/bitstring>>, NewCount};
+
+bitstuff(<<>>, Count) ->
+    {<<>>, Count}.
 
 
 %%
 %%  Un-does bitstuffing, as described in section 3.6 of
 %%  the http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf.
 %%
-bitdestuff(<<2#111110:6, Rest/bitstring>>) ->
-    RestDestuffed = bitdestuff(Rest),
-    <<2#11111:5, RestDestuffed/bitstring>>;
+bitdestuff(Data) ->
+    bitdestuff(Data, 0).
 
-bitdestuff(<<Head:1, Rest/bitstring>>) ->
-    RestDestuffed = bitdestuff(Rest),
-    <<Head:1, RestDestuffed/bitstring>>;
+bitdestuff(<<2#111110:6, Rest/bitstring>>, Count) ->
+    {RestDestuffed, NewCount} = bitdestuff(Rest, Count + 1),
+    {<<2#11111:5, RestDestuffed/bitstring>>, NewCount};
 
-bitdestuff(<<>>) ->
-    <<>>.
+bitdestuff(<<Head:1, Rest/bitstring>>, Count) ->
+    {RestDestuffed, NewCount} = bitdestuff(Rest, Count),
+    {<<Head:1, RestDestuffed/bitstring>>, NewCount};
+
+bitdestuff(<<>>, Count) ->
+    {<<>>, Count}.
 
 
 %%
