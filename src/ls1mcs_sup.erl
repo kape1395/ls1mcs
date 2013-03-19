@@ -28,8 +28,9 @@ start_link(Config) ->
 %%
 -spec init(Config :: term()) -> tuple().
 init(_Config) ->
+    LinkName = {via, gproc, {n, l, ls1mcs_ls1p}},
     {ok, {{one_for_all, 100, 10}, [
-        % {XXX, {XXX, start_link, XXX}, permanent, 5000, worker, [XXX]},
+        {link, {ls1mcs_link_sup, start_link, [LinkName]}, permanent, 5000, supervisor, [ls1mcs_link_sup]}
     ]}}.
 
 

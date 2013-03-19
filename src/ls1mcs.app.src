@@ -4,6 +4,9 @@
     {registered, []},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        dthread,
+        uart,
+        gproc
     ]}
 ]}.
