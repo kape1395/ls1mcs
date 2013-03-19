@@ -1,5 +1,8 @@
 -module(ls1mcs_protocol).
--export([make_ref/2, send/2, received/2]).
+-export([make_ref/2, await/1, send/2, received/2]).
+
+-define(INIT_WAIT, 10000).
+
 
 %%
 %%  Invoked when a packet should be sent (to the lower protocol).
@@ -23,6 +26,14 @@
 %%
 make_ref(Module, Ref) ->
     {Module, Ref}.
+
+
+%%
+%%  Waits for the protocol to start.
+%%
+await({_Module, Ref}) ->
+    gproc:await(Ref, ?INIT_WAIT).
+
 
 
 %%

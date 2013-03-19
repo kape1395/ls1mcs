@@ -65,6 +65,7 @@ received(Ref, <<Byte:8, Rest/binary>>) ->
 %% =============================================================================
 
 init({Lower, Upper}) ->
+    self() ! {initialize},
     {ok, idle, #state{lower = Lower, upper = Upper}}.
 
 
@@ -135,7 +136,9 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
     {next_state, StateName, StateData}.
 
 
-handle_info(_Info, StateName, StateData) ->
+handle_info({initialize}, StateName, StateData = #state{lower = Lower, upper = Upper}) ->
+    ls1mcs_protocol:await(Upper),
+    ls1mcs_protocol:await(Lower),
     {next_state, StateName, StateData}.
 
 

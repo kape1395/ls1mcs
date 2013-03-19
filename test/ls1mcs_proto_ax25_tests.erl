@@ -2,14 +2,6 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("ls1mcs.hrl").
 
-start() ->
-    application:start(gproc),
-    {}.
-
-stop(_) ->
-    application:stop(gproc),
-    ok.
-
 
 %%
 %%

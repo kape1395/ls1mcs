@@ -70,6 +70,7 @@ received(Ref, Data) when is_binary(Data) ->
 %%
 %%
 init({Lower, Upper, Local, Remote}) ->
+    self() ! {initialize},
     {ok, #state{
         lower = Lower,
         upper = Upper,
@@ -131,7 +132,9 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
 %%
 %%
 %%
-handle_info(_Info, State) ->
+handle_info({initialize}, State = #state{lower = Lower, upper = Upper}) ->
+    ls1mcs_protocol:await(Upper),
+    ls1mcs_protocol:await(Lower),
     {noreply, State}.
 
 
