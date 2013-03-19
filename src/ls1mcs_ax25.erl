@@ -6,12 +6,14 @@
 %%  Only UI frames are supported.
 %%
 -module(ls1mcs_ax25).
--behaviour(gen_fsm).
+-behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([send/2, received/2]).
--export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1]). % For tests
+-export([start_link/3, send/2, received/2]).
+-export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1, split_frames/1]). % For tests
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
+-define(MAX_FRAME_LEN, 1024).   %% Maximal frame length (before forced drop).
 -define(AX25_FLAG, 2#01111110). %% Denotes start and end of an AX.25 frame.
 -define(AX25_PID_NOL3, 16#F0).  %% No Layer 3 Protocol
 -define(ADDR_RR_UNUSED, 2#11).  %% Address, RR bits, when unused.
@@ -24,12 +26,25 @@
 %% =============================================================================
 
 
-send(_Ref, Data) when is_binary(Data) ->
-    ok.
+%%
+%%
+%%
+start_link(Name, Lower, Upper) ->
+    gen_server:start_link(Name, ?MODULE, {Lower, Upper}, []).
 
 
-received(_Ref, Data) when is_binary(Data) ->
-    ok.
+%%
+%%
+%%
+send(Ref, Data) when is_binary(Data) ->
+    gen_server:cast(Ref, {send, Data}).
+
+
+%%
+%%
+%%
+received(Ref, Data) when is_binary(Data) ->
+    gen_server:cast(Ref, {received, Data}).
 
 
 
@@ -37,14 +52,107 @@ received(_Ref, Data) when is_binary(Data) ->
 %%  Internal data structures.
 %% =============================================================================
 
+-record(state, {lower, upper, data}).
+
+
 %% =============================================================================
-%%  Callbacks for gen_???.
+%%  Callbacks for gen_server.
 %% =============================================================================
+
+%%
+%%
+%%
+init({Lower, Upper}) ->
+    {ok, #state{lower = Lower, upper = Upper, data = <<>>}}.
+
+
+%%
+%%
+%%
+handle_call(_Message, _From, State) ->
+    {stop, error, State}.
+
+
+%%
+%%
+%%
+handle_cast({send, Data}, State) ->
+    {noreply, State};
+
+handle_cast({received, Received}, State = #state{upper = Upper, data = Collected}) ->
+    {Reminder, Frames} = split_frames(<<Collected, Received>>),
+
+    %%  Decode all frames and sent them to the upper level.
+    ReceivedFrameFun = fun (FrameBinary) ->
+        case catch decode(FrameBinary) of
+            #ax25_frame{data = FrameInfo} ->
+                ok = ls1mcs_protocol:received(Upper, FrameInfo);
+            Error ->
+                io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, FrameBinary])
+        end
+    end,
+    lists:foreach(ReceivedFrameFun, Frames),
+
+    %%  Ckeck if buffer is not accumulating to much of data.
+    NewState = case size(Reminder) > ?MAX_FRAME_LEN of
+        false ->
+            State#state{data = Reminder};
+        true ->
+            <<StrippedReminder:?MAX_FRAME_LEN/binary, NewReminder/binary>> = Reminder,
+            io:format("WARN: AX25: Buffer to big, several bytes dropped: input=~p~n", [StrippedReminder]),
+            State#state{data = NewReminder}
+    end,
+    {noreply, NewState}.
+
+
+%%
+%%
+%%
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+
+%%
+%%
+%%
+terminate(_Reason, _State) ->
+    ok.
+
+
+%%
+%%
+%%
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
 
 
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+
+%%
+%%  Splits a binary into AX25 frames.
+%%  The resulting frames include flags at both ends.
+%%
+split_frames(Data) ->
+    FlagPos = binary:matches(Data, <<?AX25_FLAG:8>>),
+    SplitFun = fun ({FlagStart, FlagLen}, {PrevStart, Frames}) ->
+        FrameStart = PrevStart,
+        FrameLen = FlagStart - PrevStart + FlagLen,
+        FrameBin = binary:part(Data, FrameStart, FrameLen),
+        NewFrames = case FrameBin of
+            <<>> -> Frames;
+            <<?AX25_FLAG:8>> -> Frames;
+            <<?AX25_FLAG:8, ?AX25_FLAG:8>> -> Frames;
+            _ -> [FrameBin | Frames]
+        end, 
+        {FlagStart, NewFrames}
+    end,
+    {LastStart, Frames} = lists:foldl(SplitFun, {0, []}, FlagPos),
+    Reminder = binary:part(Data, LastStart, size(Data) - LastStart),
+    {Reminder, lists:reverse(Frames)}.
 
 
 %%

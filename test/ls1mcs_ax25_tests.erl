@@ -46,12 +46,44 @@ calculate_fcs_test() ->
 %%  Check, is encoding and decoding works symmetrically.
 %%
 encode_decode_test() ->
-    Frame = #ax25_frame{
+    Frame1 = #ax25_frame{
         dst = #ax25_addr{call = "LY2EN", ssid = 0},
         src = #ax25_addr{call = "LY1BVB", ssid = 0},
         data = <<1, 2, 3, 4, 5, 6, 7, 8, 9>>
     },
-    {ok, FrameBinary} = ls1mcs_ax25:encode(Frame),
-    io:format("FrameBinary: ~p~n", [FrameBinary]),
-    {ok, Frame} = ls1mcs_ax25:decode(FrameBinary),
+    Frame2 = Frame1#ax25_frame{
+        data = <<1, 2, 3, 4, 5, 6, 7, 8, 9, 16#FFFFFFFF:32>>    %% Involves bitstuffing
+    },
+    {ok, FrameBinary1} = ls1mcs_ax25:encode(Frame1),
+    {ok, FrameBinary2} = ls1mcs_ax25:encode(Frame2),
+    io:format("FrameBinary1: ~p~n", [FrameBinary1]),
+    io:format("FrameBinary2: ~p~n", [FrameBinary2]),
+    {ok, Frame1} = ls1mcs_ax25:decode(FrameBinary1),
+    {ok, Frame2} = ls1mcs_ax25:decode(FrameBinary2),
     ok.
+
+
+%%
+%%
+%%
+split_frames_test() ->
+    F = 2#01111110,
+    F1 = <<1, 2, 3>>,
+    F2 = <<4, 5, 6>>,
+    F3 = <<7, 8, 9>>,
+    {<<F:8>>, []} = ls1mcs_ax25:split_frames(<<F:8, F:8, F:8>>),
+    {<<F1:3/binary>>, []} = ls1mcs_ax25:split_frames(<<F1/binary>>),
+    {<<F:8>>, [
+        <<F:8, F1:3/binary, F:8>>,
+        <<F:8, F2:3/binary, F:8>>
+    ]} = ls1mcs_ax25:split_frames(<<F:8, F1/binary, F:8, F2/binary, F:8>>),
+    {<<F:8, F3/binary>>, [
+        <<F:8, F1:3/binary, F:8>>,
+        <<F:8, F2:3/binary, F:8>>
+    ]} = ls1mcs_ax25:split_frames(<<F:8, F1/binary, F:8, F2/binary, F:8, F3/binary>>),
+    {<<F:8, F3/binary>>, [
+        <<F1:3/binary, F:8>>,
+        <<F:8, F2:3/binary, F:8>>
+    ]} = ls1mcs_ax25:split_frames(<<F1/binary, F:8, F2/binary, F:8, F3/binary>>),
+    ok.
+
