@@ -87,3 +87,16 @@ split_frames_test() ->
     ]} = ls1mcs_ax25:split_frames(<<F1/binary, F:8, F2/binary, F:8, F3/binary>>),
     ok.
 
+
+%%
+%%
+%%
+parse_call_test() ->
+    #ax25_addr{call = "LY2EN",  ssid =  0} = ls1mcs_ax25:parse_call("LY2EN"),
+    #ax25_addr{call = "LY2EN",  ssid =  0} = ls1mcs_ax25:parse_call("LY2EN-0"),
+    #ax25_addr{call = "LY1BVB", ssid =  1} = ls1mcs_ax25:parse_call("LY1BVB-1"),
+    #ax25_addr{call = "LY2EN",  ssid = 15} = ls1mcs_ax25:parse_call("LY2EN-15"),
+    #ax25_addr{call = "LY2EN",  ssid = 12} = ls1mcs_ax25:parse_call(#ax25_addr{call = "LY2EN",  ssid = 12}),
+    ok.
+
+

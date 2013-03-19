@@ -8,8 +8,8 @@
 -module(ls1mcs_ax25).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, send/2, received/2]).
--export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1, split_frames/1]). % For tests
+-export([start_link/5, send/2, received/2]).
+-export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1, split_frames/1, parse_call/1]). % For tests
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -29,8 +29,8 @@
 %%
 %%
 %%
-start_link(Name, Lower, Upper) ->
-    gen_server:start_link(Name, ?MODULE, {Lower, Upper}, []).
+start_link(Name, Lower, Upper, Local, Remote) ->
+    gen_server:start_link(Name, ?MODULE, {Lower, Upper, Local, Remote}, []).
 
 
 %%
@@ -52,40 +52,63 @@ received(Ref, Data) when is_binary(Data) ->
 %%  Internal data structures.
 %% =============================================================================
 
--record(state, {lower, upper, data}).
+-record(state, {
+    lower,      %% Lower protocol ref.
+    upper,      %% Upper protocol ref.
+    data,       %% Buffer for an input from the lower level.
+    local,      %% Local call
+    remote      %% Remote call
+}).
 
 
 %% =============================================================================
 %%  Callbacks for gen_server.
 %% =============================================================================
 
+
 %%
 %%
 %%
-init({Lower, Upper}) ->
-    {ok, #state{lower = Lower, upper = Upper, data = <<>>}}.
+init({Lower, Upper, Local, Remote}) ->
+    {ok, #state{
+        lower = Lower,
+        upper = Upper,
+        data = <<>>,
+        local = parse_call(Local),
+        remote = parse_call(Remote)
+    }}.
 
 
 %%
 %%
 %%
 handle_call(_Message, _From, State) ->
-    {stop, error, State}.
+    {stop, not_implemented, State}.
 
 
 %%
+%%  Encode frame and send it to the lower protocol.
 %%
-%%
-handle_cast({send, Data}, State) ->
+handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower = Lower}) ->
+    Frame = #ax25_frame{
+        dst = Remote,
+        src = Local,
+        data = Data
+    },
+    {ok, FrameBinary} = encode(Frame),
+    ok = ls1mcs_protocol:send(Lower, FrameBinary),
     {noreply, State};
 
+%%
+%%  Decode frame and send its payload to the upper protocol.
+%%
 handle_cast({received, Received}, State = #state{upper = Upper, data = Collected}) ->
     {Reminder, Frames} = split_frames(<<Collected, Received>>),
 
     %%  Decode all frames and sent them to the upper level.
     ReceivedFrameFun = fun (FrameBinary) ->
         case catch decode(FrameBinary) of
-            #ax25_frame{data = FrameInfo} ->
+            {ok, #ax25_frame{data = FrameInfo}} ->
                 ok = ls1mcs_protocol:received(Upper, FrameInfo);
             Error ->
                 io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, FrameBinary])
@@ -130,6 +153,24 @@ code_change(_OldVsn, State, _Extra) ->
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+
+%%
+%%  Parses Call Sign into #ax25_addr{}.
+%%
+parse_call(CallString) when is_list(CallString) ->
+    case lists:member($-, CallString) of
+        false ->
+            #ax25_addr{call = CallString, ssid = 0};
+        true ->
+            SplitFun = fun (C) -> C =/= $- end,
+            {Call, [$- | SSID]} = lists:splitwith(SplitFun, CallString),
+            #ax25_addr{call = Call, ssid = list_to_integer(SSID)}
+    end;
+
+parse_call(Call) when is_record(Call, ax25_addr) ->
+    Call.
+
 
 
 %%
