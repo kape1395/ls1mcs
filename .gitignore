@@ -3,3 +3,4 @@ ebin
 *.swp
 *~
 .eunit/
+.ditz-config

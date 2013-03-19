@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Implement RS232 "protocol".
+desc: ""
+type: :task
+component: ls1mcs
+release: 
+reporter: Karolis Petrauskas <k.petrauskas@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-03-19 20:12:18.382688 Z
+references: []
+
+id: 0a77f7c9b52d35f00d15a218f3380121d7166153
+log_events: 
+- - 2013-03-19 20:12:19.678657 Z
+  - Karolis Petrauskas <k.petrauskas@gmail.com>
+  - created
+  - ""

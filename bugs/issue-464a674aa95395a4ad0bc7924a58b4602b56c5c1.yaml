@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Implement LS1P protocol.
+desc: ""
+type: :task
+component: ls1mcs
+release: 
+reporter: Karolis Petrauskas <k.petrauskas@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-03-19 20:12:40.079306 Z
+references: []
+
+id: 464a674aa95395a4ad0bc7924a58b4602b56c5c1
+log_events: 
+- - 2013-03-19 20:12:40.767263 Z
+  - Karolis Petrauskas <k.petrauskas@gmail.com>
+  - created
+  - ""

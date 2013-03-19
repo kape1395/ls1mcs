@@ -1,0 +1,8 @@
+--- !ditz.rubyforge.org,2008-03-06/project 
+name: ls1mcs
+version: "0.5"
+components: 
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: ls1mcs
+releases: []
+

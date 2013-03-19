@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Use gproc for wiring protocols on startup.
+desc: ""
+type: :task
+component: ls1mcs
+release: 
+reporter: Karolis Petrauskas <k.petrauskas@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2013-03-19 20:13:15.392356 Z
+references: []
+
+id: 9df55ea005d7200e805f9d320fc8a9912797849d
+log_events: 
+- - 2013-03-19 20:13:16.000343 Z
+  - Karolis Petrauskas <k.petrauskas@gmail.com>
+  - created
+  - ""
