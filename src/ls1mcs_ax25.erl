@@ -78,37 +78,36 @@ encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}) ->
         FCS:16
     >>,
 
-    %%  Do bitstuffing and add flags.
-    {BitstuffedFrameContents, StuffedCount} = bitstuff(FrameWithFCS),
-    PaddingLen = case StuffedCount rem 8 > 0 of
-        true -> 8 - (StuffedCount rem 8);
-        false -> 0
-    end,
-    {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/bitstring, 0:PaddingLen, ?AX25_FLAG:8>>}.
+    %%  Do bitstuffing, padding by 0 and add flags.
+    BitstuffedFrameContents = bitstuff(FrameWithFCS),
+    {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/binary, ?AX25_FLAG:8>>}.
 
 
 %%
 %%
 %%
 decode(BitstuffedFrame) ->
-    BFCLen = size(BitstuffedFrame) - 2,
-    <<?AX25_FLAG:8, BitstuffedFrameContentsWithPadding:BFCLen/binary, ?AX25_FLAG:8>> = BitstuffedFrame,
-    {FrameWithFCSWithPadding, DestuffedCount} = bitdestuff(BitstuffedFrameContentsWithPadding),
-    PaddingLen = case DestuffedCount rem 8 > 0 of
-        true -> 8 - (DestuffedCount rem 8);
-        false -> 0
-    end,
-    ContentLen = bit_size(FrameWithFCSWithPadding) - PaddingLen,
-    <<FrameWithFCS:ContentLen/bitstring, 0:PaddingLen>> = FrameWithFCSWithPadding,
+    %%  Preliminary frame validation, see [1], section 3.9.
+    FrameLen = bit_size(BitstuffedFrame),
+    true = FrameLen >= 136,
+    0 = FrameLen rem 8,
 
+    %%  Validate and remove flags, undo bitstuffing and padding by 0.
+    BFCLen = size(BitstuffedFrame) - 2,
+    <<?AX25_FLAG:8, BitstuffedFrameContents:BFCLen/binary, ?AX25_FLAG:8>> = BitstuffedFrame,
+    FrameWithFCS = bitdestuff(BitstuffedFrameContents),
+
+    %%  Validate checksum.
     FCLen = size(FrameWithFCS) - 2,
     <<FrameContents:FCLen/binary, FCS:16>> = FrameWithFCS,
     FCS = calculate_fcs(FrameContents),
 
+    %%  Parse two addresses.
     <<DstAddrBin:7/binary, SrcAddrBin:7/binary, ControlPidInfo/binary>> = FrameContents,
     {ok, DstCall, DstSSID, 0} = decode_address(reverse_bits(DstAddrBin)),
     {ok, SrcCall, SrcSSID, 1} = decode_address(reverse_bits(SrcAddrBin)), %% 1 Means no repeater addressed follow.
 
+    %% Parse control byte (not two bytes), PID and Payload.
     <<_M1:3, _PF:1, _M2:2, ?CTRL_FRAME_U:2, _PID:8, Info/binary>> = reverse_bits(ControlPidInfo),
 
     {ok, #ax25_frame{
@@ -178,9 +177,15 @@ reverse_bits(<<B0:1, B1:1, B2:1, B3:1, B4:1, B5:1, B6:1, B7:1, Rest/binary>>) ->
 %%
 %%  Does bitstuffing, as described in section 3.6 of
 %%  the http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf.
+%%  Padding by 0 is added in order to leave data aligned with 8.
 %%
 bitstuff(Data) ->
-    bitstuff(Data, 0).
+    {BitsuffedData, StuffedCount} = bitstuff(Data, 0),
+    PaddingLen = case StuffedCount rem 8 > 0 of
+        true -> 8 - (StuffedCount rem 8);
+        false -> 0
+    end,
+    <<BitsuffedData/bitstring, 0:PaddingLen>>.
 
 bitstuff(<<2#11111:5, Rest/bitstring>>, Count) ->
     {RestStuffed, NewCount} = bitstuff(Rest, Count + 1),
@@ -197,9 +202,18 @@ bitstuff(<<>>, Count) ->
 %%
 %%  Un-does bitstuffing, as described in section 3.6 of
 %%  the http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf.
+%%  Padding by 0 is stripped here.
 %%
 bitdestuff(Data) ->
-    bitdestuff(Data, 0).
+    {DestuffedData, DestuffedCount} = bitdestuff(Data, 0),
+    PaddingLen = case DestuffedCount rem 8 > 0 of
+        true -> 8 - (DestuffedCount rem 8);
+        false -> 0
+    end,
+    ContentLen = bit_size(DestuffedData) - PaddingLen,
+    <<DestuffedUnpaddedData:ContentLen/bitstring, 0:PaddingLen>> = DestuffedData,
+    DestuffedUnpaddedData.
+
 
 bitdestuff(<<2#111110:6, Rest/bitstring>>, Count) ->
     {RestDestuffed, NewCount} = bitdestuff(Rest, Count + 1),
