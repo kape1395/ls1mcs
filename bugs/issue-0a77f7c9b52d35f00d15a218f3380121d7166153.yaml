@@ -5,8 +5,8 @@ type: :task
 component: ls1mcs
 release: 
 reporter: Karolis Petrauskas <k.petrauskas@gmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2013-03-19 20:12:18.382688 Z
 references: []
 
@@ -15,4 +15,8 @@ log_events:
 - - 2013-03-19 20:12:19.678657 Z
   - Karolis Petrauskas <k.petrauskas@gmail.com>
   - created
+  - ""
+- - 2013-03-19 22:25:09.532915 Z
+  - Karolis Petrauskas <k.petrauskas@gmail.com>
+  - closed with disposition fixed
   - ""
