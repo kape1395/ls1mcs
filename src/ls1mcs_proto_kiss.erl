@@ -2,7 +2,7 @@
 %%  Implementation of the KISS protocol.
 %%  See http://www.ax25.net/kiss.aspx for more details.
 %%
--module(ls1mcs_kiss).
+-module(ls1mcs_proto_kiss).
 -behaviour(gen_fsm).
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, send/2, received/2]). % Public API
@@ -31,14 +31,14 @@
 %%
 %%
 start_link(Name, Lower, Upper) ->
-    gen_fsm:start_link(Name, ?MODULE, {Lower, Upper}, []).
+    gen_fsm:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper}, []).
 
 
 %%
 %%
 %%
 send(Ref, Data) when is_binary(Data) ->
-    gen_fsm:send_all_state_event(Ref, {send, Data}).
+    gen_fsm:send_all_state_event({via, gproc, Ref}, {send, Data}).
 
 
 %%
@@ -48,7 +48,7 @@ received(_Ref, <<>>) ->
     ok;
 
 received(Ref, <<Byte:8, Rest/binary>>) ->
-    ok = gen_fsm:send_event(Ref, {received, Byte}),
+    ok = gen_fsm:send_event({via, gproc, Ref}, {received, Byte}),
     received(Ref, Rest).
 
 

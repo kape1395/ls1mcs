@@ -27,14 +27,14 @@ start_link(Ls1pName) ->
 %%
 -spec init({tuple()}) -> tuple().
 init({Ls1pName}) ->
-    Rs232Name = {via, gproc, {n, l, ls1mcs_rs323}},
-    KissName  = {via, gproc, {n, l, ls1mcs_kiss}},
-    Ax25Name  = {via, gproc, {n, l, ls1mcs_ax25}},
+    Rs232Name = {n, l, ls1mcs_rs323},
+    KissName  = {n, l, ls1mcs_kiss},
+    Ax25Name  = {n, l, ls1mcs_ax25},
     {ok, {{one_for_all, 100, 10}, [
-        {rs232, {ls1mcs_rs323, start_link, [KissName]           }, permanent, 5000, worker, [ls1mcs_rs323]},
-        {kiss,  {ls1mcs_kiss,  start_link, [Rs232Name, Ax25Name]}, permanent, 5000, worker, [ls1mcs_kiss] },
-        {ax25,  {ls1mcs_ax25,  start_link, [KissName,  Ls1pName]}, permanent, 5000, worker, [ls1mcs_ax25] },
-        {ls1p,  {ls1mcs_ls1p,  start_link, [           Ax25Name]}, permanent, 5000, worker, [ls1mcs_ls1p] }
+        {rs232, {ls1mcs_proto_rs323, start_link, [KissName]           }, permanent, 5000, worker, [ls1mcs_proto_rs323]},
+        {kiss,  {ls1mcs_proto_kiss,  start_link, [Rs232Name, Ax25Name]}, permanent, 5000, worker, [ls1mcs_proto_kiss] },
+        {ax25,  {ls1mcs_proto_ax25,  start_link, [KissName,  Ls1pName]}, permanent, 5000, worker, [ls1mcs_proto_ax25] },
+        {ls1p,  {ls1mcs_proto_ls1p,  start_link, [           Ax25Name]}, permanent, 5000, worker, [ls1mcs_proto_ls1p] }
     ]}}.
 
 

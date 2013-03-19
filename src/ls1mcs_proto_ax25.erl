@@ -5,7 +5,7 @@
 %%
 %%  Only UI frames are supported.
 %%
--module(ls1mcs_ax25).
+-module(ls1mcs_proto_ax25).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/5, send/2, received/2]).
@@ -30,21 +30,21 @@
 %%
 %%
 start_link(Name, Lower, Upper, Local, Remote) ->
-    gen_server:start_link(Name, ?MODULE, {Lower, Upper, Local, Remote}, []).
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote}, []).
 
 
 %%
 %%
 %%
 send(Ref, Data) when is_binary(Data) ->
-    gen_server:cast(Ref, {send, Data}).
+    gen_server:cast({via, gproc, Ref}, {send, Data}).
 
 
 %%
 %%
 %%
 received(Ref, Data) when is_binary(Data) ->
-    gen_server:cast(Ref, {received, Data}).
+    gen_server:cast({via, gproc, Ref}, {received, Data}).
 
 
 
@@ -188,7 +188,7 @@ split_frames(Data) ->
             <<?AX25_FLAG:8>> -> Frames;
             <<?AX25_FLAG:8, ?AX25_FLAG:8>> -> Frames;
             _ -> [FrameBin | Frames]
-        end, 
+        end,
         {FlagStart, NewFrames}
     end,
     {LastStart, Frames} = lists:foldl(SplitFun, {0, []}, FlagPos),
