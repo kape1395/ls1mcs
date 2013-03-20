@@ -19,7 +19,7 @@
     {arm,       ping,         0},
     {arm,       cmd_log,      1},
     {arm,       tm_archive,   2},
-    {arm,       tm_runtime,   3},
+    {arm,       tm_realtime,  3},
     {arm,       gps_log_bin,  4},
     {arm,       gps_log_nmea, 5},
     {arduino,   default,      0},
