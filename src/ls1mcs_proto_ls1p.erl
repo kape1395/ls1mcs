@@ -2,11 +2,36 @@
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, send/2, received/2]).
+-export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
+-include("ls1p.hrl").
 
--define(RECV_COUNT, 1).
--define(RECV_TIMEOUT, 1000).
+
+-define(ADDR_MAP, [
+    {arm,       0},
+    {arduino,   1},
+    {eps,       2},
+    {gps,       3},
+    {helium,    4}
+]).
+-define(PORT_MAP, [
+    {arm,       ping,         0},
+    {arm,       cmd_log,      1},
+    {arm,       tm_archive,   2},
+    {arm,       tm_runtime,   3},
+    {arm,       gps_log_bin,  4},
+    {arm,       gps_log_nmea, 5},
+    {arduino,   default,      0},
+    {eps,       default,      0},
+    {gps,       nmea,         0},
+    {gps,       binary,       1},
+    {helium,    default,      0}
+]).
+-define(ACK_MAP, [
+    {false, 0},
+    {true,  1}
+]).
 
 
 %% =============================================================================
@@ -104,9 +129,58 @@ code_change(_OldVsn, State, _Extra) ->
 %%  Internal Functions.
 %% =============================================================================
 
-encode() ->
-    ok.
+%%
+%%  LS1P encoder.
+%%
+encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
+    #ls1p_cmd_frame{
+        dest_addr = Addr, dest_port = Port, ack = Ack,
+        cref = Cref, delay = Delay, data = Data
+    } = Frame,
+    AddrBin = encode_addr(Addr),
+    PortBin = encode_port(Addr, Port),
+    AckBin  = encode_ack(Ack),
+    FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>,
+    {ok, FrameBin}.
 
-decode() ->
-    ok.
+encode_addr(Addr) ->
+    {Addr, AddrBin} = lists:keyfind(Addr, 1, ?ADDR_MAP),
+    AddrBin.
+
+encode_port(Addr, Port) ->
+    FilterFun = fun ({A, P, _}) -> (A =:= Addr andalso P =:= Port) end,
+    [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
+    PortBin.
+
+encode_ack(Ack) ->
+    {Ack, AckBin} = lists:keyfind(Ack, 1, ?ACK_MAP),
+    AckBin.
+
+
+%%
+%%  LS1P decoder.
+%%
+decode(FrameBin) ->
+    <<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Fragment:16, Data/binary>> = FrameBin,
+    Addr = decode_addr(AddrBin),
+    Port = decode_port(Addr, PortBin),
+    Ack = decode_ack(AckBin),
+    Frame = #ls1p_dat_frame{
+        src_addr = Addr, src_port = Port, ack = Ack,
+        cref = Cref, fragment = Fragment, data = Data
+    },
+    {ok, Frame}.
+
+decode_addr(AddrBin) ->
+    {Addr, AddrBin} = lists:keyfind(AddrBin, 2, ?ADDR_MAP),
+    Addr.
+
+decode_port(Addr, PortBin) ->
+    FilterFun = fun ({A, _, P}) -> (A =:= Addr andalso P =:= PortBin) end,
+    [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
+    Port.
+
+decode_ack(AckBin) ->
+    {Ack, AckBin} = lists:keyfind(AckBin, 2, ?ACK_MAP),
+    Ack.
 
