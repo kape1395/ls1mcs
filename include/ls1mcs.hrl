@@ -1,7 +1,7 @@
--record(ls1p_cmd_header, {addr, cmd_code, ref}).
--record(ls1p_data_header, {src_addr, msg_code, ref, no}).
 
-
+%%
+%%  AX.25 Structures.
+%%
 
 -record(ax25_addr, {
     call    :: list(),
