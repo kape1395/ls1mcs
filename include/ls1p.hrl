@@ -2,22 +2,24 @@
 %%
 %%  Address, 3 bits.
 %%
--type ls1p_addr() :: arm | arduino | eps | gps.
+-type ls1p_addr() :: arm | arduino | eps | gps | helium.
 
 
 %%
 %%  Port, 4 bits.
-%%  TODO: Use real endpoint port numbers.
+%%  TODO: Use real endpoint port numbers?
 %%
--type ls1p_port_arm()   :: ping | cmdlog.
--type ls1p_port_ard()   :: default.
--type ls1p_port_eps()   :: default.
--type ls1p_port_gps()   :: nmea | binary.
+-type ls1p_port_arm()       :: ping | cmd_log | cmd_kill | tm_archive | tm_realtime | gps_log_bin | gps_log_nmea.
+-type ls1p_port_arduino()   :: default.
+-type ls1p_port_eps()       :: default.
+-type ls1p_port_gps()       :: nmea | binary.
+-type ls1p_port_helium()    :: default.
 -type ls1p_port() ::
     ls1p_port_arm() |
-    ls1p_port_ard() |
+    ls1p_port_arduino() |
     ls1p_port_eps() |
-    ls1p_port_gps().
+    ls1p_port_gps() |
+    ls1p_port_helium().
 
 %%
 %%  Acknowledgement, 1 bit.
