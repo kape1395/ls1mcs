@@ -29,7 +29,7 @@
     {gps,       binary,       1},
     {helium,    default,      0}
 ]).
--define(ACK_MAP, [
+-define(BOOL_MAP, [
     {false, 0},
     {true,  1}
 ]).
@@ -154,7 +154,7 @@ encode_port(Addr, Port) ->
     PortBin.
 
 encode_ack(Ack) ->
-    {Ack, AckBin} = lists:keyfind(Ack, 1, ?ACK_MAP),
+    {Ack, AckBin} = lists:keyfind(Ack, 1, ?BOOL_MAP),
     AckBin.
 
 
@@ -162,14 +162,22 @@ encode_ack(Ack) ->
 %%  LS1P decoder.
 %%
 decode(FrameBin) ->
-    <<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Fragment:16, Data/binary>> = FrameBin,
+    <<AddrBin:3, PortBin:4, SEBin:1, Cref:16, FragmentOrRC:16, Data/binary>> = FrameBin,
     Addr = decode_addr(AddrBin),
     Port = decode_port(Addr, PortBin),
-    Ack = decode_ack(AckBin),
-    Frame = #ls1p_dat_frame{
-        src_addr = Addr, src_port = Port, ack = Ack,
-        cref = Cref, fragment = Fragment, data = Data
-    },
+    SE = decode_se(SEBin),
+    Frame = case Data of
+        <<>> ->
+            #ls1p_ack_frame{
+                src_addr = Addr, src_port = Port, status = SE,
+                cref = Cref, ret_code = FragmentOrRC
+            };
+        _ ->
+            #ls1p_dat_frame{
+                src_addr = Addr, src_port = Port, eof = SE,
+                cref = Cref, fragment = FragmentOrRC, data = Data
+            }
+    end,
     {ok, Frame}.
 
 decode_addr(AddrBin) ->
@@ -181,7 +189,7 @@ decode_port(Addr, PortBin) ->
     [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
     Port.
 
-decode_ack(AckBin) ->
-    {Ack, AckBin} = lists:keyfind(AckBin, 2, ?ACK_MAP),
-    Ack.
+decode_se(SEBin) ->
+    {SE, SEBin} = lists:keyfind(SEBin, 2, ?BOOL_MAP),
+    SE.
 
