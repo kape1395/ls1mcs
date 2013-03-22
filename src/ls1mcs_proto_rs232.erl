@@ -1,7 +1,7 @@
 -module(ls1mcs_proto_rs232).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, send/2, received/2]).
+-export([start_link/4, send/2, received/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -17,8 +17,8 @@
 %%
 %%
 %%
-start_link(Name, Upper, Device) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Upper, Device}, []).
+start_link(Name, Upper, Device, LogFile) ->
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {Upper, Device, LogFile}, []).
 
 
 %%
@@ -42,7 +42,8 @@ received(_Ref, _Data) ->
 
 -record(state, {
     upper,      %% Upper protocol ref.
-    port        %% UART port.
+    port,       %% UART port.
+    log
 }).
 
 
@@ -54,9 +55,10 @@ received(_Ref, _Data) ->
 %%
 %%
 %%
-init({Upper, Device}) ->
+init({Upper, Device, LogFile}) ->
     self() ! {initialize, Device},
-    {ok, #state{upper = Upper}}.
+    {ok, Log} = file:open(LogFile, [append, raw, delayed_write]),
+    {ok, #state{upper = Upper, log = Log}}.
 
 
 %%
@@ -86,10 +88,20 @@ handle_info({initialize, Device}, State = #state{upper = Upper}) ->
 %%
 %%  Receive cycle.
 %%
-handle_info({recv}, State = #state{port = Port, upper = Upper}) ->
+handle_info({recv}, State = #state{port = Port, upper = Upper, log = Log}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
-        {ok, IoList} ->
-            ok = ls1mcs_protocol:received(Upper, iolist_to_binary(IoList));
+        {ok, RecvIoList} ->
+            RecvBinary = iolist_to_binary(RecvIoList),
+            case file:write(Log, RecvBinary) of
+                ok -> ok;
+                Error ->
+                    error_logger:warning_msg(
+                        "ls1mcs_proto_rs232 unable to write bytes=~p to a log, err=~p~n",
+                        [RecvBinary, Error]
+                    ),
+                    ok % Ignore errors here.
+            end,
+            ok = ls1mcs_protocol:received(Upper, RecvBinary);
         {error, timeout} ->
             self() ! {recv}
     end,
@@ -97,9 +109,11 @@ handle_info({recv}, State = #state{port = Port, upper = Upper}) ->
 
 
 %%
+%%  Terminate a process.
 %%
-%%
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{log = Log}) ->
+    file:sync(Log),
+    file:close(Log),
     ok.
 
 
