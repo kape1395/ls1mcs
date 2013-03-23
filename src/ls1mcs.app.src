@@ -2,6 +2,7 @@
     {description, "LituanicaSat-1 MCS"},
     {vsn, git},
     {registered, []},
+    {mod, {ls1mcs_app, []}},
     {applications, [
         kernel,
         stdlib,

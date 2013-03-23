@@ -61,10 +61,10 @@
 
 
 %%
-%%  Command return code, 16 bits.
+%%  Command reception status, 8 bits.
 %%  0 indicates success.
 %%
--type ls1p_ret_code() :: integer().
+-type ls1p_recv_status() :: integer().
 
 
 %%
@@ -99,13 +99,13 @@
 
 %%
 %%  Acknowledgement frame, sent from SAT to GS.
-%%  An acknowledgement is encoded using data = <<>>.
+%%  This frame type is recognized by its length (4 octets).
 %%
 -record(ls1p_ack_frame, {
     src_addr    :: ls1p_addr(),
     src_port    :: ls1p_port(),
     status      :: ls1p_status(),
     cref        :: ls1p_cref(),
-    ret_code    :: ls1p_ret_code()
+    recv_status :: ls1p_recv_status()
 }).
 

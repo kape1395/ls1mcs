@@ -161,23 +161,24 @@ encode_ack(Ack) ->
 %%
 %%  LS1P decoder.
 %%
-decode(FrameBin) ->
-    <<AddrBin:3, PortBin:4, SEBin:1, Cref:16, FragmentOrRC:16, Data/binary>> = FrameBin,
+decode(<<AddrBin:3, PortBin:4, StatusBin:1, Cref:16, RecvStatus:8>>) ->
     Addr = decode_addr(AddrBin),
     Port = decode_port(Addr, PortBin),
-    SE = decode_se(SEBin),
-    Frame = case Data of
-        <<>> ->
-            #ls1p_ack_frame{
-                src_addr = Addr, src_port = Port, status = SE,
-                cref = Cref, ret_code = FragmentOrRC
-            };
-        _ ->
-            #ls1p_dat_frame{
-                src_addr = Addr, src_port = Port, eof = SE,
-                cref = Cref, fragment = FragmentOrRC, data = Data
-            }
-    end,
+    Status = decode_se(StatusBin),
+    Frame = #ls1p_ack_frame{
+        src_addr = Addr, src_port = Port, status = Status,
+        cref = Cref, recv_status = RecvStatus
+    },
+    {ok, Frame};
+
+decode(<<AddrBin:3, PortBin:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>) ->
+    Addr = decode_addr(AddrBin),
+    Port = decode_port(Addr, PortBin),
+    Eof = decode_se(EofBin),
+    Frame = #ls1p_dat_frame{
+        src_addr = Addr, src_port = Port, eof = Eof,
+        cref = Cref, fragment = Fragment, data = Data
+    },
     {ok, Frame}.
 
 decode_addr(AddrBin) ->

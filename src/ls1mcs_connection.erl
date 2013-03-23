@@ -1,6 +1,8 @@
 -module(ls1mcs_connection).
 -behaviour(gen_server).
--export([start_link/1]).
+-behaviour(ls1mcs_protocol).
+-export([start_link/2]).
+-export([send/2, received/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 
@@ -11,9 +13,22 @@
 %%
 %%
 %%
-start_link(Name) ->
-    gen_server:start_link(Name, ?MODULE, {}, []).
+start_link(Name, LinkRef) ->
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {LinkRef}, []).
 
+
+%%
+%%  Not used here.
+%%
+send(_Ref, _Data) ->
+    ok.
+
+
+%%
+%%  Receives incoming messages from the protocol stack.
+%%
+received(_Ref, Data) ->
+    error_logger:info_msg("ls1mcs_connection received a message: ~p~n", [Data]).
 
 
 %% =============================================================================
@@ -21,7 +36,9 @@ start_link(Name) ->
 %% =============================================================================
 
 
--record(state, {}).
+-record(state, {
+    link
+}).
 
 
 
@@ -32,8 +49,8 @@ start_link(Name) ->
 %%
 %%
 %%
-init({}) ->
-    {ok, #state{}}.
+init({LinkRef}) ->
+    {ok, #state{link = LinkRef}}.
 
 
 %%

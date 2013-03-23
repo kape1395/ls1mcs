@@ -19,6 +19,15 @@ Using valgrind:
 
     gen_ax25u:start({local, none}, "3", "LY1BWB", [{port_proxy, "/usr/bin/valgrind"}]).
 
+Starting application for tests:
+
+    env ERL_LIBS=deps erl -config test/test -pa ebin/
+        ls1mcs:start().
+        ls1mcs_protocol:send({ls1mcs_proto_kiss, {n, l, ls1mcs_proto_kiss}}, <<"labas">>).
+        ls1mcs_protocol:send({ls1mcs_proto_ax25, {n, l, ls1mcs_proto_ax25}}, <<"labas">>).
+
+
+
 AX25
 ====
 
@@ -95,3 +104,49 @@ Known problems:
   * Some bug in the `uart` application. Driver is not linked with `libutil` by default.
     As a workaround, one should compile this application as follows:
   * A lot of warnings due to missing `#include <string.h>`
+
+
+
+Soundmodem
+==========
+
+Soundmodem is usefull for testing this software without real TNC.
+See [Soundmodem HOWTO](http://www.xastir.org/wiki/HowTo:SoundModem) for more details.
+The following are the instructions I used to setup the soundmodem in the KISS mode
+(com port) on my PC. Just install the `soundmodem` and configure it properly:
+
+    sudo apt-get install soundmodem
+    sudo /usr/bin/soundmodemconfig # See config values bellow. Main: alsa, plughw:0,0, KISS
+
+The `/etc/ax25/soundmodem.conf` contents are as follows (formatted here):
+
+    <?xml version="1.0"?>
+    <modem>
+        <configuration name="KISS">
+            <chaccess txdelay="150" slottime="100" ppersist="40" fulldup="0" txtail="10"/>
+            <audio type="alsa" device="plughw:0,0" halfdup="1" capturechannelmode="Mono"/>
+            <ptt file="/dev/ttyS0" gpio="0" hamlib_model="" hamlib_params=""/>
+            <channel name="Channel 0">
+                <mod mode="afsk" bps="1200" f0="1200" f1="2200" diffenc="1"/>
+                <demod mode="afsk" bps="1200" f0="1200" f1="2200" diffdec="1"/>
+                <pkt mode="KISS" ifname="sm0" hwaddr="" ip="10.0.0.1" netmask="255.255.255.0" broadcast="10.0.0.255" file="/dev/soundmodem0" unlink="1"/>
+            </channel>
+        </configuration>
+    </modem>
+
+To start the soundmodem, run the following as a root:
+
+    sudo soundmodem -v 999 2>&1 | grep -v rx
+
+To test the soundmodem, run the following:
+
+    sudo chmod og+rw /dev/soundmodem0
+    cat /root/aaa >> /dev/soundmodem0
+
+Where the `aaa` file has one KISS frame:
+
+    hexdump -C aaa 
+    00000000  c0 00 62 61 73 c0                                 |..bas.|
+    00000006
+
+
