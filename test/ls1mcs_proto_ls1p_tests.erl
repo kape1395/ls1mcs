@@ -17,6 +17,6 @@ encode_test() ->
 
 
 decode_test() ->
-    ?ade(#ls1p_ack_frame{src_addr = arm, src_port = ping, status = true, cref = 1258, ret_code = 0}, <<16#0104EA0000:40>>),
+    ?ade(#ls1p_ack_frame{src_addr = arm, src_port = ping, status = true, cref = 1258, recv_status = 0}, <<16#0104EA00:32>>),
     ok.
 
