@@ -54,7 +54,7 @@ calculate_fcs_test() ->
 encode_decode_test() ->
     Frame1 = #ax25_frame{
         dst = #ax25_addr{call = "LY2EN", ssid = 0},
-        src = #ax25_addr{call = "LY1BVB", ssid = 0},
+        src = #ax25_addr{call = "LY1BWB", ssid = 0},
         data = <<1, 2, 3, 4, 5, 6, 7, 8, 9>>
     },
     Frame2 = Frame1#ax25_frame{
@@ -100,7 +100,7 @@ split_frames_test() ->
 parse_call_test() ->
     #ax25_addr{call = "LY2EN",  ssid =  0} = ls1mcs_proto_ax25:parse_call("LY2EN"),
     #ax25_addr{call = "LY2EN",  ssid =  0} = ls1mcs_proto_ax25:parse_call("LY2EN-0"),
-    #ax25_addr{call = "LY1BVB", ssid =  1} = ls1mcs_proto_ax25:parse_call("LY1BVB-1"),
+    #ax25_addr{call = "LY1BWB", ssid =  1} = ls1mcs_proto_ax25:parse_call("LY1BWB-1"),
     #ax25_addr{call = "LY2EN",  ssid = 15} = ls1mcs_proto_ax25:parse_call("LY2EN-15"),
     #ax25_addr{call = "LY2EN",  ssid = 12} = ls1mcs_proto_ax25:parse_call(#ax25_addr{call = "LY2EN",  ssid = 12}),
     ok.

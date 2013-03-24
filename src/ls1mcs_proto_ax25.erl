@@ -201,7 +201,7 @@ split_frames(Data) ->
 
 %%
 %%  DstAddr = #addr{call = "LY2EN", ssid=0},
-%%  SrcAddr = #addr{call = "LY1BVB", ssid=0},
+%%  SrcAddr = #addr{call = "LY1BWB", ssid=0},
 %%
 encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}) ->
     EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.

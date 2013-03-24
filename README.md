@@ -38,7 +38,7 @@ You can monitor ax25 traffix by the following command:
 One can use the following calls for testing:
 
   * LY2EN - Simonas
-  * LY1BVB - VU HAM Club
+  * LY1BWB - VU HAM Club
 
 libax25
 =======
