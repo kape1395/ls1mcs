@@ -1,7 +1,8 @@
 %%
 %%  Implementation of a subset of the AX.25 protocol.
-%%  See http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf [1]
-%%  Also http://www.aero.iitb.ac.in/pratham/otherdocs/Comm%20Saurabh.pdf
+%%  See [1:Specification](http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf),
+%%  [2:Example impl](http://www.webalice.it/capaso/DOCS/APRS/dcc.pdf),
+%%  also (http://www.aero.iitb.ac.in/pratham/otherdocs/Comm%20Saurabh.pdf).
 %%
 %%  Only UI frames are supported.
 %%

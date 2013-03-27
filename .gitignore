@@ -1,6 +1,7 @@
 deps
 ebin
 *.swp
+*.log
 *~
 .eunit/
 .ditz-config
