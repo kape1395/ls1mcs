@@ -18,7 +18,8 @@ start(_StartType, _StartArgs) ->
     {ok, RemoteCall} = application:get_env(?APP, remote_call),
     {ok, InputLog}   = application:get_env(?APP, input_log),
     {ok, OutputLog}  = application:get_env(?APP, output_log),
-    ls1mcs_sup:start_link(TncDevice, LocalCall, RemoteCall, InputLog, OutputLog).
+    {ok, StartProto} = application:get_env(?APP, start_proto),
+    ls1mcs_sup:start_link(TncDevice, LocalCall, RemoteCall, InputLog, OutputLog, StartProto).
 
 
 %%  @doc

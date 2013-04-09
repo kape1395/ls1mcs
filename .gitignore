@@ -5,3 +5,9 @@ ebin
 *~
 .eunit/
 .ditz-config
+.project
+.settings/
+ebin-erlide/
+erl_crash.dump
+log/
+logs/

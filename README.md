@@ -21,11 +21,12 @@ Using valgrind:
 
 Starting application for tests:
 
+    # mkdir -p temp/data/yaws/www
+    # env ERL_LIBS=deps erl -config test/test-nocon -pa ebin/
     env ERL_LIBS=deps erl -config test/test -pa ebin/
         ls1mcs:start().
         ls1mcs_protocol:send({ls1mcs_proto_kiss, {n, l, ls1mcs_proto_kiss}}, <<"labas">>).
         ls1mcs_protocol:send({ls1mcs_proto_ax25, {n, l, ls1mcs_proto_ax25}}, <<"labas">>).
-
 
 
 AX25
