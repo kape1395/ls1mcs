@@ -1,6 +1,29 @@
 
-Erlang
-======
+1. Erlang
+=========
+
+1.1. Building
+-------------
+
+Build everyging:
+
+    make deps
+    make
+
+then:
+
+    mkdir -p temp/data/yaws/www
+    env ERL_LIBS=deps erl -config test/test-nocon -pa ebin/
+    env ERL_LIBS=deps erl -config test/test -pa ebin/
+
+and run the following in the erlang shell:
+
+    ls1mcs:start().
+
+Now you should be able to access http://localhost:12321/
+
+1.2. Running
+------------
 
 Example:
 
