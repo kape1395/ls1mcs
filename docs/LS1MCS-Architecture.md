@@ -17,41 +17,50 @@ Editing the document
 Revision history
 ----------------
 
-1. Scope definition
-===================
+Date         Author              Comments
+------------ ------------------- -----------------------------------------
+2013-04-11   K. Petrauskas       Initial revision
 
-2. Requirements overview
-========================
 
-3. Architecture decisions
-=========================
+Scope definition
+================
+
+Requirements overview
+=====================
+
+Architecture decisions
+======================
 
 
 ![Context of the LS1 ground segment](uml/Component_Diagram__GroundSegment__Ground_segment_-_context.png)
 
 
-4. Information architecture view
-================================
+Information architecture view
+=============================
 
-5. Functional view
-==================
+Functional view
+===============
 
 
 ![Ground segment decomposition](uml/Composite_Structure_Diagram__Ground_segment__Ground_station_-_structure.png)
 
 
-6. Process view
-===============
+![MCS components](uml/Component_Diagram__LS1MCS__LS1MCS_-_components.png)
 
-7. Deployment view
-==================
+
+
+Process view
+============
+
+Deployment view
+===============
 
 
 ![Dislocation of components composing LS1 ground segment](uml/Deployment_Diagram__Deloyment__Ground_segment_-_deployment.png)
 
 
-8. Non functional aspects
-=========================
+Non functional aspects
+======================
 
 Summary
 =======
