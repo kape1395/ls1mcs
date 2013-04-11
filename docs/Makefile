@@ -1,5 +1,5 @@
 LATEX_OPTS=--table-of-contents --latex-engine=pdflatex --include-in-header=latex_hdr.tex
-LATEX_VARS=-V geometry:margin=1in -V numbersections:true -V "include-before:\thispagestyle{firstpage}"
+LATEX_VARS=-V geometry:margin=1in -V numbersections:true -V "include-before:\thispagestyle{firstpage}" -V tables
 
 all: LS1MCS-Architecture.html LS1MCS-Architecture.pdf
 
