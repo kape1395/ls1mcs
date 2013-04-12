@@ -7,6 +7,7 @@
 
 Build everyging:
 
+    sudo apt-get install gcc make g++ libpam0g-dev
     make deps
     make
 
