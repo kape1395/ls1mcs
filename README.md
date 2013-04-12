@@ -14,14 +14,16 @@ Build everyging:
 then:
 
     mkdir -p temp/data/yaws/www
-    env ERL_LIBS=deps erl -config test/test-nocon -pa ebin/
-    env ERL_LIBS=deps erl -config test/test -pa ebin/
+    env ERL_LIBS=deps erl -config test/test-noc -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
+    env ERL_LIBS=deps erl -config test/test-snd -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
+    env ERL_LIBS=deps erl -config test/test-tnc -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ
 
 and run the following in the erlang shell:
 
-    ls1mcs:start().
+    % ls1mcs:start().
 
 Now you should be able to access http://localhost:12321/
+
 
 1.2. Running
 ------------
@@ -173,5 +175,30 @@ Where the `aaa` file has one KISS frame:
     hexdump -C aaa 
     00000000  c0 00 62 61 73 c0                                 |..bas.|
     00000006
+
+
+
+TNC2H-DK9SJ
+===========
+
+The following commands can be used to interface with the TNC manually:
+
+  * `minicom`
+  * `cu`
+
+
+    cu -l /dev/ttyUSB0 -s 9600
+
+
+    {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 7}]).
+    uart:send(Port, <<16#1b>>).
+    uart:send(Port, <<27, $L, 10, 13>>).
+
+    uart:recv(Port, 1, 1000).
+
+
+    {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 8}]).
+    uart:send(Port, <<27, $L, 10, 13>>).
+    uart:recv(Port, 1, 1000).
 
 
