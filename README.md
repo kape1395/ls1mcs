@@ -188,6 +188,10 @@ The following commands can be used to interface with the TNC manually:
 
 
     cu -l /dev/ttyUSB0 -s 9600
+    cu -l /dev/ttyUSB0 -s 9600 --nostop --parity=none
+        <ESC> L
+        <ESC> S 0
+        <ESC> I LY2EN
 
 
     {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 7}]).
@@ -197,8 +201,41 @@ The following commands can be used to interface with the TNC manually:
     uart:recv(Port, 1, 1000).
 
 
-    {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 8}]).
-    uart:send(Port, <<27, $L, 10, 13>>).
-    uart:recv(Port, 1, 1000).
+    {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 8}, {parity, none}, {mode, binary}]).
+    uart:send(Port, <<27, "L", 13>>).
+    %art:send(Port, <<27, "S 0", 13>>).     %% Sita ivykdzius jau pradeda snypsti...
+    uart:send(Port, <<27, "I LY2EN", 13>>).
+    uart:send(Port, <<27, "JHOST 1", 13>>).
+    uart:send(Port, <<192, 0, "Test message", 192>>).
+    uart:send(Port, <<192, 0, "Test message", 192, 10, 13>>).
+    %%
+    %%  Now the TNC seems to be in the KISS mode (giving no response to the L command).
+    %%  Being in 9600, audio loopback mode it sends all the data back to the terminal.
+    %%  When echoing data, the most significant bit in each byte seems zeroed.
+    %%
+    uart:recv(Port, 1, 100).
+    uart:recv(Port, 10, 100).
+    uart:close(Port).
+
+
+[KISS](http://he.fi/archive/linux-hams/199911/0146.html)
+> stty 9600 < /dev/ttyS0 > /dev/ttyS0 (9600 is the baudrate between
+> PC and TNC)
+> echo -e "\033@KISS ON\r" < /dev/ttyS0 > /dev/ttyS0
+> kissattach etc...
+[Script](http://he.fi/archive/linux-hams/199911/0147.html)
+[Other](http://marc.info/?l=suse-ham&m=110885103018627)
+
+
+According to the [WA8DED manual](http://www.ir3ip.net/iw3fqg/doc/wa8ded.htm),
+the host mode is not the same as KISS mode. The host mode protocol is described
+in the manual. Here is a working example, how to use it:
+
+    {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 8}, {parity, none}, {mode, binary}]).
+    uart:send(Port, <<17, 24, 27, "JHOST 1", 13>>).
+    uart:send(Port, <<0, 0, 4, "Labas">>).
+    uart:send(Port, <<0, 1, 6, "JHOST 0">>).
+    uart:send(Port, <<27, "QRES", 13>>).
+
 
 
