@@ -81,6 +81,7 @@ handle_cast({send, Data}, State = #state{port = Port}) ->
 %%
 handle_info({initialize, Device}, State = #state{upper = Upper}) ->
     ls1mcs_protocol:await(Upper),
+    ok = receive after 1000 -> ok end,  %% Delay for restarts.
     {ok, Port} = uart:open(Device, []),
     self() ! {recv},
     {noreply, State#state{port = Port}};
