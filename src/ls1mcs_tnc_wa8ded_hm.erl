@@ -35,12 +35,12 @@
 -define(HM_CODE_CON_INFO,   7). % Connected information     byte-count format
 
 -define(UART_OPTIONS, [{baud, 9600}, {csize, 8}, {parity, none}, {mode, binary}]).
--define(RESTART_DELAY, 1000).       % Milliseconds to sleep before connecting to the UART.
--define(QUERY_DELAY, 1000).         % Milliseconds.
--define(RESYNC_ATTEMPTS, 300).      % Just because 300 > 256.
--define(RESYNC_DELAY, 100).         % Time to wait for response when performing HM sync.
--define(BLOCK_READ_TIMEOUT, 1000).  % Timeout used when reading strings.
--define(COMMAND_TIMEOUT, 5000).     % Time to wait for a command response.
+-define(RESTART_DELAY,      1000).   % Milliseconds to sleep before connecting to the UART.
+-define(QUERY_DELAY,        1000).   % Milliseconds.
+-define(RESYNC_ATTEMPTS,     300).   % Just because 300 > 256.
+-define(RESYNC_DELAY,        100).   % Time to wait for response when performing HM sync.
+-define(BLOCK_READ_TIMEOUT,  500).   % Timeout used when reading strings.
+-define(COMMAND_TIMEOUT,    5000).   % Time to wait for a command response.
 
 
 
@@ -52,7 +52,6 @@
 %%
 %%  TODO: Check max packet length when sending.
 %%  TODO: Add some TNC commands to this module. e.g. quit hostmode, reset.
-%%  TODO: Set own call.
 %%
 %%  ls1mcs_tnc_wa8ded_hm:start_link({n, l, test}, {ls1mcs_tnc_wa8ded_hm, {n, l, test}}, "/dev/ttyUSB0", "LY2EN").
 %%  ls1mcs_tnc_wa8ded_hm:send({n, l, test}, <<"Hello world!">>).

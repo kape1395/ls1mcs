@@ -14,9 +14,9 @@ Build everyging:
 then:
 
     mkdir -p temp/data/yaws/www
-    env ERL_LIBS=deps erl -config test/test-noc -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
-    env ERL_LIBS=deps erl -config test/test-snd -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
-    env ERL_LIBS=deps erl -config test/test-tnc -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ
+    env ERL_LIBS=deps erl -config priv/test-noc -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
+    env ERL_LIBS=deps erl -config priv/test-snd -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
+    env ERL_LIBS=deps erl -config priv/test-tnc -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
 
 and run the following in the erlang shell:
 
@@ -75,19 +75,19 @@ See `using socket udp pthread`
 [sock and pthreads](http://www.cs.allegheny.edu/sites/cs440S2007/12)
 
 > Sveiki,
-> 
+>
 > galimas daiktas kad kažkokia ax25 biblioteka 'sulaužė' kernelį:
-> 
+>
 > `Mar 15 06:29:17 raimis-desktop kernel: [851245.416675] gen_ax25u_port[28277]: segfault at 127 ip 00539a62 sp bfc08384 error 4 in libpthread-2.11.1.so[533000+15000]`
-> 
+>
 > perkrovė, dabar veikia.
-> 
-> 
+>
+>
 > ----
 > Raimundas
-> 
+>
 > On 2013 03 16, at 06:39 , Karolis Petrauskas wrote:
-> 
+>
 > Sveiki,
 >
 >    Panašu, kad serveris (85.195.154.49) nebepasiekiamas...
@@ -172,7 +172,7 @@ To test the soundmodem, run the following:
 
 Where the `aaa` file has one KISS frame:
 
-    hexdump -C aaa 
+    hexdump -C aaa
     00000000  c0 00 62 61 73 c0                                 |..bas.|
     00000006
 

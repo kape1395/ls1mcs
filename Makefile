@@ -21,9 +21,14 @@ doc:
 	$(REBAR) doc
 
 clean:
+	$(REBAR) clean apps=$(APP)
+	rm -f itest/*.beam
+	rm -f doc/*.html doc/edoc-info
+
+clean-all:
 	$(REBAR) clean
 	rm -f itest/*.beam
 	rm -f doc/*.html doc/edoc-info
 
-.PHONY: all deps compile check test itest doc clean
+.PHONY: all deps compile check test itest doc clean clean-all
 

@@ -13,13 +13,8 @@
 %%  Start the application.
 %%
 start(_StartType, _StartArgs) ->
-    {ok, TncDevice}  = application:get_env(?APP, tnc_device),
-    {ok, LocalCall}  = application:get_env(?APP, local_call),
-    {ok, RemoteCall} = application:get_env(?APP, remote_call),
-    {ok, InputLog}   = application:get_env(?APP, input_log),
-    {ok, OutputLog}  = application:get_env(?APP, output_log),
-    {ok, StartProto} = application:get_env(?APP, start_proto),
-    ls1mcs_sup:start_link(TncDevice, LocalCall, RemoteCall, InputLog, OutputLog, StartProto).
+    {ok, LinkCfg = {_Type, _Options}} = application:get_env(?APP, link),
+    ls1mcs_sup:start_link(LinkCfg).
 
 
 %%  @doc

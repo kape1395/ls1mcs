@@ -1,6 +1,6 @@
 -module(ls1mcs_sup).
 -behaviour(supervisor).
--export([start_link/6]).    % API
+-export([start_link/1]).    % API
 -export([init/1]).          % CB
 
 
@@ -12,9 +12,8 @@
 %%
 %% @doc Create this supervisor.
 %%
-start_link(TncDevice, LocalCall, RemoteCall, InputLog, OutputLog, StartProto) ->
-    Args = {TncDevice, LocalCall, RemoteCall, InputLog, OutputLog, StartProto},
-    supervisor:start_link(?MODULE, Args).
+start_link(LinkCfg) ->
+    supervisor:start_link(?MODULE, {LinkCfg}).
 
 
 
@@ -26,8 +25,10 @@ start_link(TncDevice, LocalCall, RemoteCall, InputLog, OutputLog, StartProto) ->
 %%
 %% @doc Supervisor initialization (CB).
 %%
-init({TncDevice, LocalCall, RemoteCall, InputLog, _OutputLog, StartProto}) ->
-    ConnMod = ls1mcs_connection,
+init({LinkCfg}) ->
+    {LinkType, LinkOptions} = LinkCfg,
+
+    ConnMod = ls1mcs_conn,
     LSupMod = ls1mcs_link_sup,
 
     LinkRef = LSupMod:top_ref(),
@@ -35,16 +36,11 @@ init({TncDevice, LocalCall, RemoteCall, InputLog, _OutputLog, StartProto}) ->
     ConnRef  = ls1mcs_protocol:make_ref(ConnMod, ConnName),
 
     ConnArgs = [ConnName, LinkRef],
-    LSupArgs = [ConnRef, TncDevice, InputLog, LocalCall, RemoteCall],
+    LSupArgs = [ConnRef, LinkType, LinkOptions],
 
-    case StartProto of
-        false ->
-            {ok, {{one_for_all, 100, 10}, []}};
-        true ->
-            {ok, {{one_for_all, 100, 10}, [
-                {link, {LSupMod, start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
-                {conn, {ConnMod, start_link, ConnArgs}, permanent, 5000, worker,     [ConnMod]}
-            ]}}
-    end.
+    {ok, {{one_for_all, 100, 10}, [
+        {link, {LSupMod, start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
+        {conn, {ConnMod, start_link, ConnArgs}, permanent, 5000, worker,     [ConnMod]}
+    ]}}.
 
 
