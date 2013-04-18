@@ -1,4 +1,7 @@
--module(ls1mcs_proto_rs232).
+%%
+%%  Uses KISS mode SoundModem to send and receive data.
+%%
+-module(ls1mcs_tnc_smodem).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/4, send/2, received/2]).
