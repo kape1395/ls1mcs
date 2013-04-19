@@ -1,6 +1,6 @@
 % LS1MCS and Ground Segment Architecture
 % Karolis Petrauskas <k.petrauskas@gmail.com>
-% 2013-04-11
+% 2013-04-20
 
 Introduction
 ============
@@ -21,6 +21,7 @@ Revision history
 Date         Author              Comments
 ------------ ------------------- -----------------------------------------
 2013-04-11   K. Petrauskas       Initial revision
+2013-04-20   K. Petrauskas       Deployment view detailed.
 --------------------------------------------------------------------------
 Table: Revision history.
 

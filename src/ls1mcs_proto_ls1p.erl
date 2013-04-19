@@ -50,7 +50,7 @@ start_link(Name, Lower, Upper) ->
 %%
 %%
 %%
-send(Ref, Data) when is_binary(Data) ->
+send(Ref, Data) when is_record(Data, ls1p_cmd_frame) ->
     gen_server:cast({via, gproc, Ref}, {send, Data}).
 
 
@@ -93,12 +93,16 @@ handle_call(_Message, _From, State) ->
 
 
 %%
-%%  TODO:
 %%
-handle_cast({send, _Data}, State = #state{}) ->
+%%
+handle_cast({send, Frame}, State = #state{lower = Lower}) ->
+    {ok, DataBin} = encode(Frame),
+    ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
-handle_cast({received, _Data}, State = #state{}) ->
+handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
+    {ok, Frame} = decode(DataBin),
+    ok = ls1mcs_protocol:send(Upper, Frame),
     {noreply, State}.
 
 
