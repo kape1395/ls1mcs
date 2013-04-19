@@ -39,7 +39,7 @@
 -define(QUERY_DELAY,        1000).   % Milliseconds.
 -define(RESYNC_ATTEMPTS,     300).   % Just because 300 > 256.
 -define(RESYNC_DELAY,        100).   % Time to wait for response when performing HM sync.
--define(BLOCK_READ_TIMEOUT,  500).   % Timeout used when reading strings.
+-define(BLOCK_READ_TIMEOUT, 1000).   % Timeout used when reading strings.
 -define(COMMAND_TIMEOUT,    5000).   % Time to wait for a command response.
 
 
@@ -227,9 +227,12 @@ resync_hostmode(Port, Count) when Count > 0 ->
                     {ok, ErrMsg} = read_zstr(Port),
                     lager:debug("Expexted error ~p received, synced!", [ErrMsg]),
                     ok;
-                OtherCode ->
+                {ok, OtherCode} ->
                     {ok, OtherTrash} = read_all(Port),
                     lager:debug("Got ~p instead of error indicator and trash following it: ~p.", [OtherCode, OtherTrash]),
+                    resync_hostmode(Port, Count - 1);
+                {error, timeout} ->
+                    lager:debug("Do we have echo here?"),
                     resync_hostmode(Port, Count - 1)
             end;
         {ok, OtherMsg} ->
