@@ -1,4 +1,4 @@
--module(ls1mcs_conn).
+-module(ls1mcs_connection).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/2]).

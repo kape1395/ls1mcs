@@ -28,7 +28,7 @@ start_link(LinkCfg) ->
 init({LinkCfg}) ->
     {LinkType, LinkOptions} = LinkCfg,
 
-    ConnMod = ls1mcs_conn,
+    ConnMod = ls1mcs_connection,
     LSupMod = ls1mcs_link_sup,
 
     LinkRef = LSupMod:top_ref(),
