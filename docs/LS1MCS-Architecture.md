@@ -1,6 +1,17 @@
 % LS1MCS and Ground Segment Architecture
-% Karolis Petrauskas <k.petrauskas@gmail.com>
-% 2013-04-20
+% Lituanica SAT-1 Team
+% 0.01-DRAFT
+
+-------------------------------------------------------------------------------------
+Date         Author              Comments
+------------ ------------------- ----------------------------------------------------
+2013-04-11   K. Petrauskas       Initial revision
+
+2013-04-21   K. Petrauskas       Deployment view updated, MSC decomposition provided.
+
+-------------------------------------------------------------------------------------
+Table: Revision history.
+
 
 Introduction
 ============
@@ -8,31 +19,60 @@ Introduction
 Purpose of the document
 -----------------------
 
+Lituanica SAT-1 (LS1) is first Lithuanian satellite.
+This document describes architechure of LS1MCS -- Mission Control System (MCS) for the LS1.
+
+
 Document structure
 ------------------
+
+This document structured reflecting standard architecture description viewpoints.
+The [architecture decisions](#architechure-decisions) section.
+More detailed description is provided in following sections.
+
 
 Editing the document
 --------------------
 
-Revision history
-----------------
-
--------------------------------------------------------------------------------------
-Date         Author              Comments
------------- ------------------- ----------------------------------------------------
-2013-04-11   K. Petrauskas       Initial revision
-
-2013-04-20   K. Petrauskas       Deployment view detailed.
-
--------------------------------------------------------------------------------------
-Table: Revision history.
+This document is written in Markdown and compiled to PDF using `pandoc` together with `pdflatex`.
+Source text of this document can be found in [github](https://github.com/kape1395/ls1mcs/tree/master/docs).
 
 
 Scope definition
 ================
 
+Scope of this document is to describe architecture and design of the LS1MCS.
+The document also includes high level description of entire Ground Segment.
+
+Protocol used for communicating with the SAT is described in the [separate document](TODO).
+
+
 Requirements overview
 =====================
+
+This section is a bit wider than MCS.
+The use cases described here are collected mainly while designing LS1P (LS1 protocol)
+therefore mainly covers the SAT and not MCS specifically.
+
+
+![Mission objectives.](uml/Use_Case_Diagram__Objectives__Objectives.png)
+
+![Operation use cases.](uml/Use_Case_Diagram__UseCases__01__Operation_Use_Cases.png)
+
+![Photo camera use cases.](uml/Use_Case_Diagram__UseCases__04__Photo_Camera_Use_Cases.png)
+
+![FM Repeater use cases.](uml/Use_Case_Diagram__UseCases__05__FM_Repeater_Use_Cases.png)
+
+![Solar cells use cases.](uml/Use_Case_Diagram__UseCases__06__Solar_Cells_Use_Cases.png)
+
+![GPS Use cases.](uml/Use_Case_Diagram__UseCases__07__GPS_Use_Cases.png)
+
+![Housekeeping data use cases.](uml/Use_Case_Diagram__UseCases__09__Housekeeping_Data_Use_Cases.png)
+
+![Radio communication use cases.](uml/Use_Case_Diagram__UseCases__10__Radio_Communication_Use_Cases.png)
+
+![NASA Requirements.](uml/Use_Case_Diagram__UseCases__11__NASA_Requirement_fulfillment_Use_Cases.png)
+
 
 Architecture decisions
 ======================
@@ -61,7 +101,7 @@ Telemetry API.
 
 Main architectural decisions and arguments for them:
 
-Erlang as a platform for the backend.
+Erlang as a platform for the MCS.
 :   At the beginning fo the project the [Hummingbird](http://www.hbird.de/) was considered as
     a platform for the Lituanica SAT-1 ground segment implementation. The main concern with
     this software was its stability and predictiveness at operations. The concerns were mostly
@@ -71,16 +111,16 @@ Erlang as a platform for the backend.
     stability of the platform. Apart of that, protocols are easy to implement in erlang because
     of great support for finite state machines and binary pattern matching.
 
-Web server.
+Yaws as a web server.
 :   Yaws was selected as a web server for implementing REST api as well as for serving WEB GUIs.
     This product was selected because it is Erlang based server (fits well into the stack) and
     the Erlang team of this project had experience with this web server.
 
-Database.
+Riak as a database.
 :   Basho Riak was selected as a database. Its erlang based solution and has good support for binary data.
     Considered alternatives were: Mnesia and PostgreSQL.
 
-Single page WEB applications.
+JavaScript based GUI.
 :   The web based user interfaces are built as single page applications.
     All the user interface is build using JavaScript.
     The user interface access and modifies related data via REST services.
@@ -96,36 +136,64 @@ Single page WEB applications.
 Information architecture view
 =============================
 
+This section describes information model used in the MCS as well as more detailed data model.
+The following diagram shows main entities and relationships between them.
+
 ![Information model.](uml/Class_Diagram__DataModel__Data_model.png)
+
+In this diagram:
+
+Command
+:   is an order sent (or planned to send) to the satellite.
+    Command can have an acknowledgement to it as well as optional response.
+Session
+:   is a period of active communication with a satellite during single pass.
+    Single satellite pass can have several sessions established, but all of them should be serialized.
+    I.e. next session can be established only when the previous session is completed.
+CommandPlan
+:   is a series of commands to be sent to the satellite during one or more sessions.
+    Commands are executed in order specified in the plan with optional waiting for acknowledgement
+    before proceeding to next command.
+PlannedPass
+:   stands for a predicted satellite pass trough observation region of the the ground station.
+    The predictions are calculated based on NORAD data.
+FrameBlock
+:   is a series of data frames composing response to a single command.
+DataFrame
+:   is a single LS1P protocol data frame. Such frames are sent to the ground segment in response to a command.
 
 
 Functional view
 ===============
 
+This section describes functional decomposition of the system.
 
 ![Ground segment decomposition.](uml/Composite_Structure_Diagram__Ground_segment__Ground_station_-_structure.png)
 
+![MCS components.](uml/Component_Diagram__LS1MCS__LS1MCS.png)
 
-![MCS components.](uml/Component_Diagram__LS1MCS__LS1MCS_-_components.png)
-
+![MCS Core components.](uml/Component_Diagram__LS1MCS__LS1MCS_Core.png)
 
 
 Process view
 ============
 
+TODO: ...
+
+
 Deployment view
 ===============
 
 The LS1MCS is designed to work on Linux. For security reasons the MCS is deployed on several servers.
-The following diagram shows devices and servers composing the run-time environment for the MCS.
+The following figure shows devices and servers composing the run-time environment for the MCS.
 
-![Dislocation of components composing LS1 ground segment](uml/Deployment_Diagram__Deloyment__Ground_segment_-_deployment.png)
+![Dislocation of components composing LS1 ground segment\label{uml:depl}](uml/Deployment_Diagram__Deloyment__Ground_segment_-_deployment.png)
 
-The following diagram shows particular instances composing the MCS as well as communication links between them.
+Particular instances composing the MCS as well as communication links between them shown in the following diagram.
 
-![Node and artifact instances](uml/Deployment_Diagram__Deloyment__Ground_segment_-_instances.png)
+![Node and artifact instances\label{uml:depl-inst}](uml/Deployment_Diagram__Deloyment__Ground_segment_-_instances.png)
 
-The `liepiskes` server will be running in the main mission control centre.
+As shown in this diagram, the `liepiskes` server will be running in the main mission control centre.
 TNC, transceiver and the anthena rotator will be connected to its physically via COM ports.
 This server will only run RIAK database, GPredics LS1MCS Core module and the SAT commanding GUI.
 The PUB and HAM GUIs are deployed on separate server for security reasons.
@@ -138,6 +206,9 @@ managed here by using a source host filtering on the `liepiskes` firewall as wel
 
 Non functional aspects
 ======================
+
+ąčęėįšųūžĄČĘĖĮŠŲŪŽ
+
 
 Summary
 =======

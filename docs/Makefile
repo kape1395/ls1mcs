@@ -7,6 +7,7 @@ LS1MCS-Architecture.html: LS1MCS-Architecture.md
 	pandoc -s -o LS1MCS-Architecture.html LS1MCS-Architecture.md
 
 LS1MCS-Architecture.pdf: LS1MCS-Architecture.tex
+	sed 's/\[htbp\]/\[H\]/' -i LS1MCS-Architecture.tex
 	pdflatex LS1MCS-Architecture.tex
 	pdflatex LS1MCS-Architecture.tex
 
@@ -19,3 +20,6 @@ clean:
 clean-img:
 	rm -f uml/*.png
 
+
+
+# xsltproc /usr/share/xml/docbook/stylesheet/docbook-xsl/fo/docbook.xsl LS1MCS-Architecture.xml > LS1MCS-Architecture.fo

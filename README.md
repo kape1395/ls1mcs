@@ -23,7 +23,7 @@ Now you should be able to access [web ui](http://localhost:12321/).
 To send some command via the communication link, run the following in the erlang shell:
 
     rr(ls1mcs_proto_ls1p).
-    F1 = #ls1p_cmd_frame{dest_addr = arm, dest_port = cmd_log, ack = false, cref = 1259, delay = 0, data = <<2:16, 27:16>>},
+    F1 = #ls1p_cmd_frame{dest_addr = arm, dest_port = cmd_log, ack = false, cref = 1259, delay = 0, data = <<2:16, 27:16>>}.
     ls1mcs_protocol:send(ls1mcs_protocol:make_ref(ls1mcs_tnc_wa8ded_hm, {n, l, ls1mcs_tnc_wa8ded_hm}), <<"labas">>).
     ls1mcs_protocol:send(ls1mcs_protocol:make_ref(ls1mcs_proto_ls1p, {n, l, ls1mcs_proto_ls1p}), F1).
 
