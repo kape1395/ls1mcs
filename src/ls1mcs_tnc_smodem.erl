@@ -2,6 +2,7 @@
 %%  Uses KISS mode SoundModem to send and receive data.
 %%
 -module(ls1mcs_tnc_smodem).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, send/2, received/2]).
@@ -93,8 +94,10 @@ handle_info({initialize, Device}, State = #state{upper = Upper}) ->
 handle_info({recv}, State = #state{port = Port, upper = Upper}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
         {ok, RecvIoList} ->
+            lager:debug("Received: ~p", [RecvIoList]),
             RecvBinary = iolist_to_binary(RecvIoList),
-            ok = ls1mcs_protocol:received(Upper, RecvBinary);
+            ok = ls1mcs_protocol:received(Upper, RecvBinary),
+            self() ! {recv};
         {error, timeout} ->
             self() ! {recv}
     end,
