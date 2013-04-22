@@ -170,9 +170,72 @@ This section describes functional decomposition of the system.
 
 ![Ground segment decomposition.](uml/Composite_Structure_Diagram__Ground_segment__Ground_station_-_structure.png)
 
+In this diagram:
+
+LS1MCS
+:   is an entire mission control system. It provides several interfaces, shown as ports in this diagram.
+
+Riak
+:   stands for a database server, used by the MCS to store its runtime data as well as archiving data.
+
+TNC
+:   is a terminal node controller. Can work in several modes:
+
+      * Hardware TNC (TNC2H) with WA8DED EPROM implements modem function and AX.25 protocol.
+        Proprietary protocol (hostmode) is used in this case for interaction between computer and TNC.
+      * Software TNC (Soundmodem) implements modem function only. Computer access this virtual device via KISS protocol.
+      * Hardware TNC (TNC2H) with TAPR EPROM. In this scenario, KISS protocol is used for TNC-computer interface.
+
+    In all cases, TNC is vissible to a computer (LS1MCS) via COM port (RS232).
+
+Transceiver
+:   Sends and receives packet radio signals via antenna.
+
+G-Predict
+:   Used to predict satellite position, control antenna rotator and adjusts transceiver frequences.
+
+
+The following diagram shows components composing the MCS.
+
 ![MCS components.](uml/Component_Diagram__LS1MCS__LS1MCS.png)
 
+In this diagram:
+
+Core
+:   implements main functionality of the MCS. Its internal structure shown in more details bellow.
+    LS1MCS Core component provides services for the REST API,
+    implements link for communication with the SAT and
+    interacts with the satellite pass prediction software.
+Store
+:   provides persistent storage for the MCS. The `Store` is used by both:
+    the `Core` for persisting data and by the `REST API` for data queries.
+REST API
+:   provides exernalizable API to all the MCS functionality.
+    It is used as a backend by all the graphical user interfaces.
+    Additionaly, this API is also the ground segment API.
+
+The `MCS GUI`, `PUB GUI` and `HAM GUI` components provide all the user interfaces,
+prevously introduced in the "Ground segment decomposition" diagram as well as in
+the LS1 Ground segment context diagram.
+The following diagram shows internal structure of the MCS Core in more details.
+
 ![MCS Core components.](uml/Component_Diagram__LS1MCS__LS1MCS_Core.png)
+
+The components in this diagram are the follwing:
+
+Data Logger
+:   ...
+Link
+:   ...
+Telemetry Archiver
+:   ...
+Command Executor
+:   ...
+Response Dispatcher
+:   ...
+Session Manager
+:   ... TODO
+
 
 
 Process view

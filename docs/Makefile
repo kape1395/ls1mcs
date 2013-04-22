@@ -1,25 +1,27 @@
 LATEX_OPTS=--table-of-contents --latex-engine=pdflatex --include-in-header=latex_hdr.tex
 LATEX_VARS=-V geometry:margin=1in -V numbersections:true -V "include-before:\thispagestyle{firstpage}" -V tables
+DOC=LS1MCS-Architecture
 
-all: LS1MCS-Architecture.html LS1MCS-Architecture.pdf
+all: $(DOC).html $(DOC).pdf
 
-LS1MCS-Architecture.html: LS1MCS-Architecture.md
-	pandoc -s -o LS1MCS-Architecture.html LS1MCS-Architecture.md
+$(DOC).html: $(DOC).md
+	pandoc -s -o $(DOC).html $(DOC).md
 
-LS1MCS-Architecture.pdf: LS1MCS-Architecture.tex
-	sed 's/\[htbp\]/\[H\]/' -i LS1MCS-Architecture.tex
-	pdflatex LS1MCS-Architecture.tex
-	pdflatex LS1MCS-Architecture.tex
+$(DOC).pdf: $(DOC).tex
+	sed 's/\[htbp\]/\[H\]/' -i $(DOC).tex
+	pdflatex $(DOC).tex
+	pdflatex $(DOC).tex
 
-LS1MCS-Architecture.tex: LS1MCS-Architecture.md
-	pandoc -f markdown -t latex -s $(LATEX_OPTS) $(LATEX_VARS) -o LS1MCS-Architecture.tex LS1MCS-Architecture.md
+$(DOC).tex: $(DOC).md
+	pandoc -f markdown -t latex -s $(LATEX_OPTS) $(LATEX_VARS) -o $(DOC).tex $(DOC).md
 
 clean:
-	rm -f LS1MCS-Architecture.html LS1MCS-Architecture.tex
+	rm -f $(DOC).html $(DOC).tex
 
-clean-img:
+img-add:
+	cat $(DOC).md | grep "^\!.*uml/" | sed "s|^\!.*uml/\(.*\))|uml/\1|" | xargs git add
+
+img-clean:
 	rm -f uml/*.png
 
 
-
-# xsltproc /usr/share/xml/docbook/stylesheet/docbook-xsl/fo/docbook.xsl LS1MCS-Architecture.xml > LS1MCS-Architecture.fo
