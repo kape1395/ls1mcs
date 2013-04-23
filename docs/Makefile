@@ -19,7 +19,7 @@ clean:
 	rm -f $(DOC).html $(DOC).tex
 
 img-add:
-	cat $(DOC).md | grep "^\!.*uml/" | sed "s|^\!.*uml/\(.*\))|uml/\1|" | xargs git add
+	cat $(DOC).md | grep "^\!.*uml/" | sed "s|^\!.*uml/\(.*\))|uml/\1|" | xargs git add -f
 
 img-clean:
 	rm -f uml/*.png

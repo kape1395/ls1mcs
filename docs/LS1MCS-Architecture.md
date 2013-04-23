@@ -80,7 +80,7 @@ Architecture decisions
 This section outlines main architecture decisions.
 The ground segment, its interfaces and context is shown in the diagram bellow.
 
-![Context of the LS1 ground segment](uml/Component_Diagram__GroundSegment__Ground_segment_-_context.png)
+![Context of the LS1 ground segment](uml/Component_Diagram__Ground_Segment__Ground_segment_-_context.png)
 
 The ground station uses `LS1P` interface (and protocol) to communicate with the "Lituanica SAT-1" and
 provide the following interfaces:
@@ -206,20 +206,23 @@ Core
     LS1MCS Core component provides services for the REST API,
     implements link for communication with the SAT and
     interacts with the satellite pass prediction software.
-Store
+Riak Store
 :   provides persistent storage for the MCS. The `Store` is used by both:
     the `Core` for persisting data and by the `REST API` for data queries.
 REST API
 :   provides exernalizable API to all the MCS functionality.
     It is used as a backend by all the graphical user interfaces.
     Additionaly, this API is also the ground segment API.
+GPredict Integration
+:   provides the Core with predicted SAT passes.
+    This component uses GPredict exported data as its data source.
 
 The `MCS GUI`, `PUB GUI` and `HAM GUI` components provide all the user interfaces,
 prevously introduced in the "Ground segment decomposition" diagram as well as in
 the LS1 Ground segment context diagram.
 The following diagram shows internal structure of the MCS Core in more details.
 
-![MCS Core components.](uml/Component_Diagram__LS1MCS__LS1MCS_Core.png)
+![MCS Core components.](uml/Component_Diagram__Core__LS1MCS_Core.png)
 
 The components in this diagram are the follwing:
 
@@ -243,6 +246,9 @@ Process view
 
 TODO: ...
 
+![TODO](uml/Sequence_Diagram__Command_execution__Command_execution.png)
+
+TODO: ...
 
 Deployment view
 ===============
