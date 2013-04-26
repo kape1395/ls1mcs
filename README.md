@@ -27,11 +27,16 @@ To send some command via the communication link, run the following in the erlang
     LSName = {n, l, ls1mcs_proto_ls1p},    LSRef = ls1mcs_protocol:make_ref(ls1mcs_proto_ls1p, LSName).
     ls1mcs_protocol:send(HMRef, <<"labas">>).
     ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arm, dest_port = cmd_log, ack = false, cref = 1259, delay = 0, data = <<2:16, 27:16>>}).
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"@D">>).    % Show half (0) / full (1) duplex mode
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"@D 1">>).  % Full duplex ON
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"@B">>).    % Show free memory
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"K">>).     % Show date
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"L">>).     % Show channel
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"H">>).     % Show heard list
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"M">>).     % Show monitoring filter?
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E">>).     % Show echo status
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E 0">>).   % Echo OFF
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"QRES">>).  % RESET
 
 
 1.2. Running

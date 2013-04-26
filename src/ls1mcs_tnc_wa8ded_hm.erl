@@ -220,7 +220,7 @@ read_zstr(Port, List) ->
 read_lstr(Port) ->
     case uart:recv(Port, 1, ?BLOCK_READ_TIMEOUT) of
         {ok, <<ByteCount:8>>} ->
-            case uart:recv(Port, ByteCount, ?BLOCK_READ_TIMEOUT) of
+            case uart:recv(Port, ByteCount + 1, ?BLOCK_READ_TIMEOUT) of
                 {ok, Message} -> {ok, Message};
                 {error, timeout} -> {error, timeout}
             end;

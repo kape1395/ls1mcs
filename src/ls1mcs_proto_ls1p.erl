@@ -1,4 +1,5 @@
 -module(ls1mcs_proto_ls1p).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, send/2, received/2]).
@@ -58,7 +59,7 @@ send(Ref, Data) when is_record(Data, ls1p_cmd_frame) ->
 %%  Not used here.
 %%
 received(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
+    gen_server:cast({via, gproc, Ref}, {received, Data}).
 
 
 
@@ -102,6 +103,7 @@ handle_cast({send, Frame}, State = #state{lower = Lower}) ->
 
 handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
     {ok, Frame} = decode(DataBin),
+    lager:debug("Decoded frame: ~p", [Frame]),
     ok = ls1mcs_protocol:send(Upper, Frame),
     {noreply, State}.
 

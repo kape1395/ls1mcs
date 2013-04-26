@@ -1,4 +1,5 @@
 -module(ls1mcs_connection).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -export([start_link/2]).
@@ -28,7 +29,7 @@ send(_Ref, _Data) ->
 %%  Receives incoming messages from the protocol stack.
 %%
 received(_Ref, Data) ->
-    error_logger:info_msg("ls1mcs_connection received a message: ~p~n", [Data]).
+    lager:info("ls1mcs_connection received a message: ~p", [Data]).
 
 
 %% =============================================================================
