@@ -150,11 +150,15 @@ Session
 :   is a period of active communication with a satellite during single pass.
     Single satellite pass can have several sessions established, but all of them should be serialized.
     I.e. next session can be established only when the previous session is completed.
-CommandPlan
+Command Plan
 :   is a series of commands to be sent to the satellite during one or more sessions.
     Commands are executed in order specified in the plan with optional waiting for acknowledgement
     before proceeding to next command.
-PlannedPass
+Session Plan
+:   TODO
+Process
+:   TODO: periodic commands.
+Pass
 :   stands for a predicted satellite pass trough observation region of the the ground station.
     The predictions are calculated based on NORAD data.
 FrameBlock
@@ -189,10 +193,10 @@ TNC
     In all cases, TNC is vissible to a computer (LS1MCS) via COM port (RS232).
 
 Transceiver
-:   Sends and receives packet radio signals via antenna.
+:   sends and receives packet radio signals via antenna.
 
 G-Predict
-:   Used to predict satellite position, control antenna rotator and adjusts transceiver frequences.
+:   is used to predict satellite position, control antenna rotator and adjusts transceiver frequences.
 
 
 The following diagram shows components composing the MCS.
@@ -244,11 +248,19 @@ Session Manager
 Process view
 ============
 
-TODO: ...
+
+There are several cases for sending commands to the SAT:
+
+  * Series of commands, planned in front to execute during one or more SAT passes.
+  * Single command issued manually while session is established.
+    Runtime telemetry query most likely will be issued before issuing the command.
+  * Unconditional commands should be sent at any time, ignoring any other ongoing processes.
+
 
 ![TODO](uml/Sequence_Diagram__Command_execution__Command_execution.png)
 
 TODO: ...
+
 
 Deployment view
 ===============
