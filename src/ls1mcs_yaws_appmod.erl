@@ -1,3 +1,6 @@
+%%
+%%  http://stateless.co/hal_specification.html
+%%
 -module(ls1mcs_yaws_appmod).
 -compile([{parse_transform, lager_transform}]).
 -export([out/1]).
@@ -54,15 +57,48 @@ handle_request([?APP, ?API, "command"], 'GET', _Arg) ->
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
-handle_request([?APP, ?API, "Command", _CommandId], 'GET', _Arg) ->
+handle_request([?APP, ?API, "command", _CommandId], 'GET', _Arg) ->
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
 %%
+%%  HAM Telemetry
+%%
+handle_request([?APP, ?API, "telemetry"], 'POST', Arg) ->
+    lager:debug("Got file, written to test-telemetry.dat"),
+    file:write_file("test-telemetry.dat", Arg#arg.clidata),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[
+            {'_links', {[
+                {self, {[{self, list_to_binary(string:join(["", ?APP, ?API, "telemetry", "5646"], "/"))}]}}
+            ]}}
+        ]})}
+    ];
+
+handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[
+            {'_links', {[
+                {self, {[{self, list_to_binary(string:join(["", ?APP, ?API, "telemetry", "5646"], "/"))}]}}
+            ]}},
+            {field1, 3},
+            {field2, 3.1},
+            {field3, 3.14},
+            {field4, 3.142},
+            {field5, 3.1415}
+        ]})}
+    ];
+
+
+%%
 %%  Other resources
 %%
+
+
 
 
 %% -----------------------------------------------------------------------------
