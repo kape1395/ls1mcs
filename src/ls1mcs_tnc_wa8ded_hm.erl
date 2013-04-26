@@ -9,7 +9,7 @@
 -compile([{parse_transform, lager_transform}]).
 -behavour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/4, send/2, received/2]). % Public API
+-export([start_link/4, send/2, received/2, invoke/2]). % Public API
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
@@ -61,18 +61,31 @@ start_link(Name, Upper, Device, LocalCall) ->
 
 
 %%
-%%
+%%  Sends data packet via TNC.
 %%
 send(Ref, Data) when is_binary(Data) ->
     gen_server:cast({via, gproc, Ref}, {send, Data}).
 
 
 %%
-%%
+%%  Not used.
 %%
 received(_Ref, Data) ->
     lager:error("received/2 is not supported in this module, but ~p received.", [Data]),
     undefined.
+
+
+%%
+%%  Invokes TNC command in hostmode.
+%%  This command can be used for sending commands to the TNC "manually",
+%%  Example call:
+%%      HMName = {n, l, ls1mcs_tnc_wa8ded_hm}.
+%%      HMRef = ls1mcs_protocol:make_ref(ls1mcs_tnc_wa8ded_hm, HMName).
+%%      ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"@B">>).    % Show free memory
+%%      ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"@D 1">>).  % Full duplex ON
+%%
+invoke(Ref, Command) when is_binary(Command) ->
+    gen_server:call({via, gproc, Ref}, {invoke, Command}).
 
 
 
@@ -94,7 +107,7 @@ received(_Ref, Data) ->
 
 
 %%
-%%
+%%  Initialization.
 %%
 init({Upper, Device, LocalCall}) ->
     self() ! {initialize},
@@ -102,10 +115,19 @@ init({Upper, Device, LocalCall}) ->
 
 
 %%
+%%  Invoke a command on the TNC synchronously.
 %%
-%%
-handle_call(_Msg, _From, State) ->
-    {stop, undefined, State}.
+handle_call({invoke, Command}, _From, State = #state{port = Port}) ->
+    Response = case send_cmd(Port, Command) of
+        {ok, ?HM_CODE_OK} ->
+            {ok};
+        {ok, ?HM_CODE_OK_MSG} ->
+            {ok, _Msg} = read_zstr(Port);
+        {ok, ?HM_CODE_FAILURE} ->
+            {ok, Msg} = read_zstr(Port),
+            {failure, Msg}
+    end,
+    {reply, Response, State}.
 
 
 %%
