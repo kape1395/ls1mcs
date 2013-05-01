@@ -105,7 +105,7 @@ handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower =
 %%  Decode frame and send its payload to the upper protocol.
 %%
 handle_cast({received, Received}, State = #state{upper = Upper, data = Collected}) ->
-    {Reminder, Frames} = split_frames(<<Collected, Received>>),
+    {Reminder, Frames} = split_frames(<<Collected/binary, Received/binary>>),
 
     %%  Decode all frames and sent them to the upper level.
     ReceivedFrameFun = fun (FrameBinary) ->

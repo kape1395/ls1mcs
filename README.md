@@ -14,9 +14,10 @@ Build everyging:
 then:
 
     mkdir -p temp/data/yaws/www
-    env ERL_LIBS=deps erl -config priv/test-noc -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
-    env ERL_LIBS=deps erl -config priv/test-snd -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
-    env ERL_LIBS=deps erl -config priv/test-tnc -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
+    env ERL_LIBS=deps erl -config priv/test-void_link -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
+    env ERL_LIBS=deps erl -config priv/test-snd_modem -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
+    env ERL_LIBS=deps erl -config priv/test-wa8ded_hm -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
+    env ERL_LIBS=deps erl -config priv/test-tapr_kiss -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ TAPR KISS mode
 
 Now you should be able to access [web ui](http://localhost:12321/).
 
@@ -24,6 +25,7 @@ To send some command via the communication link, run the following in the erlang
 
     rr(ls1mcs_proto_ls1p).
     HMName = {n, l, ls1mcs_tnc_wa8ded_hm}, HMRef = ls1mcs_protocol:make_ref(ls1mcs_tnc_wa8ded_hm, HMName).
+    TKName = {n, l, ls1mcs_tnc_tapr_kiss}, TKRef = ls1mcs_protocol:make_ref(ls1mcs_tnc_tapr_kiss, TKName).
     LSName = {n, l, ls1mcs_proto_ls1p},    LSRef = ls1mcs_protocol:make_ref(ls1mcs_proto_ls1p, LSName).
     ls1mcs_protocol:send(HMRef, <<"labas">>).
     ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arm, dest_port = cmd_log, ack = false, cref = 1259, delay = 0, data = <<2:16, 27:16>>}).
@@ -37,7 +39,7 @@ To send some command via the communication link, run the following in the erlang
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E">>).     % Show echo status
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E 0">>).   % Echo OFF
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"QRES">>).  % RESET
-
+    ls1mcs_tnc_tapr_kiss:reenter_kiss_mode(TKName).
 
 1.2. Running
 ------------
