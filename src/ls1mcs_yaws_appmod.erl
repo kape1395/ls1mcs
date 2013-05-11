@@ -93,6 +93,26 @@ handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
         ]})}
     ];
 
+%%
+%%  SAT position, example call:
+%%      $ curl http://localhost:12321/ls1mcs/api/sat/LS1/position/predicted/current;
+%%
+handle_request([?APP, ?API, "sat", _SAT, "position", "predicted", "current"], 'GET', _Arg) ->
+    Timestamp = {A, B, C} = erlang:now(),
+    X = (A * 1000000 + B + C / 1000000) / 60,
+    Precision = 1000,
+    Longitude = (round(X * 180 * Precision) rem (360 * Precision)) / Precision - 180,
+    Latitude = math:sin(X) * 90,
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[
+            {'_links', {[
+            ]}},
+            {timestamp, timestamp_to_bin(Timestamp)},
+            {longitude, Longitude},
+            {latitude, Latitude}
+        ]})}
+    ];
 
 %%
 %%  Other resources
@@ -178,5 +198,25 @@ serve_priv_file(FileName, ContentType) ->
     AbsolutePath = lists:flatten(PrivDir ++ "/www/" ++ FileName),
     {ok, Content} = file:read_file(AbsolutePath),
     {content, ContentType, Content}.
+
+
+%%
+%%
+%%
+timestamp_to_bin(undefined) ->
+    null;
+
+timestamp_to_bin({{Y, M, D}, {H, Mi, S}}) ->
+    Args = [Y, M, D, H, Mi, S],
+    Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ", Args),
+    erlang:iolist_to_binary(Date);
+
+timestamp_to_bin(Now) ->
+    {_MegaSecs, _Secs, MicroSecs} = Now,
+    {{Y, M, D}, {H, Mi, S}} = calendar:now_to_datetime(Now),
+    Args = [Y, M, D, H, Mi, S, MicroSecs],
+    Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0B.~6.10.0BZ", Args),
+    erlang:iolist_to_binary(Date).
+
 
 
