@@ -103,6 +103,7 @@ handle_request([?APP, ?API, "sat", _SAT, "position", "predicted", "current"], 'G
     Precision = 1000,
     Longitude = (round(X * 180 * Precision) rem (360 * Precision)) / Precision - 180,
     Latitude = math:sin(X) * 90,
+    Altitude = 400000,
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[
@@ -110,7 +111,8 @@ handle_request([?APP, ?API, "sat", _SAT, "position", "predicted", "current"], 'G
             ]}},
             {timestamp, timestamp_to_bin(Timestamp)},
             {longitude, Longitude},
-            {latitude, Latitude}
+            {latitude, Latitude},
+            {altitude, Altitude}
         ]})}
     ];
 
