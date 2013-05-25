@@ -1,0 +1,247 @@
+LS1 Telemetrija
+=================
+
+
+Numatomos saugoti telemetrijos sàraðas
+----------------------------------------
+
+
+1) EPS Housekeeping duomenys
+
+(LituanicaSat Engineering/Subsystems/EPS/EPS_datasheet_GOMSPace.pdf)
+
+typedef struct chousekeeping_parameters {
+	uint16_t pv[3]; 		//Photo-voltaic input voltage [mV]
+	uint16_t pc; 			//Total photo current [mA]
+	uint16_t bv; 			//Battery voltage [mV]
+	uint16_t sc; 			//Total system current [mA]
+	int16_t temp[4]; 		//Temp. of boost converters (1,2,3) and onboard battery [degC]
+	int16_t batt_temp[2]; 	//External board battery temperatures [degC];
+	uint16_t latchup[6]; 	//Number of latch-ups on each output 5V and +3V3 channel
+							//Order[5V1 5V2 5V3 3.3V1 3.3V2 3.3V3]
+							//Transmit as 5V1 first and 3.3V3 last
+	uint8_t reset; 			//Cause of last EPS reset
+	uint16_t bootcount; 	//Number of EPS reboots
+	uint16_t sw_errors; 	//Number of errors in the eps software
+	uint8_t ppt_mode; 		//0 = Hardware, 1 = MPPT, 2 = Fixed SW PPT.
+	uint8_t channel_status; //Mask of output channel status, 1=on, 0=off
+							//MSB - [QH QS 3.3V3 3.3V2 3.3V1 5V3 5V2 5V1] - LSB
+							// QH = Quadbat heater, QS = Quadbat switch
+} chkparam_t;
+
+Dydis: [43 bytes]
+
+
+2) Magnetometras (HMC5883L)
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/HMC5883L_3-Axis_Digital_Compass_IC.pdf)
+
+typedef struct hmc_telemetry {
+	uint16_t bx; 		//X axis [gauss]
+	uint16_t by; 		//Y axis[gauss]
+	uint16_t bz; 		//Z axis[gauss]
+};
+
+Dydis: [6 bytes]
+
+
+3) Inercinis jutiklis (L3GD20)
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/L3GD20 Mems motion sensor.pdf)
+
+typedef struct l3g20_telemetry {
+	uint16_t wx; 		// X-axis angular rate data
+	uint16_t wy; 		// Y-axis angular rate data
+	uint16_t wz; 		// Z-axis angular rate data
+	
+	uint8_t  temp; 		// Temperature data (1LSB/deg - 8-bit resolution). Ar reikalinga?  
+};
+
+Dydis: [6 bytes] (+1 temperatura) x2 sensoriai 
+
+4) Jutiklis MPU-6000A 
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/PS-MPU-6000A.pdf)
+
+typedef struct mpu6000_telemetry {
+	uint16_t gx; 		// gyroscope X-axis 
+	uint16_t gy; 		// gyroscope Y-axis
+	uint16_t gz; 		// gyroscope Z-axis
+	uint16_t ax; 		// accelerometer X-axis 
+	uint16_t ay; 		// accelerometer Y-axis 
+	uint16_t az; 		// accelerometer Z-axis 
+	uint16_t temp; 		// Temperature data 
+};
+
+Dydis: [14 bytes] 
+
+5) Helium telemetry  (HE-100)
+
+(LituanicaSat Engineering/Subsystems/COMM/He-100/Radio_Interface_Manual_01212013.pdf)
+
+Kol kas neaiðku kiek bus naudojama.
+
+typedef struct helium_telem_type{
+	uint16_t op_counter;            // ?
+	sint16_t msp430_temp;			// +
+	uint8_t  time_count[3];			// ?
+	uint8_t  rssi;					// ?
+	uint32_t bytes_received;		// +
+	uint32_t bytes_transmitted;		// +
+}
+
+Dydis: [16 bytes]
+
+
+
+6)  Laiko þymë
+
+Kartu su duomenimis bus saugoma laiko þymë: ARM-RTC (atskaita: misijos pradþia)
+
+
+
+### Sensoriø pateikiamø duomenø pvz.
+
+MPU6000: Ax0.186m/s2 Ay0.293m/s2 Az9.563m/s2 Gx-4.258dps Gy2.747dps Gz-0.542dps T31.7C
+HMC5883L: Mx-87.600mG My-366.460mG Mz-367.190mG
+L3GD20: Gx-0.201dps Gy-0.091dps Gz0.549dps T35.0C
+MPU6000: Ax0.200m/s2 Ay0.306m/s2 Az9.545m/s2 Gx-4.265dps Gy2.709dps Gz-0.519dps T31.7C
+HMC5883L: Mx-87.600mG My-366.460mG Mz-367.190mG
+L3GD20: Gx-0.201dps Gy-0.091dps Gz0.549dps T35.0C
+MPU6000: Ax0.164m/s2 Ay0.329m/s2 Az9.559m/s2 Gx-4.235dps Gy2.732dps Gz-0.534dps T31.7C
+HMC5883L: Mx-102.200mG My-363.540mG Mz-364.270mG
+L3GD20: Gx-0.073dps Gy-0.281dps Gz0.579dps T35.0C
+
+
+
+
+Telemetrijos saugojimo ir surinkimo procesas
+------------------------------
+
+
+### Telemterijos surinkimo procesas
+
+
+1) Telemetrijos duomenø surinkimas ir iðsaugojimas atminties kortelëje
+
+ Periodinis nuskaitymas:
+ 
+	1.1) Daþniu "x" daromas sensoriø snapshot'as ir áraðomas á cikliná buferá „A“ su time stamp "a"
+	1.2) Daþniu "y" daromas EPS HK snapshot'as ir áraðomas á cikliná buferá „B“ su time stamp "b"
+	
+  Nuskaitymas pagal gautas komandas:
+  
+	Telemetrijos duomenys gali bûti nuskaitomi pagal ið þemës gautas komandas. 
+	Tokie duomenys 	saugomi tuose paèiuose duomenø buferiuose kaip ir periodiðkai nuskaitomi. (??)
+	
+
+2) Telemetrijos duomenø persiuntimas á þemës stotá (GS - ground station)
+
+* Periodinis persiuntimas (ðvyturio reþimas)
+
+ Daþniu "z" suformuojamas telemetrijos duomenø paketas (data frame) ið cikliniø buferiø „A“ ir „B“ paskutiniø reikðmiø, 
+ pridedami He100 telemetrijos parametrai, papildomi sistemos diagnostiniai duomenys [klaidø kodai ir pan.] 
+ ir telemetrijos paketo iðsiuntimo timestamp'as.
+ 
+ Duomenø paketo dydis apibreþiamas taip kad tilptu keli (3?) pilni paskutiniø telemetrijos duomenø rinkiniai.
+ Periodiðkai siunèiamus duomenø paketus be Lietuvoje esanèios GS gali nuskaityti ir radijo megëjai ið viso pasaulio radijo, 
+ kurie nuskaitytus duomenis galës perduoti á GS internetu. Abiem kanalais gautos informacijos saugojimas ir apdorojimas
+ yra analogiðki.
+ 
+* Archyvø nuskaitymas pagal komandà
+
+Pagal gautà komanda yra perduodami nurodyto telemetrijos archyvo duomenys nurodytam periodui.
+Tokio tipo duomenø paketai gali bûti skirtingo dydþio. Perduodant telemetrijos duomenis á vienà paketà yra 
+sutalpinamas pilnas buferyje saugomas áraðas (nekarpoma) (??)
+
+Pagal komanda suformuotus duomenø paketus priiminës tik Lietuvos GS. (??)
+
+
+3) Iðsaugotø duomenø analizavimas ir pateikimas
+
+Gautas telemetrijos duomenø paketas yra pirmiausia iðsaugomas pirmiane (binariniame) formate, kad minimizuoti
+informacijos praradimo tikimybe dël apdorojimo proceso klaidø.
+
+Iðsaugoti telemetrijos duomenø paketai bus asinchriniðkai apdorojami atskirame procese, kurio rezultate telemetrijos 
+duomenys bus perkelti á skaitiniø reikðmiø atvazdavimui pritaikytus telemetrijos duomenø archyvus.
+
+
+###  Telemetrijos duomenø saugyklos
+ 
+Telemetrijos duomenys bus saugomi tokiose duomenu saugyklose:
+
+1) Satelito SD kortelës telemetrijos duomenø buferiai. Pildomi periodiðkai ir/ar pagal gautas komandas.
+Telemetrijai yra numatyti 2 duomenø buferiai: A - sensoriø duomenys  ir B - EPS housekeeping informacija.
+Buferiai bus fiksuoto ploèio: duomenys + laiko þymë A = 26+4=30, B = 43+4=47
+
+2) Gautu duomenø pirmminiame formate saugojimas
+ 
+Sëkmingai priimtas duomenø paketas (arba gautas ið radio megëjø) visada yra iðsaugomas pirminiame formate.
+Prie gauto duomenø paketo be paèiø duomenø yra saugojama: paketo tipas, siuntimo ir/ar gavimo laikai, gavimo bûdas, unikalus paketo id.
+
+Kartu su telemetrijos duomenø paketais toje paèioje saugykloje bus saugomi ir visi kiti satelito siunèiami paketai
+(Komandu logas, GPS ir kameros duomenys).
+
+
+3) Apdorotos telemetrijos informacijos archyvas
+
+Kiekvienam telemetrijos informacijos tipui bus sukurtas atskiras archyvas kuriame saugomos skaitinës matuojamø 
+parametrø reikðmës (temperatûra, satelito padetis, greitis, magnetinis laukas, baterijø duomenis ir pan.).
+
+Ðie duomenys bus susieti su pirminiais duomenø paketais, taip pat prie kiekvieno áraðo bus saugomis informacijos korektiðkumo poþymis. 
+
+Duomenys bus saugomi tokiame formate, kad bûtu patogu juos pateikti perþiûros ir duomenø analizavimo posistemëms.
+Ðis telemetrijos archyvas turës REST sàsajà infromacijos pateikimui.
+
+
+### Telemetrijos duomenø pateikimas
+
+REST sasaja:
+
+<mcs-web-server>\telemetry\<telemetry_type>?from=<datetime>&till=<datetime>
+
+Atsakymai sudarys 2 blokai:
+
+1) telemetry response header
+uþklausos ir kiti bendri parametrai key-value formatu
+
+2) telemtry data values
+reikðmiø masyvas kurio struktûra priklauso nuo telemtrijos tipo
+[datetime, value1, value2, ..., valueX]
+
+pvz.
+
+REQ: <mcs-web-server>\telemetry\hmc5883l?from="2013-11-24T14:54:00Z"&till="2013-11-24T18:00:00Z"
+ 
+RESP:  JSON formatu
+{
+	"telemetry_header": {
+		 "telemetry_type": "HMC5883L"
+		 "from": "2013-11-24T14:54:00Z"
+		 "till": "2013-11-24T18:00:00Z"
+	},
+	"telemetry_values": [
+		{ "ts":"2013-11-24T15:00:00", "mx":-87.6, "my":-366.46, "mz":-367.19 },
+		{ "ts":"2013-11-24T16:00:00", "mx":-88.2, "my":-364.4, "mz":-366.9 },
+		{ "ts":"2013-11-24T17:00:00", "mx":-102.4, "my":-363.54, "mz":-364.27 }
+	]
+}
+ 
+ 
+ 
+TODO:
+-----------
+
+1) Kokie duomenys ir kaip ateis ið kameros ir GPS?
+2) Diagnostiniai ARM ar Arduino parametrai. Ar bus? kokie?
+ 
+ 
+ 
+
+
+
+
+
+
+
+
