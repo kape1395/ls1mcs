@@ -2,7 +2,7 @@ LS1 Telemetrija
 =================
 
 
-Numatomos saugoti telemetrijos sàrağas
+Numatomos saugoti telemetrijos sï¿½raï¿½as
 ----------------------------------------
 
 
@@ -54,7 +54,7 @@ typedef struct l3g20_telemetry {
 	uint16_t wy; 		// Y-axis angular rate data
 	uint16_t wz; 		// Z-axis angular rate data
 	
-	uint8_t  temp; 		// Temperature data (1LSB/deg - 8-bit resolution). Ar reikalinga?  
+	uint8_t  temp; 		// Temperature data (1LSB/deg - 8-bit resolution). Ar reikalinga? Taip 
 };
 
 Dydis: [6 bytes] (+1 temperatura) x2 sensoriai 
@@ -75,11 +75,12 @@ typedef struct mpu6000_telemetry {
 
 Dydis: [14 bytes] 
 
+
 5) Helium telemetry  (HE-100)
 
 (LituanicaSat Engineering/Subsystems/COMM/He-100/Radio_Interface_Manual_01212013.pdf)
 
-Kol kas neaiğku kiek bus naudojama.
+Kol kas neaiï¿½ku kiek bus naudojama.
 
 typedef struct helium_telem_type{
 	uint16_t op_counter;            // ?
@@ -92,15 +93,29 @@ typedef struct helium_telem_type{
 
 Dydis: [16 bytes]
 
+6)ARM Cortex M4 (STM32F405RGT6) telemetry
+
+Temperature sensor //?
+
+IÅ¡trauka iÅ¡ ARM Cortex M4 apraÅ¡ymo:
+2.2.35 Temperature sensor
+The temperature sensor has to generate a voltage that varies linearly with temperature. The conversion range is between 1.8 V and 3.6 V. The temperature sensor is internally connected to the ADC1_IN16 input channel which is used to convert the sensor output voltage into a digital value.
+As the offset of the temperature sensor varies from chip to chip due to process variation, the internal temperature sensor is mainly suitable for applications that detect temperature changes instead of absolute temperatures. If an accurate temperature reading is needed, then an external temperature sensor part should be used.
+
+Raimundo BasÄio pastaba Sausio 28 d. laiÅ¡ke:
+â€mÅ«sÅ³ naudojamame stm32 korpuse nÄ—ra atskiros VREF kojos, todÄ—l prie temperatÅ«ros daviklio netikslumo prisidÄ—s ir maitinimo Å¡altinio Ä¯tampos netikslumas.
+Manau kad grubiam Ä¯vertinimui tokio temperatÅ«ros tikslumo turÄ—tÅ³ uÅ¾tekti, nebent nusprÄ™stume kitaip.
+Bet norint uÅ¾tikrinti tikslesnÄ¯ matavimÄ… reikÄ—tÅ³ statyti papildomÄ…, tikslios Ä¯tampos Å¡altinÄ¯ specialiai ADC uÅ¾maitinti (tÄ… reikÄ—tÅ³ apsisprÄ™sti prieÅ¡ gaminant sekantÄ¯ plokÅ¡tÄ—s variantÄ…).
+Ant ARM plokÅ¡tÄ—s yra kitas temperatÅ«ros daviklis (skaitmeninis), jis stovi MPU6000 (giroskopas/akselerometras). Galimas variantas - sujungti Äipus bendru radiatoriumi, tada gautume dvigubÄ… naudÄ… - padidintume STM32 auÅ¡inimo plotÄ… ir galÄ—tume naudoti skaitmeninÄ¯ MPU6000 termometrÄ… temperatÅ«ros matavimui.â€œ
 
 
-6)  Laiko şymë
+7)  Laiko ï¿½ymï¿½
 
-Kartu su duomenimis bus saugoma laiko şymë: ARM-RTC (atskaita: misijos pradşia)
+Kartu su duomenimis bus saugoma laiko ï¿½ymï¿½: ARM-RTC (atskaita: misijos pradï¿½ia)
 
 
 
-### Sensoriø pateikiamø duomenø pvz.
+### Sensoriï¿½ pateikiamï¿½ duomenï¿½ pvz.
 
 MPU6000: Ax0.186m/s2 Ay0.293m/s2 Az9.563m/s2 Gx-4.258dps Gy2.747dps Gz-0.542dps T31.7C
 HMC5883L: Mx-87.600mG My-366.460mG Mz-367.190mG
@@ -122,79 +137,80 @@ Telemetrijos saugojimo ir surinkimo procesas
 ### Telemterijos surinkimo procesas
 
 
-1) Telemetrijos duomenø surinkimas ir iğsaugojimas atminties kortelëje
+1) Telemetrijos duomenï¿½ surinkimas ir iï¿½saugojimas atminties kortelï¿½je
 
  Periodinis nuskaitymas:
  
-	1.1) Daşniu "x" daromas sensoriø snapshot'as ir árağomas á cikliná buferá „A“ su time stamp "a"
-	1.2) Daşniu "y" daromas EPS HK snapshot'as ir árağomas á cikliná buferá „B“ su time stamp "b"
-	
+	1.1) Daï¿½niu "x" daromas sensoriï¿½ snapshot'as ir ï¿½raï¿½omas ï¿½ ciklinï¿½ buferï¿½ ï¿½Aï¿½ su time stamp "a"
+	1.2) Daï¿½niu "y" daromas EPS HK snapshot'as ir ï¿½raï¿½omas ï¿½ ciklinï¿½ buferï¿½ ï¿½Bï¿½ su time stamp "b"
+ir t.t. iki visÅ³ sensoriÅ³ nuskaitymo
+
   Nuskaitymas pagal gautas komandas:
   
-	Telemetrijos duomenys gali bûti nuskaitomi pagal iğ şemës gautas komandas. 
-	Tokie duomenys 	saugomi tuose paèiuose duomenø buferiuose kaip ir periodiğkai nuskaitomi. (??)
+	Telemetrijos duomenys gali bï¿½ti nuskaitomi pagal iï¿½ ï¿½emï¿½s gautas komandas. 
+	Tokie duomenys 	saugomi tuose paï¿½iuose duomenï¿½ buferiuose kaip ir periodiï¿½kai nuskaitomi. (??)
 	
 
-2) Telemetrijos duomenø persiuntimas á şemës stotá (GS - ground station)
+2) Telemetrijos duomenï¿½ persiuntimas ï¿½ ï¿½emï¿½s stotï¿½ (GS - ground station)
 
-* Periodinis persiuntimas (ğvyturio reşimas)
+* Periodinis persiuntimas (ï¿½vyturio reï¿½imas)
 
- Daşniu "z" suformuojamas telemetrijos duomenø paketas (data frame) iğ cikliniø buferiø „A“ ir „B“ paskutiniø reikğmiø, 
- pridedami He100 telemetrijos parametrai, papildomi sistemos diagnostiniai duomenys [klaidø kodai ir pan.] 
- ir telemetrijos paketo iğsiuntimo timestamp'as.
+ Daï¿½niu "z" suformuojamas telemetrijos duomenï¿½ paketas (data frame) iï¿½ cikliniï¿½ buferiï¿½ ï¿½Aï¿½ ir ï¿½Bï¿½ paskutiniï¿½ reikï¿½miï¿½, 
+ pridedami He100 telemetrijos parametrai, papildomi sistemos diagnostiniai duomenys [klaidï¿½ kodai ir pan.] 
+ ir telemetrijos paketo iï¿½siuntimo timestamp'as.
  
- Duomenø paketo dydis apibreşiamas taip kad tilptu keli (3?) pilni paskutiniø telemetrijos duomenø rinkiniai.
- Periodiğkai siunèiamus duomenø paketus be Lietuvoje esanèios GS gali nuskaityti ir radijo megëjai iğ viso pasaulio radijo, 
- kurie nuskaitytus duomenis galës perduoti á GS internetu. Abiem kanalais gautos informacijos saugojimas ir apdorojimas
- yra analogiğki.
+ Duomenï¿½ paketo dydis apibreï¿½iamas taip kad tilptu keli (3?) pilni paskutiniï¿½ telemetrijos duomenï¿½ rinkiniai.
+ Periodiï¿½kai siunï¿½iamus duomenï¿½ paketus be Lietuvoje esanï¿½ios GS gali nuskaityti ir radijo megï¿½jai iï¿½ viso pasaulio radijo, 
+ kurie nuskaitytus duomenis galï¿½s perduoti ï¿½ GS internetu. Abiem kanalais gautos informacijos saugojimas ir apdorojimas
+ yra analogiï¿½ki.
  
-* Archyvø nuskaitymas pagal komandà
+* Archyvï¿½ nuskaitymas pagal komandï¿½
 
-Pagal gautà komanda yra perduodami nurodyto telemetrijos archyvo duomenys nurodytam periodui.
-Tokio tipo duomenø paketai gali bûti skirtingo dydşio. Perduodant telemetrijos duomenis á vienà paketà yra 
-sutalpinamas pilnas buferyje saugomas árağas (nekarpoma) (??)
+Pagal gautï¿½ komanda yra perduodami nurodyto telemetrijos archyvo duomenys nurodytam periodui.
+Tokio tipo duomenï¿½ paketai gali bï¿½ti skirtingo dydï¿½io. Perduodant telemetrijos duomenis ï¿½ vienï¿½ paketï¿½ yra 
+sutalpinamas pilnas buferyje saugomas ï¿½raï¿½as (nekarpoma) (??)
 
-Pagal komanda suformuotus duomenø paketus priiminës tik Lietuvos GS. (??)
-
-
-3) Iğsaugotø duomenø analizavimas ir pateikimas
-
-Gautas telemetrijos duomenø paketas yra pirmiausia iğsaugomas pirmiane (binariniame) formate, kad minimizuoti
-informacijos praradimo tikimybe dël apdorojimo proceso klaidø.
-
-Iğsaugoti telemetrijos duomenø paketai bus asinchriniğkai apdorojami atskirame procese, kurio rezultate telemetrijos 
-duomenys bus perkelti á skaitiniø reikğmiø atvazdavimui pritaikytus telemetrijos duomenø archyvus.
+Pagal komanda suformuotus duomenï¿½ paketus priiminï¿½s tik Lietuvos GS. (??)
 
 
-###  Telemetrijos duomenø saugyklos
+3) Iï¿½saugotï¿½ duomenï¿½ analizavimas ir pateikimas
+
+Gautas telemetrijos duomenï¿½ paketas yra pirmiausia iï¿½saugomas pirmiane (binariniame) formate, kad minimizuoti
+informacijos praradimo tikimybe dï¿½l apdorojimo proceso klaidï¿½.
+
+Iï¿½saugoti telemetrijos duomenï¿½ paketai bus asinchriniï¿½kai apdorojami atskirame procese, kurio rezultate telemetrijos 
+duomenys bus perkelti ï¿½ skaitiniï¿½ reikï¿½miï¿½ atvazdavimui pritaikytus telemetrijos duomenï¿½ archyvus.
+
+
+###  Telemetrijos duomenï¿½ saugyklos
  
 Telemetrijos duomenys bus saugomi tokiose duomenu saugyklose:
 
-1) Satelito SD kortelës telemetrijos duomenø buferiai. Pildomi periodiğkai ir/ar pagal gautas komandas.
-Telemetrijai yra numatyti 2 duomenø buferiai: A - sensoriø duomenys  ir B - EPS housekeeping informacija.
-Buferiai bus fiksuoto ploèio: duomenys + laiko şymë A = 26+4=30, B = 43+4=47
+1) Satelito SD kortelï¿½s telemetrijos duomenï¿½ buferiai. Pildomi periodiï¿½kai ir/ar pagal gautas komandas.
+Telemetrijai yra numatyti 2 duomenï¿½ buferiai: A - sensoriï¿½ duomenys  ir B - EPS housekeeping informacija.
+Buferiai bus fiksuoto ploï¿½io: duomenys + laiko ï¿½ymï¿½ A = 26+4=30, B = 43+4=47
 
-2) Gautu duomenø pirmminiame formate saugojimas
+2) Gautu duomenï¿½ pirmminiame formate saugojimas
  
-Sëkmingai priimtas duomenø paketas (arba gautas iğ radio megëjø) visada yra iğsaugomas pirminiame formate.
-Prie gauto duomenø paketo be paèiø duomenø yra saugojama: paketo tipas, siuntimo ir/ar gavimo laikai, gavimo bûdas, unikalus paketo id.
+Sï¿½kmingai priimtas duomenï¿½ paketas (arba gautas iï¿½ radio megï¿½jï¿½) visada yra iï¿½saugomas pirminiame formate.
+Prie gauto duomenï¿½ paketo be paï¿½iï¿½ duomenï¿½ yra saugojama: paketo tipas, siuntimo ir/ar gavimo laikai, gavimo bï¿½das, unikalus paketo id.
 
-Kartu su telemetrijos duomenø paketais toje paèioje saugykloje bus saugomi ir visi kiti satelito siunèiami paketai
+Kartu su telemetrijos duomenï¿½ paketais toje paï¿½ioje saugykloje bus saugomi ir visi kiti satelito siunï¿½iami paketai
 (Komandu logas, GPS ir kameros duomenys).
 
 
 3) Apdorotos telemetrijos informacijos archyvas
 
-Kiekvienam telemetrijos informacijos tipui bus sukurtas atskiras archyvas kuriame saugomos skaitinës matuojamø 
-parametrø reikğmës (temperatûra, satelito padetis, greitis, magnetinis laukas, baterijø duomenis ir pan.).
+Kiekvienam telemetrijos informacijos tipui bus sukurtas atskiras archyvas kuriame saugomos skaitinï¿½s matuojamï¿½ 
+parametrï¿½ reikï¿½mï¿½s (temperatï¿½ra, satelito padetis, greitis, magnetinis laukas, baterijï¿½ duomenis ir pan.).
 
-Ğie duomenys bus susieti su pirminiais duomenø paketais, taip pat prie kiekvieno árağo bus saugomis informacijos korektiğkumo poşymis. 
+ï¿½ie duomenys bus susieti su pirminiais duomenï¿½ paketais, taip pat prie kiekvieno ï¿½raï¿½o bus saugomis informacijos korektiï¿½kumo poï¿½ymis. 
 
-Duomenys bus saugomi tokiame formate, kad bûtu patogu juos pateikti perşiûros ir duomenø analizavimo posistemëms.
-Ğis telemetrijos archyvas turës REST sàsajà infromacijos pateikimui.
+Duomenys bus saugomi tokiame formate, kad bï¿½tu patogu juos pateikti perï¿½iï¿½ros ir duomenï¿½ analizavimo posistemï¿½ms.
+ï¿½is telemetrijos archyvas turï¿½s REST sï¿½sajï¿½ infromacijos pateikimui.
 
 
-### Telemetrijos duomenø pateikimas
+### Telemetrijos duomenï¿½ pateikimas
 
 REST sasaja:
 
@@ -203,10 +219,10 @@ REST sasaja:
 Atsakymai sudarys 2 blokai:
 
 1) telemetry response header
-uşklausos ir kiti bendri parametrai key-value formatu
+uï¿½klausos ir kiti bendri parametrai key-value formatu
 
 2) telemtry data values
-reikğmiø masyvas kurio struktûra priklauso nuo telemtrijos tipo
+reikï¿½miï¿½ masyvas kurio struktï¿½ra priklauso nuo telemtrijos tipo
 [datetime, value1, value2, ..., valueX]
 
 pvz.
@@ -232,8 +248,11 @@ RESP:  JSON formatu
 TODO:
 -----------
 
-1) Kokie duomenys ir kaip ateis iğ kameros ir GPS?
+1) Kokie duomenys ir kaip ateis iï¿½ kameros ir GPS?
 2) Diagnostiniai ARM ar Arduino parametrai. Ar bus? kokie?
+3) patikrinti temp. sensoriaus parodymus praktiÅ¡kai. Jei yra dideli nukrypimai neverta naudoti
+4) apsisprÄ™sti ar naudosime akselerometrÄ…? Kaip naudosime, ar visada ar tik misijos pabaigoje?
+5) Reikia apsibrÄ—Å¾ti real time telemetry ir archive telemetry duomenÅ³ struktÅ«rÄ… ir jÅ³ skirtumus 
  
  
  
