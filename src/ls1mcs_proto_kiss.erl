@@ -3,6 +3,7 @@
 %%  See http://www.ax25.net/kiss.aspx for more details.
 %%
 -module(ls1mcs_proto_kiss).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_fsm).
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, send/2, received/2]). % Public API
@@ -72,7 +73,8 @@ init({Lower, Upper}) ->
 %%
 %%  State: idle
 %%
-idle({received, ?FEND}, StateData) ->
+idle({received, ?FEND}, StateData = #state{data = Data}) ->
+    lager:debug("Received FEND: clearing buffer=~p", [lists:reverse(Data)]),
     {next_state, frame_start, StateData#state{data = []}};
 
 idle({received, _Byte}, StateData) ->
@@ -96,7 +98,9 @@ frame_data({received, ?FESC}, StateData) ->
     {next_state, frame_esc, StateData};
 
 frame_data({received, ?FEND}, StateData = #state{upper = Upper, data = Data}) ->
-    ok = ls1mcs_protocol:received(Upper, list_to_binary(lists:reverse(Data))),
+    AccumulatedData = list_to_binary(lists:reverse(Data)),
+    lager:debug("Received FEND: frame buffer=~p", [AccumulatedData]),
+    ok = ls1mcs_protocol:received(Upper, AccumulatedData),
     {next_state, idle, StateData};
 
 frame_data({received, Byte}, StateData = #state{data = Data}) ->
