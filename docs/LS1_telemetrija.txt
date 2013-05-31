@@ -1,0 +1,266 @@
+LS1 Telemetrija
+=================
+
+
+Numatomos saugoti telemetrijos s�ra�as
+----------------------------------------
+
+
+1) EPS Housekeeping duomenys
+
+(LituanicaSat Engineering/Subsystems/EPS/EPS_datasheet_GOMSPace.pdf)
+
+typedef struct chousekeeping_parameters {
+	uint16_t pv[3]; 		//Photo-voltaic input voltage [mV]
+	uint16_t pc; 			//Total photo current [mA]
+	uint16_t bv; 			//Battery voltage [mV]
+	uint16_t sc; 			//Total system current [mA]
+	int16_t temp[4]; 		//Temp. of boost converters (1,2,3) and onboard battery [degC]
+	int16_t batt_temp[2]; 	//External board battery temperatures [degC];
+	uint16_t latchup[6]; 	//Number of latch-ups on each output 5V and +3V3 channel
+							//Order[5V1 5V2 5V3 3.3V1 3.3V2 3.3V3]
+							//Transmit as 5V1 first and 3.3V3 last
+	uint8_t reset; 			//Cause of last EPS reset
+	uint16_t bootcount; 	//Number of EPS reboots
+	uint16_t sw_errors; 	//Number of errors in the eps software
+	uint8_t ppt_mode; 		//0 = Hardware, 1 = MPPT, 2 = Fixed SW PPT.
+	uint8_t channel_status; //Mask of output channel status, 1=on, 0=off
+							//MSB - [QH QS 3.3V3 3.3V2 3.3V1 5V3 5V2 5V1] - LSB
+							// QH = Quadbat heater, QS = Quadbat switch
+} chkparam_t;
+
+Dydis: [43 bytes]
+
+
+2) Magnetometras (HMC5883L)
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/HMC5883L_3-Axis_Digital_Compass_IC.pdf)
+
+typedef struct hmc_telemetry {
+	uint16_t bx; 		//X axis [gauss]
+	uint16_t by; 		//Y axis[gauss]
+	uint16_t bz; 		//Z axis[gauss]
+};
+
+Dydis: [6 bytes]
+
+
+3) Inercinis jutiklis (L3GD20)
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/L3GD20 Mems motion sensor.pdf)
+
+typedef struct l3g20_telemetry {
+	uint16_t wx; 		// X-axis angular rate data
+	uint16_t wy; 		// Y-axis angular rate data
+	uint16_t wz; 		// Z-axis angular rate data
+	
+	uint8_t  temp; 		// Temperature data (1LSB/deg - 8-bit resolution). Ar reikalinga? Taip 
+};
+
+Dydis: [6 bytes] (+1 temperatura) x2 sensoriai 
+
+4) Jutiklis MPU-6000A 
+
+(LituanicaSat Engineering/Subsystems/ADCS/Sensor Specs/PS-MPU-6000A.pdf)
+
+typedef struct mpu6000_telemetry {
+	uint16_t gx; 		// gyroscope X-axis 
+	uint16_t gy; 		// gyroscope Y-axis
+	uint16_t gz; 		// gyroscope Z-axis
+	uint16_t ax; 		// accelerometer X-axis 
+	uint16_t ay; 		// accelerometer Y-axis 
+	uint16_t az; 		// accelerometer Z-axis 
+	uint16_t temp; 		// Temperature data 
+};
+
+Dydis: [14 bytes] 
+
+
+5) Helium telemetry  (HE-100)
+
+(LituanicaSat Engineering/Subsystems/COMM/He-100/Radio_Interface_Manual_01212013.pdf)
+
+Kol kas neai�ku kiek bus naudojama.
+
+typedef struct helium_telem_type{
+	uint16_t op_counter;            // ?
+	sint16_t msp430_temp;			// +
+	uint8_t  time_count[3];			// ?
+	uint8_t  rssi;					// ?
+	uint32_t bytes_received;		// +
+	uint32_t bytes_transmitted;		// +
+}
+
+Dydis: [16 bytes]
+
+6)ARM Cortex M4 (STM32F405RGT6) telemetry
+
+Temperature sensor //?
+
+Ištrauka iš ARM Cortex M4 aprašymo:
+2.2.35 Temperature sensor
+The temperature sensor has to generate a voltage that varies linearly with temperature. The conversion range is between 1.8 V and 3.6 V. The temperature sensor is internally connected to the ADC1_IN16 input channel which is used to convert the sensor output voltage into a digital value.
+As the offset of the temperature sensor varies from chip to chip due to process variation, the internal temperature sensor is mainly suitable for applications that detect temperature changes instead of absolute temperatures. If an accurate temperature reading is needed, then an external temperature sensor part should be used.
+
+Raimundo Basčio pastaba Sausio 28 d. laiške:
+„mūsų naudojamame stm32 korpuse nėra atskiros VREF kojos, todėl prie temperatūros daviklio netikslumo prisidės ir maitinimo šaltinio įtampos netikslumas.
+Manau kad grubiam įvertinimui tokio temperatūros tikslumo turėtų užtekti, nebent nuspręstume kitaip.
+Bet norint užtikrinti tikslesnį matavimą reikėtų statyti papildomą, tikslios įtampos šaltinį specialiai ADC užmaitinti (tą reikėtų apsispręsti prieš gaminant sekantį plokštės variantą).
+Ant ARM plokštės yra kitas temperatūros daviklis (skaitmeninis), jis stovi MPU6000 (giroskopas/akselerometras). Galimas variantas - sujungti čipus bendru radiatoriumi, tada gautume dvigubą naudą - padidintume STM32 aušinimo plotą ir galėtume naudoti skaitmeninį MPU6000 termometrą temperatūros matavimui.“
+
+
+7)  Laiko �ym�
+
+Kartu su duomenimis bus saugoma laiko �ym�: ARM-RTC (atskaita: misijos prad�ia)
+
+
+
+### Sensori� pateikiam� duomen� pvz.
+
+MPU6000: Ax0.186m/s2 Ay0.293m/s2 Az9.563m/s2 Gx-4.258dps Gy2.747dps Gz-0.542dps T31.7C
+HMC5883L: Mx-87.600mG My-366.460mG Mz-367.190mG
+L3GD20: Gx-0.201dps Gy-0.091dps Gz0.549dps T35.0C
+MPU6000: Ax0.200m/s2 Ay0.306m/s2 Az9.545m/s2 Gx-4.265dps Gy2.709dps Gz-0.519dps T31.7C
+HMC5883L: Mx-87.600mG My-366.460mG Mz-367.190mG
+L3GD20: Gx-0.201dps Gy-0.091dps Gz0.549dps T35.0C
+MPU6000: Ax0.164m/s2 Ay0.329m/s2 Az9.559m/s2 Gx-4.235dps Gy2.732dps Gz-0.534dps T31.7C
+HMC5883L: Mx-102.200mG My-363.540mG Mz-364.270mG
+L3GD20: Gx-0.073dps Gy-0.281dps Gz0.579dps T35.0C
+
+
+
+
+Telemetrijos saugojimo ir surinkimo procesas
+------------------------------
+
+
+### Telemterijos surinkimo procesas
+
+
+1) Telemetrijos duomen� surinkimas ir i�saugojimas atminties kortel�je
+
+ Periodinis nuskaitymas:
+ 
+	1.1) Da�niu "x" daromas sensori� snapshot'as ir �ra�omas � ciklin� bufer� �A� su time stamp "a"
+	1.2) Da�niu "y" daromas EPS HK snapshot'as ir �ra�omas � ciklin� bufer� �B� su time stamp "b"
+ir t.t. iki visų sensorių nuskaitymo
+
+  Nuskaitymas pagal gautas komandas:
+  
+	Telemetrijos duomenys gali b�ti nuskaitomi pagal i� �em�s gautas komandas. 
+	Tokie duomenys 	saugomi tuose pa�iuose duomen� buferiuose kaip ir periodi�kai nuskaitomi. (??)
+	
+
+2) Telemetrijos duomen� persiuntimas � �em�s stot� (GS - ground station)
+
+* Periodinis persiuntimas (�vyturio re�imas)
+
+ Da�niu "z" suformuojamas telemetrijos duomen� paketas (data frame) i� ciklini� buferi� �A� ir �B� paskutini� reik�mi�, 
+ pridedami He100 telemetrijos parametrai, papildomi sistemos diagnostiniai duomenys [klaid� kodai ir pan.] 
+ ir telemetrijos paketo i�siuntimo timestamp'as.
+ 
+ Duomen� paketo dydis apibre�iamas taip kad tilptu keli (3?) pilni paskutini� telemetrijos duomen� rinkiniai.
+ Periodi�kai siun�iamus duomen� paketus be Lietuvoje esan�ios GS gali nuskaityti ir radijo meg�jai i� viso pasaulio radijo, 
+ kurie nuskaitytus duomenis gal�s perduoti � GS internetu. Abiem kanalais gautos informacijos saugojimas ir apdorojimas
+ yra analogi�ki.
+ 
+* Archyv� nuskaitymas pagal komand�
+
+Pagal gaut� komanda yra perduodami nurodyto telemetrijos archyvo duomenys nurodytam periodui.
+Tokio tipo duomen� paketai gali b�ti skirtingo dyd�io. Perduodant telemetrijos duomenis � vien� paket� yra 
+sutalpinamas pilnas buferyje saugomas �ra�as (nekarpoma) (??)
+
+Pagal komanda suformuotus duomen� paketus priimin�s tik Lietuvos GS. (??)
+
+
+3) I�saugot� duomen� analizavimas ir pateikimas
+
+Gautas telemetrijos duomen� paketas yra pirmiausia i�saugomas pirmiane (binariniame) formate, kad minimizuoti
+informacijos praradimo tikimybe d�l apdorojimo proceso klaid�.
+
+I�saugoti telemetrijos duomen� paketai bus asinchrini�kai apdorojami atskirame procese, kurio rezultate telemetrijos 
+duomenys bus perkelti � skaitini� reik�mi� atvazdavimui pritaikytus telemetrijos duomen� archyvus.
+
+
+###  Telemetrijos duomen� saugyklos
+ 
+Telemetrijos duomenys bus saugomi tokiose duomenu saugyklose:
+
+1) Satelito SD kortel�s telemetrijos duomen� buferiai. Pildomi periodi�kai ir/ar pagal gautas komandas.
+Telemetrijai yra numatyti 2 duomen� buferiai: A - sensori� duomenys  ir B - EPS housekeeping informacija.
+Buferiai bus fiksuoto plo�io: duomenys + laiko �ym� A = 26+4=30, B = 43+4=47
+
+2) Gautu duomen� pirmminiame formate saugojimas
+ 
+S�kmingai priimtas duomen� paketas (arba gautas i� radio meg�j�) visada yra i�saugomas pirminiame formate.
+Prie gauto duomen� paketo be pa�i� duomen� yra saugojama: paketo tipas, siuntimo ir/ar gavimo laikai, gavimo b�das, unikalus paketo id.
+
+Kartu su telemetrijos duomen� paketais toje pa�ioje saugykloje bus saugomi ir visi kiti satelito siun�iami paketai
+(Komandu logas, GPS ir kameros duomenys).
+
+
+3) Apdorotos telemetrijos informacijos archyvas
+
+Kiekvienam telemetrijos informacijos tipui bus sukurtas atskiras archyvas kuriame saugomos skaitin�s matuojam� 
+parametr� reik�m�s (temperat�ra, satelito padetis, greitis, magnetinis laukas, baterij� duomenis ir pan.).
+
+�ie duomenys bus susieti su pirminiais duomen� paketais, taip pat prie kiekvieno �ra�o bus saugomis informacijos korekti�kumo po�ymis. 
+
+Duomenys bus saugomi tokiame formate, kad b�tu patogu juos pateikti per�i�ros ir duomen� analizavimo posistem�ms.
+�is telemetrijos archyvas tur�s REST s�saj� infromacijos pateikimui.
+
+
+### Telemetrijos duomen� pateikimas
+
+REST sasaja:
+
+<mcs-web-server>\telemetry\<telemetry_type>?from=<datetime>&till=<datetime>
+
+Atsakymai sudarys 2 blokai:
+
+1) telemetry response header
+u�klausos ir kiti bendri parametrai key-value formatu
+
+2) telemtry data values
+reik�mi� masyvas kurio strukt�ra priklauso nuo telemtrijos tipo
+[datetime, value1, value2, ..., valueX]
+
+pvz.
+
+REQ: <mcs-web-server>\telemetry\hmc5883l?from="2013-11-24T14:54:00Z"&till="2013-11-24T18:00:00Z"
+ 
+RESP:  JSON formatu
+{
+	"telemetry_header": {
+		 "telemetry_type": "HMC5883L"
+		 "from": "2013-11-24T14:54:00Z"
+		 "till": "2013-11-24T18:00:00Z"
+	},
+	"telemetry_values": [
+		{ "ts":"2013-11-24T15:00:00", "mx":-87.6, "my":-366.46, "mz":-367.19 },
+		{ "ts":"2013-11-24T16:00:00", "mx":-88.2, "my":-364.4, "mz":-366.9 },
+		{ "ts":"2013-11-24T17:00:00", "mx":-102.4, "my":-363.54, "mz":-364.27 }
+	]
+}
+ 
+ 
+ 
+TODO:
+-----------
+
+1) Kokie duomenys ir kaip ateis i� kameros ir GPS?
+2) Diagnostiniai ARM ar Arduino parametrai. Ar bus? kokie?
+3) patikrinti temp. sensoriaus parodymus praktiškai. Jei yra dideli nukrypimai neverta naudoti
+4) apsispręsti ar naudosime akselerometrą? Kaip naudosime, ar visada ar tik misijos pabaigoje?
+5) Reikia apsibrėžti real time telemetry ir archive telemetry duomenų struktūrą ir jų skirtumus 
+ 
+ 
+ 
+
+
+
+
+
+
+
+
