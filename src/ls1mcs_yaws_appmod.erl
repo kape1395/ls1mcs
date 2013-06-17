@@ -4,6 +4,7 @@
 -module(ls1mcs_yaws_appmod).
 -compile([{parse_transform, lager_transform}]).
 -export([out/1]).
+-include("ls1mcs.hrl").
 -include_lib("yaws/include/yaws_api.hrl").
 
 -define(APP, "ls1mcs").
@@ -40,6 +41,7 @@ out(Arg) ->
 %% -----------------------------------------------------------------------------
 
 handle_request([?APP, ?API], 'GET', _Arg) ->
+    % TODO
     [
         {status, 200},
         {header, {"Link", "<command>; rel=commands"}},
@@ -51,13 +53,47 @@ handle_request([?APP, ?API], 'GET', _Arg) ->
 %%  Command resources
 %%
 
-handle_request([?APP, ?API, "command"], 'GET', _Arg) ->
+handle_request([?APP, ?API, "command_type"], 'GET', _Arg) ->
+    CommandTypes = ls1mcs_yaws_json:command_types(),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandTypes))}
+    ];
+
+handle_request([?APP, ?API, "command_type", Addr], 'GET', _Arg) ->
+    AddrAtom = erlang:list_to_existing_atom(Addr),
+    CommandTypes = lists:filter(
+        fun (#command_type{addr = A}) -> AddrAtom =:= A end,
+        ls1mcs_yaws_json:command_types()
+    ),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandTypes))}
+    ];
+
+handle_request([?APP, ?API, "immediate_command"], 'GET', _Arg) ->
+    % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
-handle_request([?APP, ?API, "command", _CommandId], 'GET', _Arg) ->
+handle_request([?APP, ?API, "immediate_command", _CommandId], 'GET', _Arg) ->
+    % TODO
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+handle_request([?APP, ?API, "command_plan", _CommandPlanId], 'GET', _Arg) ->
+    % TODO
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+handle_request([?APP, ?API, "command_plan", _CommandPlanId, "commmand"], 'GET', _Arg) ->
+    % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}

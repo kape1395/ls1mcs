@@ -167,6 +167,17 @@ DataFrame
 :   is a single LS1P protocol data frame. Such frames are sent to the ground segment in response to a command.
 
 
+LS1MSC REST API
+---------------
+
+
+### Resources
+
+
+### Media type
+
+
+
 Functional view
 ===============
 
