@@ -1,3 +1,6 @@
+-ifndef(LS1P_HRL).
+-define(LS1P_HRL, 1).
+
 
 %%
 %%  Address, 3 bits.
@@ -109,3 +112,5 @@
     recv_status :: ls1p_recv_status()
 }).
 
+
+-endif.

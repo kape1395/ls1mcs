@@ -53,18 +53,25 @@ handle_request([?APP, ?API], 'GET', _Arg) ->
 %%  Command resources
 %%
 
-handle_request([?APP, ?API, "command_type"], 'GET', _Arg) ->
-    CommandTypes = ls1mcs_yaws_json:command_types(),
+handle_request([?APP, ?API, "command_address"], 'GET', _Arg) ->
+    CommandAddrs = ls1mcs_command:command_addresses(),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandAddrs))}
+    ];
+
+handle_request([?APP, ?API, "command_spec"], 'GET', _Arg) ->
+    CommandTypes = ls1mcs_command:command_specs(),
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandTypes))}
     ];
 
-handle_request([?APP, ?API, "command_type", Addr], 'GET', _Arg) ->
+handle_request([?APP, ?API, "command_spec", Addr], 'GET', _Arg) ->
     AddrAtom = erlang:list_to_existing_atom(Addr),
     CommandTypes = lists:filter(
-        fun (#command_type{addr = A}) -> AddrAtom =:= A end,
-        ls1mcs_yaws_json:command_types()
+        fun (#command_spec{addr = A}) -> AddrAtom =:= A end,
+        ls1mcs_command:command_specs()
     ),
     [
         {status, 200},
