@@ -60,22 +60,22 @@ handle_request([?APP, ?API, "command_address"], 'GET', _Arg) ->
         {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandAddrs))}
     ];
 
-handle_request([?APP, ?API, "command_spec"], 'GET', _Arg) ->
-    CommandTypes = ls1mcs_command:command_specs(),
+handle_request([?APP, ?API, "user_cmd_spec"], 'GET', _Arg) ->
+    UserCmdSpecs = ls1mcs_command:user_cmd_specs(),
     [
         {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandTypes))}
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(UserCmdSpecs))}
     ];
 
-handle_request([?APP, ?API, "command_spec", Addr], 'GET', _Arg) ->
+handle_request([?APP, ?API, "user_cmd_spec", Addr], 'GET', _Arg) ->
     AddrAtom = erlang:list_to_existing_atom(Addr),
-    CommandTypes = lists:filter(
-        fun (#command_spec{addr = A}) -> AddrAtom =:= A end,
-        ls1mcs_command:command_specs()
+    UserCmdSpecs = lists:filter(
+        fun (#user_cmd_spec{addr = A}) -> AddrAtom =:= A end,
+        ls1mcs_command:user_cmd_specs()
     ),
     [
         {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandTypes))}
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(UserCmdSpecs))}
     ];
 
 handle_request([?APP, ?API, "immediate_command"], 'GET', _Arg) ->

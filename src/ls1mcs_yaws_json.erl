@@ -19,7 +19,7 @@ encode(#command_address{desc = Desc, addr = Addr}) ->
         {addr, Addr}
     ]};
 
-encode(#command_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = Comp, params = Params}) ->
+encode(#user_cmd_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = Comp, params = Params}) ->
     {[
         {desc, Desc},
         {addr, Addr},
@@ -29,7 +29,7 @@ encode(#command_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = Co
         {params, encode_list(Params)}
     ]};
 
-encode(#cmd_param{name = Name, desc = Desc, type = Type, enum = Enum}) ->
+encode(#user_cmd_param{name = Name, desc = Desc, type = Type, enum = Enum}) ->
     EnumEncoded = case Enum of
         undefined -> [];
         _ -> [ {enum, encode_list(Enum)} ]
@@ -40,7 +40,7 @@ encode(#cmd_param{name = Name, desc = Desc, type = Type, enum = Enum}) ->
         {type, Type}
     ] ++ EnumEncoded};
 
-encode(#cmd_enum{desc = Desc, value = Value}) ->
+encode(#user_cmd_enum{desc = Desc, value = Value}) ->
     {[
         {desc, Desc},
         {value, Value}
