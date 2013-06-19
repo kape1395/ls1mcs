@@ -27,16 +27,16 @@
 %% =============================================================================
 
 
--record(cmd_enum_spec, {
+-record(cmd_enum, {
     desc        :: binary(),
     value       :: integer() | float() | atom()
 }).
 
--record(cmd_param_spec, {
+-record(cmd_param, {
     name        :: atom(),
     desc        :: binary(),
     type        :: (integer | float | string | enum),
-    enum        :: [#cmd_enum_spec{}]
+    enum        :: [#cmd_enum{}]
 }).
 
 -record(command_spec, {
@@ -45,7 +45,7 @@
     port            :: atom(),
     ack = false     :: boolean(),   %%  Default value for the ack field.
     comp = false    :: boolean(),   %%  True, if the command is translated to several commands before sending to SAT.
-    params = []     :: [#cmd_param_spec{}]
+    params = []     :: [#cmd_param{}]
 }).
 
 -record(command_address, {
@@ -59,10 +59,13 @@
 %% =============================================================================
 
 %%
-%%  Single command issued by a user.
-%%  These commands are instances of
+%%  Single command frame, sent over the radio link.
+%%  These frames are generated based on issued #command{}s.
+%%  The frame can have multiple commands, in the case of multi-command.
 %%
 -record(cmd_frame, {
+    id          :: integer(),
+    crefs       :: [cref()],
     frame       :: #ls1p_cmd_frame{},
     sent        :: timestamp(),
     acked       :: timestamp(),
@@ -73,18 +76,25 @@
     status      :: atom()           %% status of the command
 }).
 
--record(cmd_param, {
+%%
+%%  Command arguments, instances of cmd_param.
+%%
+-record(cmd_arg, {
     name        :: atom(),
     value       :: integer() | float() | binary()
 }).
 
+%%
+%%  Single command issued by a user.
+%%  These commands are instances of command_spec.
+%%
 -record(command, {
-    cref        :: cref(),
+    id          :: integer(),
     addr        :: atom(),
     port        :: atom(),
     ack         :: boolean(),
     delay       :: integer(),
-    params      :: [#cmd_param{}],
+    params      :: [#cmd_arg{}],
     immediate   :: boolean(),
     approved    :: timestamp(),     %% auto | true | false ?
     issued      :: timestamp(),
@@ -92,7 +102,8 @@
     status      :: atom()
 }).
 
-
+% TODO: CMD_PDU - ne.
+% TODO: CREF Table.
 
 -endif.
 

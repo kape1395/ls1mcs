@@ -45,6 +45,9 @@ To send some command via the communication link, run the following in the erlang
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"QRES">>).  % RESET
     ls1mcs_tnc_tapr_kiss:reenter_kiss_mode(TKName).
 
+    lager:set_loglevel(lager_console_backend, warning).
+
+
 1.2. Running
 ------------
 
