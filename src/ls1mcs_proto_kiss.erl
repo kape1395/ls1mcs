@@ -67,7 +67,7 @@ received(Ref, <<Byte:8, Rest/binary>>) ->
 
 init({Lower, Upper}) ->
     self() ! {initialize},
-    {ok, idle, #state{lower = Lower, upper = Upper}}.
+    {ok, idle, #state{data = [], lower = Lower, upper = Upper}}.
 
 
 %%
