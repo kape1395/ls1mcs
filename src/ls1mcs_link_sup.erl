@@ -84,7 +84,7 @@ init({ConnRef, tnc_tapr_kiss, LinkOptions}) ->
 
     TaprArgs = [TaprName, KissRef, Device],
     KissArgs = [KissName, TaprRef, Ax25Ref],
-    Ax25Args = [Ax25Name, KissRef, Ls1pRef, LocalCall, RemoteCall],
+    Ax25Args = [Ax25Name, KissRef, Ls1pRef, LocalCall, RemoteCall, tnc],
     Ls1pArgs = [Ls1pName, Ax25Ref, ConnRef],
 
     {ok, {{one_for_all, 100, 10}, [
@@ -116,7 +116,7 @@ init({ConnRef, soundmodem, LinkOptions}) ->
 
     SndmArgs = [SndmName, KissRef, Device],
     KissArgs = [KissName, SndmRef, Ax25Ref],
-    Ax25Args = [Ax25Name, KissRef, Ls1pRef, LocalCall, RemoteCall],
+    Ax25Args = [Ax25Name, KissRef, Ls1pRef, LocalCall, RemoteCall, std],
     Ls1pArgs = [Ls1pName, Ax25Ref, ConnRef],
 
     {ok, {{one_for_all, 100, 10}, [

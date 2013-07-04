@@ -9,8 +9,8 @@
 -module(ls1mcs_proto_ax25).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/5, send/2, received/2]).
--export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/1, decode/1, split_frames/1, parse_call/1]). % For tests
+-export([start_link/5, start_link/6, send/2, received/2]).
+-export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/2, decode/2, split_frames/1, parse_call/1]). % For tests
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -28,10 +28,25 @@
 
 
 %%
+%%  Name - .
+%%  Lower - .
+%%  Upper - .
+%%  Mode:
+%%      std -- Standard AX25, as described in the spec.
+%%      tnc -- AX.25 frame, as returned by the TNC2H in the TAPR KISS mode.
+%%        - Have no frame flags
+%%        - Have no bitstuffing.
+%%        - Bits are not reversed.
 %%
+start_link(Name, Lower, Upper, Local, Remote, Mode) ->
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote, Mode}, []).
+
+
+%%
+%%  See start_link/4.
 %%
 start_link(Name, Lower, Upper, Local, Remote) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote}, []).
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote, std}, []).
 
 
 %%
@@ -58,7 +73,8 @@ received(Ref, Data) when is_binary(Data) ->
     upper,      %% Upper protocol ref.
     data,       %% Buffer for an input from the lower level.
     local,      %% Local call
-    remote      %% Remote call
+    remote,     %% Remote call
+    mode        %% Operation mode: std | tnc
 }).
 
 
@@ -70,14 +86,15 @@ received(Ref, Data) when is_binary(Data) ->
 %%
 %%
 %%
-init({Lower, Upper, Local, Remote}) ->
+init({Lower, Upper, Local, Remote, Mode}) ->
     self() ! {initialize},
     {ok, #state{
         lower = Lower,
         upper = Upper,
         data = <<>>,
         local = parse_call(Local),
-        remote = parse_call(Remote)
+        remote = parse_call(Remote),
+        mode = Mode
     }}.
 
 
@@ -91,25 +108,25 @@ handle_call(_Message, _From, State) ->
 %%
 %%  Encode frame and send it to the lower protocol.
 %%
-handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower = Lower}) ->
+handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower = Lower, mode = Mode}) ->
     Frame = #ax25_frame{
         dst = Remote,
         src = Local,
         data = Data
     },
-    {ok, FrameBinary} = encode(Frame),
+    {ok, FrameBinary} = encode(Frame, Mode),
     ok = ls1mcs_protocol:send(Lower, FrameBinary),
     {noreply, State};
 
 %%
 %%  Decode frame and send its payload to the upper protocol.
 %%
-handle_cast({received, Received}, State = #state{upper = Upper, data = Collected}) ->
+handle_cast({received, Received}, State = #state{upper = Upper, data = Collected, mode = std = Mode}) ->
     {Reminder, Frames} = split_frames(<<Collected/binary, Received/binary>>),
 
     %%  Decode all frames and sent them to the upper level.
     ReceivedFrameFun = fun (FrameBinary) ->
-        case catch decode(FrameBinary) of
+        case catch decode(FrameBinary, Mode) of
             {ok, #ax25_frame{data = FrameInfo}} ->
                 ok = ls1mcs_protocol:received(Upper, FrameInfo);
             Error ->
@@ -127,8 +144,16 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
             io:format("WARN: AX25: Buffer to big, several bytes dropped: input=~p~n", [StrippedReminder]),
             State#state{data = NewReminder}
     end,
-    {noreply, NewState}.
+    {noreply, NewState};
 
+handle_cast({received, Received}, State = #state{upper = Upper, mode = tnc = Mode}) ->
+    case catch decode(Received, Mode) of
+        {ok, #ax25_frame{data = FrameInfo}} ->
+            ok = ls1mcs_protocol:received(Upper, FrameInfo);
+        Error ->
+            io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, Received])
+    end,
+    {noreply, State}.
 
 %%
 %%
@@ -204,17 +229,13 @@ split_frames(Data) ->
 %%  DstAddr = #addr{call = "LY2EN", ssid=0},
 %%  SrcAddr = #addr{call = "LY1BWB", ssid=0},
 %%
-encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}) ->
+encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, std) ->
     EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.
     EncodedSrcAddr = encode_address(SrcAddr, 0, 1), %% Command, Source addr.
     Address = reverse_bits(<<EncodedDstAddr/binary, EncodedSrcAddr/binary>>),
-
-    ControlM1 = 2#000,  %% UI frame, see [1], section 4.3.3.
-    ControlM2 = 2#00,   %% UI frame, see [1], section 4.3.3.
-    ControlPF = 2#0,    %% Not used, see [1], sections 4.3.3, 4.3.3.6, 6.2.
-    Control = reverse_bits(<<ControlM1:3, ControlPF:1, ControlM2:2, ?CTRL_FRAME_U:2>>),
-
+    Control = reverse_bits(control_byte_ui()),
     Info = reverse_bits(Data),
+
     FrameContents = <<
         Address/binary,
         Control/binary,
@@ -222,24 +243,34 @@ encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}) ->
         Info/binary
     >>,
 
-    %%  Checksum: see [1], section 4.4.6;
-    %%  And http://www.billnewhall.com/TechDepot/AX25CRC/CRC_for_AX25.pdf
-    %%  FCS should not be bit-reversed.
     FCS = calculate_fcs(FrameContents),
-    FrameWithFCS = <<
-        FrameContents/binary,
-        FCS:16
+    FrameWithFCS = <<FrameContents/binary, FCS:16>>,
+
+    BitstuffedFrameContents = bitstuff(FrameWithFCS),
+    {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/binary, ?AX25_FLAG:8>>};
+
+encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, tnc) ->
+    EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.
+    EncodedSrcAddr = encode_address(SrcAddr, 0, 1), %% Command, Source addr.
+    Address = <<EncodedDstAddr/binary, EncodedSrcAddr/binary>>,
+    Control = control_byte_ui(),
+
+    FrameContents = <<
+        Address/binary,
+        Control/binary,
+        ?AX25_PID_NOL3:8,
+        Data/binary
     >>,
 
-    %%  Do bitstuffing, padding by 0 and add flags.
-    BitstuffedFrameContents = bitstuff(FrameWithFCS),
-    {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/binary, ?AX25_FLAG:8>>}.
+    FCS = calculate_fcs(FrameContents),
+    FrameWithFCS = <<FrameContents/binary, FCS:16>>,
+    {ok, FrameWithFCS}.
 
 
 %%
 %%
 %%
-decode(BitstuffedFrame) ->
+decode(BitstuffedFrame, std) ->
     %%  Preliminary frame validation, see [1], section 3.9.
     FrameLen = bit_size(BitstuffedFrame),
     true = FrameLen >= 136,
@@ -381,6 +412,10 @@ bitdestuff(<<>>, Count) ->
 
 
 %%
+%%  Checksum: see [1], section 4.4.6;
+%%  And http://www.billnewhall.com/TechDepot/AX25CRC/CRC_for_AX25.pdf
+%%  FCS should not be bit-reversed.
+%%
 %%  Uses  algorithm. The implementation is based on algorithm
 %%  provided here: http://srecord.sourceforge.net/crc16-ccitt.html.
 %%
@@ -412,4 +447,15 @@ calculate_fcs(CRC, <<First:1, Rest/bitstring>>) ->
         false -> ShiftedCRC
     end,
     calculate_fcs(UpdatedCRC, Rest).
+
+
+%%
+%%  Format control byte for an UI frame.
+%%
+control_byte_ui() ->
+    ControlM1 = 2#000,  %% UI frame, see [1], section 4.3.3.
+    ControlM2 = 2#00,   %% UI frame, see [1], section 4.3.3.
+    ControlPF = 2#0,    %% Not used, see [1], sections 4.3.3, 4.3.3.6, 6.2.
+    <<ControlM1:3, ControlPF:1, ControlM2:2, ?CTRL_FRAME_U:2>>.
+
 

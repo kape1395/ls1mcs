@@ -102,9 +102,17 @@ handle_cast({send, Frame}, State = #state{lower = Lower}) ->
     {noreply, State};
 
 handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
-    {ok, Frame} = decode(DataBin),
-    lager:debug("Decoded frame: ~p", [Frame]),
-    ok = ls1mcs_protocol:send(Upper, Frame),
+    try decode(DataBin) of
+        {ok, Frame} ->
+            lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
+            ok = ls1mcs_protocol:send(Upper, Frame)
+    catch
+        ErrType:ErrCode ->
+            lager:debug(
+                "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
+                [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
+            )
+    end,
     {noreply, State}.
 
 

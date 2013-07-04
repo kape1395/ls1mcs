@@ -40,6 +40,7 @@ To send some command via the communication link, run the following in the erlang
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"L">>).     % Show channel
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"H">>).     % Show heard list
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"M">>).     % Show monitoring filter?
+    ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"M U">>).   % Set monitoring mode for UI.
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E">>).     % Show echo status
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"E 0">>).   % Echo OFF
     ls1mcs_tnc_wa8ded_hm:invoke(HMName, <<"QRES">>).  % RESET
