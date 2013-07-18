@@ -79,6 +79,33 @@ Starting application for tests:
         ls1mcs_protocol:send({ls1mcs_proto_ax25, {n, l, ls1mcs_proto_ax25}}, <<"labas">>).
 
 
+Communication options
+=====================
+
+
+TNC2h-WA8DED-HostMode
+---------------------
+
+### Experiment 1
+
+  * TNC Pins: 101010000
+  * Config: priv/test-wa8ded_hm
+  * Incoming:
+  * Outgoing: 
+  * Notes:
+      * 
+
+
+TNC2h-TAPR-KISS
+---------------
+
+
+Soundmodem-KISS
+---------------
+
+
+
+
 AX25
 ====
 
