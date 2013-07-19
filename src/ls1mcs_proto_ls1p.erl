@@ -9,6 +9,7 @@
 -include("ls1p.hrl").
 
 
+
 -define(ADDR_MAP, [
     {arm,       0},
     {arduino,   1},
@@ -17,18 +18,19 @@
     {helium,    4}
 ]).
 -define(PORT_MAP, [
-    {arm,       ping,         0},
-    {arm,       cmd_log,      1},
-    {arm,       cmd_kill,     2},
-    {arm,       tm_archive,   3},
-    {arm,       tm_realtime,  4},
-    {arm,       gps_log_bin,  5},
-    {arm,       gps_log_nmea, 6},
-    {arduino,   default,      0},
-    {eps,       default,      0},
-    {gps,       nmea,         0},
-    {gps,       binary,       1},
-    {helium,    default,      0}
+    {arm,       ping,       16#0},
+    {arm,       kill,       16#1},
+    {arm,       downlink,   16#2},
+    {arm,       runtime_tm, 16#3},
+    {arm,       job_period, 16#4},
+    {arm,       multi,      16#F},
+    {arduino,   take_photo, 16#0},
+    {arduino,   photo_meta, 16#1},
+    {arduino,   photo_data, 16#2},
+    {eps,       command,    16#0},
+    {gps,       nmea,       16#0},
+    {gps,       binary,     16#1},
+    {helium,    command,    16#0}
 ]).
 -define(BOOL_MAP, [
     {false, 0},

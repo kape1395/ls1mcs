@@ -1,9 +1,15 @@
+Intruduction
+============================================================
 
-1. Erlang
-=========
+This is the MCS for the first lithuanian satellite "Lituanica SAT-1".
 
-1.1. Building
--------------
+
+
+Erlang
+============================================================
+
+Building
+------------------------------------------------------------
 
 Build everyging:
 
@@ -49,8 +55,8 @@ To send some command via the communication link, run the following in the erlang
     lager:set_loglevel(lager_console_backend, warning).
 
 
-1.2. Running
-------------
+Running (TODO: Update this section)
+------------------------------------------------------------
 
 Example:
 
@@ -77,6 +83,29 @@ Starting application for tests:
         ls1mcs:start().
         ls1mcs_protocol:send({ls1mcs_proto_kiss, {n, l, ls1mcs_proto_kiss}}, <<"labas">>).
         ls1mcs_protocol:send({ls1mcs_proto_ax25, {n, l, ls1mcs_proto_ax25}}, <<"labas">>).
+
+
+Sending tele-commands
+------------------------------------------------------------
+
+Bytes received from He100 using `rp(ls1mcs_utl_uart_logger:recv(true)).`:
+
+    ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arm, dest_port = ping, ack = false, cref = 1259, delay = 0, data = <<>>}).
+    %% {ok, <<72,101,32,4,0,23,59,163,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,0,4,235,0,0,53,208,125,141,72,101,32,4,255,255,34,137>>}
+    %% See `test/data/test_he100_recv_ls1p_arm_ping.dat`.
+
+    ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arduino, dest_port = take_photo, ack = true, cref = 1260, delay = 30, data = <<0:16>>}).
+    %% {ok, <<72,101,32,4,0,25,61,165,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,33,4,236,0,30,0,0,212,72,218,155,72,101,32,4,255,255,34,137>>}
+    %% See `test/data/test_he100_recv_ls1p_arduino_take_photo.dat`.
+
+    ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arduino, dest_port = photo_meta, ack = false, cref = 1261, delay = 0, data = <<>>}).
+    %% {ok, <<72,101,32,4,0,23,59,163,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,34,4,237,0,0,245,112,1,165>>}
+    %% See `test/data/test_he100_recv_ls1p_arduino_photo_meta.dat`.
+
+    ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arduino, dest_port = photo_data, ack = false, cref = 1262, delay = 0, data = <<0:16, 78:16>>}).
+    %% {ok, <<72,101,32,4,0,27,63,167,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,36,4,238,0,0,0,0,0,78,113,194,44,196>>}
+    %% See `test/data/test_he100_recv_ls1p_arduino_photo_data.dat`
+
 
 
 Communication options

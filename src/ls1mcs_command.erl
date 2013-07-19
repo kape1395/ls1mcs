@@ -58,6 +58,11 @@ user_cmd_specs() ->
         %%  Arduino commands.
         %%
         #user_cmd_spec{addr = arduino, port = take_photo, ack = true, desc = <<"Take a photo">>, params = [
+            #user_cmd_param{name = resid, type = integer, desc = <<"Resolution">>, enum = [
+                #user_cmd_enum{desc = <<"Resolution 1">>, value = 0},
+                #user_cmd_enum{desc = <<"Resolution 2">>, value = 1},
+                #user_cmd_enum{desc = <<"Resolution 3">>, value = 2}
+            ]},
         ]},
         #user_cmd_spec{addr = arduino, port = photo_meta, ack = true, desc = <<"Downlink photo metadata">>, params = [
         ]},
