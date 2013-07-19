@@ -262,9 +262,7 @@ encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, tnc) ->
         Data/binary
     >>,
 
-    FCS = calculate_fcs(FrameContents),
-    FrameWithFCS = <<FrameContents/binary, FCS:16>>,
-    {ok, FrameWithFCS}.
+    {ok, FrameContents}.
 
 
 %%
@@ -298,8 +296,27 @@ decode(BitstuffedFrame, std) ->
         dst = #ax25_addr{call = DstCall, ssid = DstSSID},
         src = #ax25_addr{call = SrcCall, ssid = SrcSSID},
         data = Info
-    }}.
+    }};
 
+decode(Frame, tnc) ->
+    %%  Preliminary frame validation, see [1], section 3.9.
+    FrameLen = bit_size(Frame),
+    true = FrameLen >= 128,
+    0 = FrameLen rem 8,
+
+    %%  Parse two addresses.
+    <<DstAddrBin:7/binary, SrcAddrBin:7/binary, ControlPidInfo/binary>> = Frame,
+    {ok, DstCall, DstSSID, 0} = decode_address(DstAddrBin),
+    {ok, SrcCall, SrcSSID, 1} = decode_address(SrcAddrBin), %% 1 Means no repeater addressed follow.
+
+    %% Parse control byte (not two bytes), PID and Payload.
+    <<_M1:3, _PF:1, _M2:2, ?CTRL_FRAME_U:2, _PID:8, Info/binary>> = ControlPidInfo,
+
+    {ok, #ax25_frame{
+        dst = #ax25_addr{call = DstCall, ssid = DstSSID},
+        src = #ax25_addr{call = SrcCall, ssid = SrcSSID},
+        data = Info
+    }}.
 
 %%
 %%  Address: see [1], section 3.12.2.
