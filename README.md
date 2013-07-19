@@ -86,14 +86,22 @@ Communication options
 TNC2h-WA8DED-HostMode
 ---------------------
 
-### Experiment 1
+### Experiment 1: 2013-07-19T18:50:00
 
   * TNC Pins: 101010000
   * Config: priv/test-wa8ded_hm
-  * Incoming:
-  * Outgoing: 
+  * Incoming: works.
+  * Outgoing: works.
   * Notes:
-      * 
+      * He100->GS: Command to He100 was sent using `python hee.py "Sveikinimai nuo kosmonautu\!"`
+      * GS->He100: sent using `ls1mcs_protocol:send(HMRef, <<"Linkejimai is zemes stoties.">>).`,
+        response logged with `ls1mcs_utl_uart_logger:start_link("/dev/ttyUSB1").` and
+        written to `test/data/test_he100_rev_text.dat`.
+      * TNC: "M N" was by default.
+      * TNC: "M U" needs to be invoked.
+      * TNC: Echo is received when sending messages with "M U" enabled event with "E 0".
+      * Team supported by a inspirational bag of Sourcream and Onion chips!
+
 
 
 TNC2h-TAPR-KISS
