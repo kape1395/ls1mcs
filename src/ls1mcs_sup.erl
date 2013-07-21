@@ -30,6 +30,7 @@ init({LinkCfg}) ->
 
     ConnMod = ls1mcs_connection,
     LSupMod = ls1mcs_link_sup,
+    StoreMod = ls1mcs_store,
 
     LinkRef = LSupMod:top_ref(),
     ConnName = {n, l, ConnMod},
@@ -39,8 +40,9 @@ init({LinkCfg}) ->
     LSupArgs = [ConnRef, LinkType, LinkOptions],
 
     {ok, {{one_for_all, 100, 10}, [
-        {link, {LSupMod, start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
-        {conn, {ConnMod, start_link, ConnArgs}, permanent, 5000, worker,     [ConnMod]}
+        {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
+        {link,  {LSupMod,  start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
+        {conn,  {ConnMod,  start_link, ConnArgs}, permanent, 5000, worker,     [ConnMod]}
     ]}}.
 
 

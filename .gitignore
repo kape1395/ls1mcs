@@ -13,3 +13,4 @@ ebin-erlide/
 erl_crash.dump
 log/
 logs/
+temp/

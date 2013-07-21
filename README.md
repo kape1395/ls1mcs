@@ -17,16 +17,26 @@ Build everyging:
     make deps
     make
 
-then:
+Generate a release and install it:
 
-    mkdir -p temp/data/yaws/www
-    env ERL_LIBS=deps erl -config priv/test-void_link -pa ebin/ -eval 'ls1mcs:start().'   # No radio connection
-    env ERL_LIBS=deps erl -config priv/test-snd_modem -pa ebin/ -eval 'ls1mcs:start().'   # Connection via soundmodem
-    env ERL_LIBS=deps erl -config priv/test-wa8ded_hm -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
-    env ERL_LIBS=deps erl -config priv/test-tapr_kiss -pa ebin/ -eval 'ls1mcs:start().'   # Connection via TNC2H-DK9SJ TAPR KISS mode
+    make release
+    cp -r rel/ls1mcs ~/
+
+
+
+Running
+------------------------------------------------------------
+
+For testing purposes, without building a release:
+
+    rm -rf temp
+    mkdir -p temp/data/mnesia/db temp/data/yaws/www
+    env ERL_LIBS=deps erl -pa ebin/ -config priv/test-void_link -eval 'ls1mcs_utl_test:start().'   # No radio connection
+    env ERL_LIBS=deps erl -pa ebin/ -config priv/test-snd_modem -eval 'ls1mcs_utl_test:start().'   # Connection via soundmodem
+    env ERL_LIBS=deps erl -pa ebin/ -config priv/test-wa8ded_hm -eval 'ls1mcs_utl_test:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
+    env ERL_LIBS=deps erl -pa ebin/ -config priv/test-tapr_kiss -eval 'ls1mcs_utl_test:start().'   # Connection via TNC2H-DK9SJ TAPR KISS mode
 
 Now you should be able to access [web ui](http://localhost:12321/).
-
 To send some command via the communication link, run the following in the erlang shell:
 
     rr(ls1mcs_proto_ls1p).
@@ -54,35 +64,6 @@ To send some command via the communication link, run the following in the erlang
 
     lager:set_loglevel(lager_console_backend, warning).
 
-
-Running (TODO: Update this section)
-------------------------------------------------------------
-
-Example:
-
-    erl -pa ebin
-        l(gen_ax25u).
-        gen_ax25u:start({local, none}, "3", "LY1BWB", []).
-        gen_ax25u:info(none).
-        gen_ax25u:stop(none).
-        gen_ax25u:send(none, <<"labas">>).
-        gen_ax25u:send(none, <<0, 0, 0, 123, 2, 3, 1>>).
-
-    ./priv/gen_ax25u_port recv 3 LY2EN
-    ./priv/gen_ax25u_port recv 4 LY1BWB
-
-Using valgrind:
-
-    gen_ax25u:start({local, none}, "3", "LY1BWB", [{port_proxy, "/usr/bin/valgrind"}]).
-
-Starting application for tests:
-
-    # mkdir -p temp/data/yaws/www
-    # env ERL_LIBS=deps erl -config test/test-nocon -pa ebin/
-    env ERL_LIBS=deps erl -config test/test -pa ebin/
-        ls1mcs:start().
-        ls1mcs_protocol:send({ls1mcs_proto_kiss, {n, l, ls1mcs_proto_kiss}}, <<"labas">>).
-        ls1mcs_protocol:send({ls1mcs_proto_ax25, {n, l, ls1mcs_proto_ax25}}, <<"labas">>).
 
 
 Sending tele-commands
