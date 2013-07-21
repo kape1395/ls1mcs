@@ -111,6 +111,23 @@
     status      :: atom()
 }).
 
+%%
+%%  See GPredict user manual
+%%
+-record(predicted_pass, {
+    aos,
+    tca,
+    los,
+    duration,
+    max_el,
+    aos_az,
+    max_el_az,
+    los_az,
+    orbit,
+    visible,        % Visibility
+    daylight,       % Visibility
+    eclipsed        % Visibility
+}).
 
 -endif.
 

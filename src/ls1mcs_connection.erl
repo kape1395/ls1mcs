@@ -2,9 +2,9 @@
 %%  Entry point to SAT connection / link.
 %%
 -module(ls1mcs_connection).
--compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/2, send/1]).
 -export([send/2, received/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
