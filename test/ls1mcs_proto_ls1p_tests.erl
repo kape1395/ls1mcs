@@ -16,7 +16,8 @@ encode_test() ->
 
 
 decode_test() ->
-    ?ade(#ls1p_ack_frame{status = true,  cref = 1258, recv_status = 0}, <<2#11100001, 16#04EA:16, 16#00:8>>),
-    ?ade(#ls1p_ack_frame{status = false, cref = 1258, recv_status = 0}, <<2#11100000, 16#04EA:16, 16#00:8>>),
+    ?ade(#ls1p_ack_frame{status = true,  cref = 1258, recv_status = 0}, <<2#11100001:8, 16#04EA:16, 16#00:8>>),
+    ?ade(#ls1p_ack_frame{status = false, cref = 1258, recv_status = 0}, <<2#11100000:8, 16#04EA:16, 16#00:8>>),
+    ?ade(#ls1p_tm_frame{timestamp = 10, data = <<16#FF:8, 16#17:16>>}, <<2#11100100:8, 16#000A:16, 16#FF0017:24>>),
     ok.
 
