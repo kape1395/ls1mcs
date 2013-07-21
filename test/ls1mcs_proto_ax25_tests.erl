@@ -60,12 +60,12 @@ encode_decode_test() ->
     Frame2 = Frame1#ax25_frame{
         data = <<1, 2, 3, 4, 5, 6, 7, 8, 9, 16#FFFFFFFF:32>>    %% Involves bitstuffing
     },
-    {ok, FrameBinary1} = ls1mcs_proto_ax25:encode(Frame1),
-    {ok, FrameBinary2} = ls1mcs_proto_ax25:encode(Frame2),
+    {ok, FrameBinary1} = ls1mcs_proto_ax25:encode(Frame1, std),
+    {ok, FrameBinary2} = ls1mcs_proto_ax25:encode(Frame2, std),
     io:format("FrameBinary1: ~p~n", [FrameBinary1]),
     io:format("FrameBinary2: ~p~n", [FrameBinary2]),
-    {ok, Frame1} = ls1mcs_proto_ax25:decode(FrameBinary1),
-    {ok, Frame2} = ls1mcs_proto_ax25:decode(FrameBinary2),
+    {ok, Frame1} = ls1mcs_proto_ax25:decode(FrameBinary1, std),
+    {ok, Frame2} = ls1mcs_proto_ax25:decode(FrameBinary2, std),
     ok.
 
 

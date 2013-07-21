@@ -8,6 +8,10 @@
 -include("ls1mcs.hrl").
 -include("ls1p.hrl").
 
+-define(GROUND_ADDR, 2#111).
+-define(GROUND_PORT_ACK,  16#0).
+-define(GROUND_PORT_DATA, 16#1).
+-define(GROUND_PORT_TM,   16#2).
 
 
 -define(ADDR_MAP, [
@@ -15,7 +19,8 @@
     {arduino,   1},
     {eps,       2},
     {gps,       3},
-    {helium,    4}
+    {helium,    4},
+    {ground,    ?GROUND_ADDR}
 ]).
 -define(PORT_MAP, [
     {arm,       ping,       16#0},
@@ -30,7 +35,10 @@
     {eps,       command,    16#0},
     {gps,       nmea,       16#0},
     {gps,       binary,     16#1},
-    {helium,    command,    16#0}
+    {helium,    command,    16#0},
+    {ground,    ack,        ?GROUND_PORT_ACK},
+    {ground,    data,       ?GROUND_PORT_DATA},
+    {ground,    telemetry,  ?GROUND_PORT_TM}
 ]).
 -define(BOOL_MAP, [
     {false, 0},
@@ -149,64 +157,138 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 %%  LS1P encoder.
 %%
+
+%%  Acknowledgement frame.
+encode(Frame) when is_record(Frame, ls1p_ack_frame) ->
+    #ls1p_ack_frame{
+        status = Status,
+        cref = Cref,
+        recv_status = RecvStatus
+    } = Frame,
+    StatusBin = encode_bool(Status),
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, Cref:16, RecvStatus:8>>,
+    {ok, FrameBin};
+
+%%  Data frame.
+encode(Frame) when is_record(Frame, ls1p_data_frame) ->
+    #ls1p_data_frame{
+        eof = Eof,
+        cref = Cref,
+        fragment = Fragment,
+        data = Data
+    } = Frame,
+    EofBin = encode_bool(Eof),
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>,
+    {ok, FrameBin};
+
+%%  Telemetry frame.
+encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
+    #ls1p_tm_frame{
+        timestamp = Timestamp,
+        data = Data
+    } = Frame,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:16, Data/binary>>,
+    {ok, FrameBin};
+
+%%  Command frame.
 encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
     #ls1p_cmd_frame{
-        dest_addr = Addr, dest_port = Port, ack = Ack,
+        dst_addr = Addr, dst_port = Port, ack = Ack,
         cref = Cref, delay = Delay, data = Data
     } = Frame,
     AddrBin = encode_addr(Addr),
     PortBin = encode_port(Addr, Port),
-    AckBin  = encode_ack(Ack),
+    AckBin  = encode_bool(Ack),
     FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>,
     {ok, FrameBin}.
 
-encode_addr(Addr) ->
-    {Addr, AddrBin} = lists:keyfind(Addr, 1, ?ADDR_MAP),
-    AddrBin.
 
-encode_port(Addr, Port) ->
-    FilterFun = fun ({A, P, _}) -> (A =:= Addr andalso P =:= Port) end,
-    [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
-    PortBin.
-
-encode_ack(Ack) ->
-    {Ack, AckBin} = lists:keyfind(Ack, 1, ?BOOL_MAP),
-    AckBin.
 
 
 %%
 %%  LS1P decoder.
 %%
-decode(<<AddrBin:3, PortBin:4, StatusBin:1, Cref:16, RecvStatus:8>>) ->
-    Addr = decode_addr(AddrBin),
-    Port = decode_port(Addr, PortBin),
-    Status = decode_se(StatusBin),
+
+%%  Acknowledgement frame.
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, Cref:16, RecvStatus:8>>) ->
+    Status = decode_bool(StatusBin),
     Frame = #ls1p_ack_frame{
-        src_addr = Addr, src_port = Port, status = Status,
-        cref = Cref, recv_status = RecvStatus
+        status = Status,
+        cref = Cref,
+        recv_status = RecvStatus
     },
     {ok, Frame};
 
-decode(<<AddrBin:3, PortBin:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>) ->
+%%  Data frame
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>) ->
+    Eof = decode_bool(EofBin),
+    Frame = #ls1p_data_frame{
+        eof = Eof,
+        cref = Cref,
+        fragment = Fragment,
+        data = Data
+    },
+    {ok, Frame};
+
+%%  Telemetry frame
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:16, Data/binary>>) ->
+    Frame = #ls1p_tm_frame{
+        timestamp = Timestamp,
+        data = Data
+    },
+    {ok, Frame};
+
+%%  Command frame
+decode(<<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>) ->
     Addr = decode_addr(AddrBin),
     Port = decode_port(Addr, PortBin),
-    Eof = decode_se(EofBin),
-    Frame = #ls1p_dat_frame{
-        src_addr = Addr, src_port = Port, eof = Eof,
-        cref = Cref, fragment = Fragment, data = Data
+    Ack = decode_bool(AckBin),
+    Frame = #ls1p_cmd_frame{
+        dst_addr = Addr,
+        dst_port = Port,
+        ack = Ack,
+        cref = Cref,
+        delay = Delay,
+        data = Data
     },
     {ok, Frame}.
+
+
+%%
+%%  Address encoding/decoding.
+%%
+encode_addr(Addr) ->
+    {Addr, AddrBin} = lists:keyfind(Addr, 1, ?ADDR_MAP),
+    AddrBin.
+
 
 decode_addr(AddrBin) ->
     {Addr, AddrBin} = lists:keyfind(AddrBin, 2, ?ADDR_MAP),
     Addr.
+
+
+%%
+%%  Port encoding/decoding.
+%%
+encode_port(Addr, Port) ->
+    FilterFun = fun ({A, P, _}) -> (A =:= Addr andalso P =:= Port) end,
+    [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
+    PortBin.
 
 decode_port(Addr, PortBin) ->
     FilterFun = fun ({A, _, P}) -> (A =:= Addr andalso P =:= PortBin) end,
     [{Addr, Port, PortBin}] = lists:filter(FilterFun, ?PORT_MAP),
     Port.
 
-decode_se(SEBin) ->
-    {SE, SEBin} = lists:keyfind(SEBin, 2, ?BOOL_MAP),
-    SE.
+
+%%
+%%  Boolean encoding/decoding.
+%%
+encode_bool(false) -> 0;
+encode_bool(true) -> 1.
+
+decode_bool(0) -> false;
+decode_bool(1) -> true.
+
+
 

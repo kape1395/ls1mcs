@@ -51,7 +51,7 @@ user_cmd_specs() ->
                 #user_cmd_enum{desc = <<"GPS telemetry collection">>,       value = 3}
             ]},
             #user_cmd_param{name = interval, type = integer, desc = <<"Interval (secs)">>}
-        ]}
+        ]},
         %% Multi-command should not be visible to the end user.
 
         %%

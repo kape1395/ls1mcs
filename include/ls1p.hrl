@@ -5,24 +5,25 @@
 %%
 %%  Address, 3 bits.
 %%
--type ls1p_addr() :: arm | arduino | eps | gps | helium.
+-type ls1p_addr() :: arm | arduino | eps | gps | helium | ground.
 
 
 %%
 %%  Port, 4 bits.
-%%  TODO: Use real endpoint port numbers?
 %%
--type ls1p_port_arm()       :: ping | cmd_log | cmd_kill | tm_archive | tm_realtime | gps_log_bin | gps_log_nmea.
--type ls1p_port_arduino()   :: default.
--type ls1p_port_eps()       :: default.
+-type ls1p_port_arm()       :: ping | kill | downlink | runtime_tm | job_period | multi.
+-type ls1p_port_arduino()   :: take_photo | photo_meta | photo_data.
+-type ls1p_port_eps()       :: command.
 -type ls1p_port_gps()       :: nmea | binary.
--type ls1p_port_helium()    :: default.
+-type ls1p_port_helium()    :: command.
+-type ls1p_port_ground()    :: ack | data | telemetry.
 -type ls1p_port() ::
     ls1p_port_arm() |
     ls1p_port_arduino() |
     ls1p_port_eps() |
     ls1p_port_gps() |
-    ls1p_port_helium().
+    ls1p_port_helium() |
+    ls1p_port_ground().
 
 %%
 %%  Acknowledgement request, 1 bit.
@@ -71,6 +72,12 @@
 
 
 %%
+%%  Timestamp, seconds from the SAT launch.
+%%
+-type ls1p_timestamp() :: integer().
+
+
+%%
 %%  Payload, 16 bits.
 %%
 -type ls1p_payload() :: binary().
@@ -80,8 +87,8 @@
 %%  Command frame.
 %%
 -record(ls1p_cmd_frame, {
-    dest_addr   :: ls1p_addr(),
-    dest_port   :: ls1p_port(),
+    dst_addr    :: ls1p_addr(),
+    dst_port    :: ls1p_port(),
     ack = true  :: ls1p_ack(),
     cref        :: ls1p_cref(),
     delay = 0   :: ls1p_delay(),
@@ -89,28 +96,33 @@
 }).
 
 %%
-%%  Data frame, sent from SAT to GS.
-%%
--record(ls1p_dat_frame, {
-    src_addr    :: ls1p_addr(),
-    src_port    :: ls1p_port(),
-    eof         :: ls1p_eof(),
-    cref        :: ls1p_cref(),
-    fragment    :: ls1p_fragment(),
-    data        :: ls1p_payload()
-}).
-
-%%
 %%  Acknowledgement frame, sent from SAT to GS.
 %%  This frame type is recognized by its length (4 octets).
 %%
 -record(ls1p_ack_frame, {
-    src_addr    :: ls1p_addr(),
-    src_port    :: ls1p_port(),
     status      :: ls1p_status(),
     cref        :: ls1p_cref(),
     recv_status :: ls1p_recv_status()
 }).
+
+%%
+%%  Data frame, sent from SAT to GS.
+%%
+-record(ls1p_data_frame, {
+    eof         :: ls1p_eof(),
+    cref        :: ls1p_cref(),
+    fragment    :: ls1p_fragment(),
+    data = <<>> :: ls1p_payload()
+}).
+
+%%
+%%  Telemetry frame, sent from SAT to GS.
+%%
+-record(ls1p_tm_frame, {
+    timestamp   :: ls1p_timestamp(),
+    data = <<>> :: ls1p_payload()
+}).
+
 
 
 -endif.
