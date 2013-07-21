@@ -41,6 +41,7 @@ top_ref() ->
         LinkType    :: atom(),
         LinkOptions :: list()
     }) -> tuple().
+
 init({ConnRef, tnc_wa8ded_hostmode, LinkOptions}) ->
     Device    = proplists:get_value(device,     LinkOptions),
     LocalCall = proplists:get_value(local_call, LinkOptions),

@@ -118,15 +118,7 @@ init({Upper, Device, LocalCall}) ->
 %%  Invoke a command on the TNC synchronously.
 %%
 handle_call({invoke, Command}, _From, State = #state{port = Port}) ->
-    Response = case send_cmd(Port, Command) of
-        {ok, ?HM_CODE_OK} ->
-            {ok};
-        {ok, ?HM_CODE_OK_MSG} ->
-            {ok, _Msg} = read_zstr(Port);
-        {ok, ?HM_CODE_FAILURE} ->
-            {ok, Msg} = read_zstr(Port),
-            {failure, Msg}
-    end,
+    Response = invoke_cmd(Port, Command),
     {reply, Response, State}.
 
 
@@ -151,6 +143,8 @@ handle_info({initialize}, State = #state{upper = Upper, device = Device, local_c
     ok = receive after ?RESTART_DELAY -> ok end,
     {ok, Port} = uart:open(Device, ?UART_OPTIONS),
     ok = enter_hostmode(Port),
+    {ok, _} = invoke_cmd(Port, "M U"),    % Monitor UI frames.
+    {ok, _} = invoke_cmd(Port, "E O"),    % Echo OFF.
     ok = set_local_call(Port, LocalCall),
 
     self() ! {query_input},
@@ -396,5 +390,18 @@ set_local_call(Port, Call) ->
     end.
 
 
+%%
+%%  Invoke TNC command and get its output.
+%%
+invoke_cmd(Port, Command)
+    case send_cmd(Port, Command) of
+        {ok, ?HM_CODE_OK} ->
+            {ok};
+        {ok, ?HM_CODE_OK_MSG} ->
+            {ok, _Msg} = read_zstr(Port);
+        {ok, ?HM_CODE_FAILURE} ->
+            {ok, Msg} = read_zstr(Port),
+            {failure, Msg}
+    end.
 
 
