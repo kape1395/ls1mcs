@@ -2,8 +2,8 @@
 %%  Uart logger, was used for testing Helium-100 command interface.
 %%
 -module(ls1mcs_utl_uart_logger).
--compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/1, send/1, recv/0, recv/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 

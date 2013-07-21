@@ -1,7 +1,7 @@
 -module(ls1mcs_sup).
 -behaviour(supervisor).
--export([start_link/1]).    % API
--export([init/1]).          % CB
+-export([start_link/2]).
+-export([init/1]).
 
 
 %% =============================================================================
@@ -12,8 +12,8 @@
 %%
 %% @doc Create this supervisor.
 %%
-start_link(LinkCfg) ->
-    supervisor:start_link(?MODULE, {LinkCfg}).
+start_link(LinkCfg, GPredictCfg) ->
+    supervisor:start_link(?MODULE, {LinkCfg, GPredictCfg}).
 
 
 
@@ -25,7 +25,7 @@ start_link(LinkCfg) ->
 %%
 %% @doc Supervisor initialization (CB).
 %%
-init({LinkCfg}) ->
+init({LinkCfg, GPredictCfg}) ->
     {LinkType, LinkOptions} = LinkCfg,
 
     ConnMod = ls1mcs_connection,
@@ -39,10 +39,22 @@ init({LinkCfg}) ->
     ConnArgs = [ConnName, LinkRef],
     LSupArgs = [ConnRef, LinkType, LinkOptions],
 
-    {ok, {{one_for_all, 100, 10}, [
+    ChildSpecs = [
         {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
         {link,  {LSupMod,  start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
         {conn,  {ConnMod,  start_link, ConnArgs}, permanent, 5000, worker,     [ConnMod]}
-    ]}}.
+    ],
+
+    GPredictSpec = case GPredictCfg of
+        undefined ->
+            [];
+        {Filename, Interval} ->
+            [{gpredict,
+                {ls1mcs_gpredict,  start_link, [Filename, Interval]},
+                permanent, 5000, worker, [ls1mcs_gpredict]
+            }]
+    end,
+
+    {ok, {{one_for_all, 100, 10}, ChildSpecs ++ GPredictSpec}}.
 
 

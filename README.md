@@ -30,7 +30,7 @@ Running
 For testing purposes, without building a release:
 
     rm -rf temp
-    mkdir -p temp/data/mnesia/db temp/data/yaws/www
+    mkdir -p temp/data/mnesia/db temp/data/yaws/www temp/data/gpredict
     env ERL_LIBS=deps erl -pa ebin/ -config priv/test-void_link -eval 'ls1mcs_utl_test:start().'   # No radio connection
     env ERL_LIBS=deps erl -pa ebin/ -config priv/test-snd_modem -eval 'ls1mcs_utl_test:start().'   # Connection via soundmodem
     env ERL_LIBS=deps erl -pa ebin/ -config priv/test-wa8ded_hm -eval 'ls1mcs_utl_test:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode

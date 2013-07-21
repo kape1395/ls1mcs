@@ -1,26 +1,6 @@
 %%
 %%  Predicted pass parser for GPredict.
 %%
--module(ls1mcs_gpredict).
--export([import_predicted_sat_passes/1]).
--include("ls1mcs.hrl").
-
-
--define(COLUMNS, [
-    <<"AOS">>,
-    <<"TCA">>,
-    <<"LOS">>,
-    <<"Duration">>,
-    <<"Max El">>,
-    <<"AOS Az">>,
-    <<"Max El Az">>,
-    <<"LOS Az">>,
-    <<"Orbit">>,
-    <<"Vis">>
-]).
-
-
-%%
 %%  1. Edit -> Preferences -> Predict:
 %%      Pass Conditions:
 %%          Number of passes to predict: 50
@@ -50,14 +30,132 @@
 %%
 %%  =================
 %%
--spec import_predicted_sat_passes(string())
+-module(ls1mcs_gpredict).
+-behaviour(gen_server).
+-compile([{parse_transform, lager_transform}]).
+-export([start_link/2, parse_predicted_sat_passes/1]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-include("ls1mcs.hrl").
+-include_lib("kernel/include/file.hrl").
+
+
+-define(COLUMNS, [
+    <<"AOS">>,
+    <<"TCA">>,
+    <<"LOS">>,
+    <<"Duration">>,
+    <<"Max El">>,
+    <<"AOS Az">>,
+    <<"Max El Az">>,
+    <<"LOS Az">>,
+    <<"Orbit">>,
+    <<"Vis">>
+]).
+
+%%
+%%  Start file poller/db-loader.
+%%
+-spec start_link(string(), integer())
+        -> {ok, pid()} | term().
+
+start_link(Filename, CheckInterval) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, {Filename, CheckInterval}, []).
+
+
+%%
+%%  Load predicted passes from a file.
+%%
+-spec parse_predicted_sat_passes(string())
         -> {ok, [#predicted_pass{}]}.
 
-import_predicted_sat_passes(Filename) ->
+parse_predicted_sat_passes(Filename) ->
     {ok, File} = file:open(Filename, [read, binary, raw, {read_ahead, 2048}]),
     Response = parse_next_line(File, file_header, undefined),
     file:close(File),
     Response.
+
+
+
+%% =============================================================================
+%%  Internal state of this module.
+%% =============================================================================
+
+
+-record(state, {
+    filename,
+    interval
+}).
+
+
+
+%% =============================================================================
+%%  Callbacks for gen_server (unused).
+%% =============================================================================
+
+
+%%
+%%
+%%
+init({Filename, CheckInterval}) ->
+    State = #state{
+        filename = Filename,
+        interval = CheckInterval
+    },
+    erlang:send_after(CheckInterval, self(), {check}),
+    {ok, State}.
+
+
+%%
+%%
+%%
+handle_call(_Msg, _From, State) ->
+    {reply, undefined, State}.
+
+
+%%
+%%
+%%
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
+
+%%
+%%  Loop with delay to check if file is available for processing.
+%%
+handle_info({check}, State = #state{filename = Filename, interval = CheckInterval}) ->
+    case file:read_file_info(Filename) of
+        {ok, #file_info{type = regular}} ->
+            {ok, PredictedPasses} = parse_predicted_sat_passes(Filename),
+            ok = ls1mcs_store:load_predicted_passes(PredictedPasses),
+            ok = file:rename(Filename, Filename ++ ".processed"),
+            lager:info("ls1mcs_gpredict: Predicted passes loaded from ~p", [Filename]);
+        {error, enoent} ->
+            ok
+    end,
+    erlang:send_after(CheckInterval, self(), {check}),
+    {noreply, State}.
+
+
+%%
+%%
+%%
+terminate(_Reason, _State) ->
+    ok.
+
+
+%%
+%%
+%%
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+
+
+%% =============================================================================
+%%  Helper functions.
+%% =============================================================================
+
+
 
 
 %%

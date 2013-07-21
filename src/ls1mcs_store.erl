@@ -2,12 +2,14 @@
 %%  Main persistent store for the LS1MCS.
 %%
 -module(ls1mcs_store).
+-behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/0, is_installed/0, install/0, install/1, wait_for_tables/1]).
 -export([
     next_cref/0,
     add_ls1p_frame/3,
-    add_unknown_frame/2
+    add_unknown_frame/2,
+    load_predicted_passes/1
 ]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include_lib("stdlib/include/qlc.hrl").
@@ -73,6 +75,7 @@ wait_for_tables(Timeout) ->
         ls1mcs_store_ls1p_recv,
         ls1mcs_store_ls1p_tm,
         ls1mcs_store_ls1p_unkn,
+        ls1mcs_store_pred_pass,
         ls1mcs_store_counter
     ],
     mnesia:wait_for_tables(Tables, Timeout).
@@ -120,6 +123,15 @@ wait_for_tables(Timeout) ->
     bytes
 }).
 
+
+%%
+%%  Predicted passes.
+%%
+-record(ls1mcs_store_pred_pass, {
+    orbit,
+    pass
+}).
+
 %%
 %%  Misc counters.
 %%
@@ -139,6 +151,7 @@ create_tables(Nodes) ->
     OK = mnesia:create_table(ls1mcs_store_ls1p_recv, [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_recv), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_ls1p_tm,   [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_tm),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_ls1p_unkn, [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_unkn), DefOptDC]),
+    OK = mnesia:create_table(ls1mcs_store_pred_pass, [{type, set}, ?ATTRS(ls1mcs_store_pred_pass), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_counter,   [{type, set}, ?ATTRS(ls1mcs_store_counter),   DefOptDC]),
     ok.
 
@@ -222,6 +235,24 @@ add_unknown_frame(Bytes, Timestamp) ->
         ok
     end,
     mnesia:activity(transaction, Activity).
+
+
+%%
+%%  Load (add new, overwrite existing) predicred passes.
+%%
+load_predicted_passes(PredictedPasses) ->
+    Activity = fun () ->
+        SaveEntryFun = fun (Pass = #predicted_pass{orbit = Orbit}) ->
+            ok = mnesia:write(#ls1mcs_store_pred_pass{
+                orbit = Orbit,
+                pass = Pass
+            })
+        end,
+        lists:foreach(SaveEntryFun, PredictedPasses),
+        ok
+    end,
+    mnesia:activity(transaction, Activity).
+
 
 
 %% =============================================================================
