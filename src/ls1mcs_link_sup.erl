@@ -17,7 +17,7 @@
 %%
 start_link(ConnRef, LinkType, LinkOptions) ->
     Args = {ConnRef, LinkType, LinkOptions},
-    supervisor:start_link(?MODULE, Args).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, Args).
 
 
 %%

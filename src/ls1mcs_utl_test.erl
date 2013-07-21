@@ -1,6 +1,15 @@
+%%
+%%  For various tests and debugging.
+%%
 -module(ls1mcs_utl_test).
 -compile([{parse_transform, lager_transform}]).
 -export([start/0]).
+-export([
+    send_ping/0,
+    send_take_photo/1,
+    send_photo_meta/0,
+    send_photo_data/2
+]).
 -include("ls1mcs.hrl").
 
 
@@ -22,6 +31,52 @@ start() ->
     ok = start_uart(),
     ok = start_missing_app(ls1mcs),
     ok.
+
+
+%%
+%%
+%%
+send_ping() ->
+    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+        addr = arm,
+        port = ping
+    }).
+
+
+%%
+%%
+%%
+send_take_photo(Delay) ->
+    Resolution = 0,
+    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+        addr = arduino,
+        port = take_photo,
+        ack = true,
+        delay = Delay,
+        data = <<Resolution:8>>
+    }).
+
+
+%%
+%%
+%%
+send_photo_meta() ->
+    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+        addr = arduino,
+        port = photo_meta
+    }).
+
+
+%%
+%%
+%%
+send_photo_data(From, Till) ->
+    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+        addr = arduino,
+        port = photo_data,
+        ack = false,
+        data = <<From:16, Till:16>>
+    }).
 
 
 

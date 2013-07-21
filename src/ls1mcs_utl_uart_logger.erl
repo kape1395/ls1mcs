@@ -1,5 +1,5 @@
 %%
-%%  Uart logger.
+%%  Uart logger, was used for testing Helium-100 command interface.
 %%
 -module(ls1mcs_utl_uart_logger).
 -compile([{parse_transform, lager_transform}]).

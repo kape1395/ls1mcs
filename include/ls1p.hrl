@@ -87,8 +87,8 @@
 %%  Command frame.
 %%
 -record(ls1p_cmd_frame, {
-    dst_addr    :: ls1p_addr(),
-    dst_port    :: ls1p_port(),
+    addr        :: ls1p_addr(),     %% Destination address
+    port        :: ls1p_port(),     %% Destination port
     ack = true  :: ls1p_ack(),
     cref        :: ls1p_cref(),
     delay = 0   :: ls1p_delay(),

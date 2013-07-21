@@ -104,6 +104,7 @@ handle_call(_Message, _From, State) ->
 %%
 handle_cast({send, Frame}, State = #state{lower = Lower}) ->
     {ok, DataBin} = encode(Frame),
+    ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
@@ -111,13 +112,15 @@ handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
     try decode(DataBin) of
         {ok, Frame} ->
             lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
+            ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
             ok = ls1mcs_protocol:send(Upper, Frame)
     catch
         ErrType:ErrCode ->
             lager:debug(
                 "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
                 [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
-            )
+            ),
+            ok = ls1mcs_store:add_unknown_frame(DataBin, erlang:now())
     end,
     {noreply, State}.
 
@@ -189,7 +192,7 @@ encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
 %%  Command frame.
 encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
     #ls1p_cmd_frame{
-        dst_addr = Addr, dst_port = Port, ack = Ack,
+        addr = Addr, port = Port, ack = Ack,
         cref = Cref, delay = Delay, data = Data
     } = Frame,
     AddrBin = encode_addr(Addr),
@@ -240,8 +243,8 @@ decode(<<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>) ->
     Port = decode_port(Addr, PortBin),
     Ack = decode_bool(AckBin),
     Frame = #ls1p_cmd_frame{
-        dst_addr = Addr,
-        dst_port = Port,
+        addr = Addr,
+        port = Port,
         ack = Ack,
         cref = Cref,
         delay = Delay,

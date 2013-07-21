@@ -3,6 +3,7 @@
 %%
 -module(ls1mcs_tnc_void).
 -behaviour(ls1mcs_protocol).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/1, send/2, received/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
@@ -23,7 +24,8 @@ start_link(Name) ->
 %%
 %%
 %%
-send(_Ref, _Data) ->
+send(_Ref, Data) ->
+    lager:info("ls1mcs_tnc_void: got request to send frame: ~p", [Data]),
     ok.
 
 
