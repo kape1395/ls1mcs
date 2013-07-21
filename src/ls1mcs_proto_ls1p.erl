@@ -40,10 +40,6 @@
     {ground,    data,       ?GROUND_PORT_DATA},
     {ground,    telemetry,  ?GROUND_PORT_TM}
 ]).
--define(BOOL_MAP, [
-    {false, 0},
-    {true,  1}
-]).
 
 
 %% =============================================================================

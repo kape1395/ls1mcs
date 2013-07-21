@@ -393,7 +393,7 @@ set_local_call(Port, Call) ->
 %%
 %%  Invoke TNC command and get its output.
 %%
-invoke_cmd(Port, Command)
+invoke_cmd(Port, Command) ->
     case send_cmd(Port, Command) of
         {ok, ?HM_CODE_OK} ->
             {ok};
