@@ -129,5 +129,46 @@
     eclipsed        % Visibility
 }).
 
+
+%% =============================================================================
+%%  Telemetry.
+%% =============================================================================
+
+-type uint8() :: integer().
+-type uint16() :: integer().
+-type uint32() :: integer().
+
+-record(tm_he, {
+}).
+-record(tm_mag, {
+}).
+-record(tm_mpu, {
+}).
+-record(tm_gyro, {
+}).
+
+-record(tm_eps, {
+    pv      :: [uint16()],                      %% Photo-voltaic input voltage [mV] * 3
+    pc      :: uint16(),                        %% Total photo current [mA]
+    bv      :: uint16(),                        %% Battery voltage [mV]
+    sc      :: uint16()                         %% Total system current [mA]
+}).
+
+-record(tm_att, {               %% Total: 34 bytes
+    mag     :: #tm_mag{},       %% HMC5883L,    6  bytes
+    mpu     :: #tm_mpu{},       %% MPU-6000A,   14 bytes
+    gyro    :: [#tm_gyro{}]     %% L3GD20,      14 bytes = 7 bytes * 2
+}).
+
+-record(telemetry, {            %% Total: 233 bytes
+    time    :: uint32(),        %% ---,         4 bytes
+    eps     :: #tm_eps{},       %% P31U,        43 bytes
+    he      :: #tm_he{},        %% He-100,      16 bytes
+    att     :: [#tm_att{}]      %% ---,         170 bytes = 34 bytes * 5
+}).
+
+
+
+
 -endif.
 
