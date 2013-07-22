@@ -113,7 +113,6 @@
 %%  Telemetry frame, sent from SAT to GS.
 %%
 -record(ls1p_tm_frame, {
-    timestamp   :: os:timestamp(),      %% Timestamp (erlang:now()), when the frame was received.
     data = <<>> :: ls1p_payload()       %% TM data, including SAT's timestamp.
 }).
 

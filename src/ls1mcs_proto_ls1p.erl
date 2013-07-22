@@ -184,10 +184,9 @@ encode(Frame) when is_record(Frame, ls1p_data_frame) ->
 %%  Telemetry frame.
 encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
     #ls1p_tm_frame{
-        timestamp = Timestamp,
-        data = Data
+        data = Telemetry
     } = Frame,
-    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:16, Data/binary>>,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Telemetry/binary>>,
     {ok, FrameBin};
 
 %%  Command frame.
@@ -233,7 +232,6 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Da
 %%  Telemetry frame
 decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Telemetry/binary>>) ->
     Frame = #ls1p_tm_frame{
-        timestamp = erlang:now(),
         data = Telemetry
     },
     {ok, Frame};
