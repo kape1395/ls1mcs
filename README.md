@@ -36,7 +36,7 @@ For testing purposes, without building a release:
     env ERL_LIBS=deps erl -pa ebin/ -config priv/test-wa8ded_hm -eval 'ls1mcs_utl_test:start().'   # Connection via TNC2H-DK9SJ WA8DED Hostmode
     env ERL_LIBS=deps erl -pa ebin/ -config priv/test-tapr_kiss -eval 'ls1mcs_utl_test:start().'   # Connection via TNC2H-DK9SJ TAPR KISS mode
 
-Now you should be able to access [web ui](http://localhost:12321/).
+Now you should be able to access [web ui](http://localhost:8080/).
 To send some command via the communication link, run the following in the erlang shell:
 
     rr(ls1mcs_proto_ls1p).
