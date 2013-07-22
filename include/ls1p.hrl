@@ -72,12 +72,6 @@
 
 
 %%
-%%  Timestamp, seconds from the SAT launch.
-%%
--type ls1p_timestamp() :: integer().
-
-
-%%
 %%  Payload, 16 bits.
 %%
 -type ls1p_payload() :: binary().
@@ -119,8 +113,8 @@
 %%  Telemetry frame, sent from SAT to GS.
 %%
 -record(ls1p_tm_frame, {
-    timestamp   :: ls1p_timestamp(),
-    data = <<>> :: ls1p_payload()
+    timestamp   :: os:timestamp(),      %% Timestamp (erlang:now()), when the frame was received.
+    data = <<>> :: ls1p_payload()       %% TM data, including SAT's timestamp.
 }).
 
 

@@ -2,7 +2,8 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, send/2, received/2]).
+-export([start_link/3, decode_tm/1]).
+-export([send/2, received/2]).
 -export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
@@ -230,20 +231,10 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Da
     {ok, Frame};
 
 %%  Telemetry frame
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:4/binary, Data/binary>>) ->
-    << % 1 + 4 + 43 + (6 + 14 + 14) * 5 + 16.
-        EPS:43/binary,
-        HE:16/binary,
-        IS_0_HMC:6/binary, IS_0_L3GD20:14/binary, IS_0_MPU:14/binary,
-        IS_1_HMC:6/binary, IS_1_L3GD20:14/binary, IS_1_MPU:14/binary,
-        IS_2_HMC:6/binary, IS_2_L3GD20:14/binary, IS_2_MPU:14/binary,
-        IS_3_HMC:6/binary, IS_3_L3GD20:14/binary, IS_3_MPU:14/binary,
-        IS_4_HMC:6/binary, IS_4_L3GD20:14/binary, IS_4_MPU:14/binary
-    >> = Data,
-
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Telemetry/binary>>) ->
     Frame = #ls1p_tm_frame{
-        timestamp = Timestamp,
-        data = Data
+        timestamp = erlang:now(),
+        data = Telemetry
     },
     {ok, Frame};
 
@@ -299,5 +290,212 @@ encode_bool(true) -> 1.
 decode_bool(0) -> false;
 decode_bool(1) -> true.
 
+
+%% =============================================================================
+%%  Telemetry decoder.
+%% =============================================================================
+
+%%
+%%  Decode entire telemetry frame (without frame header byte).
+%%  Total length: 233 bytes
+%%
+decode_tm(Telemetry) when is_binary(Telemetry) ->
+    <<
+        Time:32,
+        EPS:43/binary,
+        He:16/binary,
+        Att1:34/binary,
+        Att2:34/binary,
+        Att3:34/binary,
+        Att4:34/binary,
+        Att5:34/binary
+    >> = Telemetry,
+    #tm{
+        time = Time,
+        eps = decode_tm_eps(EPS),
+        he = decode_tm_he(He),
+        att = [
+            decode_tm_att(Att1),
+            decode_tm_att(Att2),
+            decode_tm_att(Att3),
+            decode_tm_att(Att4),
+            decode_tm_att(Att5)
+        ]
+    }.
+
+%%
+%%  Decode attitude data.
+%%
+decode_tm_att(Telemetry) ->
+    <<
+        Mag:6/binary,
+        MPU:14/binary,
+        Gyro1:7/binary,
+        Gyro2:7/binary
+    >> = Telemetry,
+    #tm_att{
+        mag = decode_tm_mag(Mag),
+        mpu = decode_tm_mpu(MPU),
+        gyro_1 = decode_tm_gyro(Gyro1),
+        gyro_2 = decode_tm_gyro(Gyro2)
+    }.
+
+
+decode_tm_eps(Telemetry) ->
+    OnOffFun = fun
+        (1) -> on;
+        (0) -> off
+    end,
+    PPTModeFun = fun
+        (0) -> 'Hardware';
+        (1) -> 'MPPT';
+        (2) -> 'Fixed_SW_PPT'
+    end,
+    <<
+        PV1:16,
+        PV2:16,
+        PV3:16,
+        PC:16,
+        BV:16,
+        SC:16,
+        TempBC1:16/signed,
+        TempBC2:16/signed,
+        TempBC3:16/signed,
+        TempOB:16/signed,
+        BattTemp1:16/signed,
+        BattTemp2:16/signed,
+        Latchup50V1:16,
+        Latchup50V2:16,
+        Latchup50V3:16,
+        Latchup33V1:16,
+        Latchup33V2:16,
+        Latchup33V3:16,
+        Reset:8,
+        Bootcount:16,
+        SwErrors:16,
+        PPTMode:8,
+        ChannelStatusQH:1,
+        ChannelStatusQS:1,
+        ChannelStatus33V3:1,
+        ChannelStatus33V2:1,
+        ChannelStatus33V1:1,
+        ChannelStatus50V3:1,
+        ChannelStatus50V2:1,
+        ChannelStatus50V1:1
+    >> = Telemetry,
+    #tm_eps{
+        pv_1 = PV1,
+        pv_2 = PV2,
+        pv_3 = PV3,
+        pc = PC,
+        bv = BV,
+        sc = SC,
+        temp_BC1 = TempBC1,
+        temp_BC2 = TempBC2,
+        temp_BC3 = TempBC3,
+        temp_OB = TempOB,
+        batt_temp_1 = BattTemp1,
+        batt_temp_2 = BattTemp2,
+        latchup_50V1 = Latchup50V1,
+        latchup_50V2 = Latchup50V2,
+        latchup_50V3 = Latchup50V3,
+        latchup_33V1 = Latchup33V1,
+        latchup_33V2 = Latchup33V2,
+        latchup_33V3 = Latchup33V3,
+        reset           = Reset,
+        bootcount       = Bootcount,
+        sw_errors       = SwErrors,
+        ppt_mode        = PPTModeFun(PPTMode),
+        channel_status_QH   = OnOffFun(ChannelStatusQH),
+        channel_status_QS   = OnOffFun(ChannelStatusQS),
+        channel_status_50V1 = OnOffFun(ChannelStatus50V1),
+        channel_status_50V2 = OnOffFun(ChannelStatus50V2),
+        channel_status_50V3 = OnOffFun(ChannelStatus50V3),
+        channel_status_33V1 = OnOffFun(ChannelStatus33V1),
+        channel_status_33V2 = OnOffFun(ChannelStatus33V2),
+        channel_status_33V3 = OnOffFun(ChannelStatus33V3)
+    }.
+
+%%
+%%  Decode He-100 TM.
+%%
+decode_tm_he(Telemetry) ->
+    <<
+        OpCounter:16,
+        MSP430Temp:16/signed,
+        TimeCount1:8,
+        TimeCount2:8,
+        TimeCount3:8,
+        RSSI:8,
+        BytesReceived:32,
+        BytesTransmitted:32
+    >> = Telemetry,
+    #tm_he{
+        op_counter = OpCounter,
+        msp430_temp = MSP430Temp,
+        time_count_1 = TimeCount1,
+        time_count_2 = TimeCount2,
+        time_count_3 = TimeCount3,
+        rssi = RSSI,
+        bytes_received = BytesReceived,
+        bytes_transmitted = BytesTransmitted
+    }.
+
+%%
+%%  Decode HMC5883L TM.
+%%
+decode_tm_mag(Telemetry) ->
+    <<
+        Bx:16,
+        By:16,
+        Bz:16
+    >> = Telemetry,
+    #tm_mag{
+        bx = Bx,
+        by = By,
+        bz = Bz
+    }.
+
+
+%%
+%%  Decode MPU-6000A TM.
+%%
+decode_tm_mpu(Telemetry) ->
+    <<
+        Gx:16,
+        Gy:16,
+        Gz:16,
+        Ax:16,
+        Ay:16,
+        Az:16,
+        Temp:16
+    >> = Telemetry,
+    #tm_mpu{
+        gx = Gx,
+        gy = Gy,
+        gz = Gz,
+        ax = Ax,
+        ay = Ay,
+        az = Az,
+        temp = Temp
+    }.
+
+
+%%
+%%  Decode L3GD20 TM.
+%%
+decode_tm_gyro(Telemetry) ->
+    <<
+        Wx:16,
+        Wy:16,
+        Wz:16,
+        Temp:8
+    >> = Telemetry,
+    #tm_gyro{
+        wx = Wx,
+        wy = Wy,
+        wz = Wz,
+        temp = Temp
+    }.
 
 

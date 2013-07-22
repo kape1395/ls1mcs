@@ -134,40 +134,114 @@
 %%  Telemetry.
 %% =============================================================================
 
--type uint8() :: integer().
--type uint16() :: integer().
--type uint32() :: integer().
+-type uint8() :: non_neg_integer().
+-type sint16() :: integer().
+-type uint16() :: non_neg_integer().
+-type uint32() :: non_neg_integer().
 
+%%
+%%  Transceiver data.
+%%  He-100, 16 bytes
+%%
 -record(tm_he, {
+    op_counter          :: uint16(),
+    msp430_temp         :: sint16(),
+    time_count_1        :: uint8(),
+    time_count_2        :: uint8(),
+    time_count_3        :: uint8(),
+    rssi                :: uint8(),
+    bytes_received      :: uint32(),
+    bytes_transmitted   :: uint32()
 }).
+
+%%
+%%  Magnetometer data.
+%%  HMC5883L, 6 bytes
+%%
 -record(tm_mag, {
+    bx      :: uint16(),
+    by      :: uint16(),
+    bz      :: uint16()
 }).
+
+%%
+%%  MPU-6000A, 14 bytes
+%%
 -record(tm_mpu, {
+    gx      :: uint16(),
+    gy      :: uint16(),
+    gz      :: uint16(),
+    ax      :: uint16(),
+    ay      :: uint16(),
+    az      :: uint16(),
+    temp    :: uint16()
 }).
+
+%%
+%%  L3GD20, 7 bytes
+%%
 -record(tm_gyro, {
+    wx      :: uint16(),
+    wy      :: uint16(),
+    wz      :: uint16(),
+    temp    :: uint8()
 }).
 
+%%
+%%  P31U, 43 bytes
+%%
 -record(tm_eps, {
-    pv      :: [uint16()],                      %% Photo-voltaic input voltage [mV] * 3
-    pc      :: uint16(),                        %% Total photo current [mA]
-    bv      :: uint16(),                        %% Battery voltage [mV]
-    sc      :: uint16()                         %% Total system current [mA]
+    pv_1                :: uint16(),
+    pv_2                :: uint16(),
+    pv_3                :: uint16(),
+    pc                  :: uint16(),
+    bv                  :: uint16(),
+    sc                  :: uint16(),
+    temp_BC1            :: sint16(),
+    temp_BC2            :: sint16(),
+    temp_BC3            :: sint16(),
+    temp_OB             :: sint16(),
+    batt_temp_1         :: sint16(),
+    batt_temp_2         :: sint16(),
+    latchup_50V1        :: uint16(),
+    latchup_50V2        :: uint16(),
+    latchup_50V3        :: uint16(),
+    latchup_33V1        :: uint16(),
+    latchup_33V2        :: uint16(),
+    latchup_33V3        :: uint16(),
+    reset               :: uint8(),
+    bootcount           :: uint16(),
+    sw_errors           :: uint16(),
+    ppt_mode            :: uint8(),
+    channel_status_QH   :: boolean(),
+    channel_status_QS   :: boolean(),
+    channel_status_50V1 :: boolean(),
+    channel_status_50V2 :: boolean(),
+    channel_status_50V3 :: boolean(),
+    channel_status_33V1 :: boolean(),
+    channel_status_33V2 :: boolean(),
+    channel_status_33V3 :: boolean()
 }).
 
--record(tm_att, {               %% Total: 34 bytes
-    mag     :: #tm_mag{},       %% HMC5883L,    6  bytes
-    mpu     :: #tm_mpu{},       %% MPU-6000A,   14 bytes
-    gyro    :: [#tm_gyro{}]     %% L3GD20,      14 bytes = 7 bytes * 2
+%%
+%%  Total: 34 bytes
+%%
+-record(tm_att, {
+    mag     :: #tm_mag{},
+    mpu     :: #tm_mpu{},
+    gyro_1  :: #tm_gyro{},
+    gyro_2  :: #tm_gyro{}
 }).
 
--record(telemetry, {            %% Total: 233 bytes
-    time    :: uint32(),        %% ---,         4 bytes
-    eps     :: #tm_eps{},       %% P31U,        43 bytes
-    he      :: #tm_he{},        %% He-100,      16 bytes
-    att     :: [#tm_att{}]      %% ---,         170 bytes = 34 bytes * 5
+%%
+%%  Total: 233 bytes
+%%
+-record(tm, {
+    time    :: uint32(),
+    eps     :: #tm_eps{},
+    he      :: #tm_he{},
+    att     :: [#tm_att{}]  %% x5
 }).
-
-
 
 
 -endif.
