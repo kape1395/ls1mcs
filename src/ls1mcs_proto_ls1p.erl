@@ -113,7 +113,7 @@ handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
         {ok, Frame} ->
             lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
             ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
-            ok = ls1mcs_protocol:send(Upper, Frame)
+            ok = ls1mcs_protocol:received(Upper, Frame)
     catch
         ErrType:ErrCode ->
             lager:debug(
@@ -230,7 +230,17 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Da
     {ok, Frame};
 
 %%  Telemetry frame
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:16, Data/binary>>) ->
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Timestamp:4/binary, Data/binary>>) ->
+    << % 1 + 4 + 43 + (6 + 14 + 14) * 5 + 16.
+        EPS:43/binary,
+        HE:16/binary,
+        IS_0_HMC:6/binary, IS_0_L3GD20:14/binary, IS_0_MPU:14/binary,
+        IS_1_HMC:6/binary, IS_1_L3GD20:14/binary, IS_1_MPU:14/binary,
+        IS_2_HMC:6/binary, IS_2_L3GD20:14/binary, IS_2_MPU:14/binary,
+        IS_3_HMC:6/binary, IS_3_L3GD20:14/binary, IS_3_MPU:14/binary,
+        IS_4_HMC:6/binary, IS_4_L3GD20:14/binary, IS_4_MPU:14/binary
+    >> = Data,
+
     Frame = #ls1p_tm_frame{
         timestamp = Timestamp,
         data = Data

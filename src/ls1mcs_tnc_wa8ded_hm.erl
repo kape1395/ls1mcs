@@ -143,8 +143,8 @@ handle_info({initialize}, State = #state{upper = Upper, device = Device, local_c
     ok = receive after ?RESTART_DELAY -> ok end,
     {ok, Port} = uart:open(Device, ?UART_OPTIONS),
     ok = enter_hostmode(Port),
-    {ok, _} = invoke_cmd(Port, "M U"),    % Monitor UI frames.
-    {ok, _} = invoke_cmd(Port, "E O"),    % Echo OFF.
+    {ok} = invoke_cmd(Port, <<"M U">>),    % Monitor UI frames.
+    {ok} = invoke_cmd(Port, <<"E O">>),    % Echo OFF.
     ok = set_local_call(Port, LocalCall),
 
     self() ! {query_input},
