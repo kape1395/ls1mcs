@@ -121,6 +121,13 @@ handle_request([?APP, ?API, "telemetry"], 'POST', Arg) ->
         ]})}
     ];
 
+handle_request([?APP, ?API, "telemetry"], 'GET', _Arg) ->
+    {ok, TMFrames} = ls1mcs_store:get_tm(all),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(TMFrames))}
+    ];
+
 handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
     [
         {status, 200},
@@ -135,6 +142,7 @@ handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
             {field5, 3.1415}
         ]})}
     ];
+
 
 %%
 %%  SAT position, example call:

@@ -9,6 +9,7 @@
     next_cref/0,
     add_ls1p_frame/3,
     add_unknown_frame/2,
+    get_tm/1,
     load_predicted_passes/1
 ]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -110,9 +111,11 @@ wait_for_tables(Timeout) ->
 %%  Received LS1P telemetry frames.
 %%
 -record(ls1mcs_store_ls1p_tm, {
+    id,
     recv_time,
     frame,
-    bytes
+    bytes,
+    source
 }).
 
 %%
@@ -212,11 +215,14 @@ add_ls1p_frame(Frame = #ls1p_data_frame{cref = CRef}, Bytes, Timestamp) ->
     mnesia:activity(transaction, Activity);
 
 add_ls1p_frame(Frame = #ls1p_tm_frame{}, Bytes, Timestamp) ->
+    Id = mnesia:dirty_update_counter(ls1mcs_store_counter, tm, 1),
     Activity = fun () ->
         ok = mnesia:write(#ls1mcs_store_ls1p_tm{
+            id = Id,
             frame = Frame,
             bytes = Bytes,
-            recv_time = Timestamp
+            recv_time = Timestamp,
+            source = gs
         }),
         ok
     end,
@@ -235,6 +241,15 @@ add_unknown_frame(Bytes, Timestamp) ->
         ok
     end,
     mnesia:activity(transaction, Activity).
+
+
+%%
+%%  Get TM.
+%%
+get_tm(all) ->
+    Records = mnesia:dirty_match_object(#ls1mcs_store_ls1p_tm{source = gs, _ = '_'}),
+    Frames = [ Frame || #ls1mcs_store_ls1p_tm{frame = Frame} <- Records ],
+    {ok, Frames}.
 
 
 %%

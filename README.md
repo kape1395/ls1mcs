@@ -65,7 +65,7 @@ To send some command via the communication link, run the following in the erlang
     lager:set_loglevel(lager_console_backend, warning).
 
     ls1mcs_utl_test:send_ping().
-
+    ls1mcs_store:add_ls1p_frame(#ls1p_tm_frame{data = <<0:(233*8)>>}, <<2#11100100:8, 0:(233*8)>>, erlang:now()).
 
 
 Sending tele-commands
