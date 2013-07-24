@@ -67,6 +67,11 @@ To send some command via the communication link, run the following in the erlang
     ls1mcs_utl_test:send_ping().
     ls1mcs_store:add_ls1p_frame(#ls1p_tm_frame{data = <<0:(233*8)>>}, <<2#11100100:8, 0:(233*8)>>, erlang:now()).
 
+    {ok, FrameId} = ls1mcs_utl_test:send_photo_data(200, 0, 50000).
+    ls1mcs_utl_test:load_photo(FrameId, 200, 0, 50000, "test/data/photo.jpg").
+    % See http://localhost:8000/ls1mcs/api/ls1p_frame/0_7/photo
+
+
 
 Sending tele-commands
 ------------------------------------------------------------
@@ -85,6 +90,7 @@ Bytes received from He100 using `rp(ls1mcs_utl_uart_logger:recv(true)).`:
     %% {ok, <<72,101,32,4,0,23,59,163,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,34,4,237,0,0,245,112,1,165>>}
     %% See `test/data/test_he100_recv_ls1p_arduino_photo_meta.dat`.
 
+    %% TODO: The following is outdated.
     ls1mcs_protocol:send(LSRef, #ls1p_cmd_frame{dest_addr = arduino, dest_port = photo_data, ack = false, cref = 1262, delay = 0, data = <<0:16, 78:16>>}).
     %% {ok, <<72,101,32,4,0,27,63,167,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,36,4,238,0,0,0,0,0,78,113,194,44,196>>}
     %% See `test/data/test_he100_recv_ls1p_arduino_photo_data.dat`

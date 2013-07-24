@@ -49,9 +49,9 @@ handle_request([?APP, ?API], 'GET', _Arg) ->
     ];
 
 
-%%
+%% -----------------------------------------------------------------------------
 %%  Command resources
-%%
+%% -----------------------------------------------------------------------------
 
 handle_request([?APP, ?API, "command_address"], 'GET', _Arg) ->
     CommandAddrs = ls1mcs_command:command_addresses(),
@@ -107,9 +107,68 @@ handle_request([?APP, ?API, "command_plan", _CommandPlanId, "commmand"], 'GET', 
     ];
 
 %%
+%%  ls1p_frame
+%%
+
+handle_request([?APP, ?API, "ls1p_frame"], 'GET', _Arg) ->
+    {ok, Frame} = ls1mcs_store:get_ls1p_frame({cmd, all}),
+    respond(200, ls1mcs_yaws_json:encode_list(Frame));
+
+handle_request([?APP, ?API, "ls1p_frame", FrameId], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    case ls1mcs_store:get_ls1p_frame({cmd, CRef}) of
+        {ok, Frame} -> respond(200, ls1mcs_yaws_json:encode(Frame));
+        {error, not_found} -> respond(404, <<"Not found.">>)
+    end;
+
+handle_request([?APP, ?API, "ls1p_frame", FrameId, "ack"], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    {ok, Frames} = ls1mcs_store:get_ls1p_frame({ack, CRef}),
+    respond(200, ls1mcs_yaws_json:encode_list(Frames));
+
+handle_request([?APP, ?API, "ls1p_frame", FrameId, "data"], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    {ok, Frames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
+    respond(200, ls1mcs_yaws_json:encode_list(Frames));
+
+handle_request([?APP, ?API, "ls1p_frame", FrameId, "recv"], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    {ok, Frames} = ls1mcs_store:get_ls1p_frame({recv, CRef}),
+    respond(200, ls1mcs_yaws_json:encode_list(Frames));
+
+handle_request([?APP, ?API, "ls1p_frame", FrameId, "photo"], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
+    {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
+    {ok, Photo} = ls1mcs_proto_ls1p:merged_response(CmdFrame, DataFrames),
+    [
+        {status, 200},
+        {content, "image/jpeg", Photo}
+    ];
+
+handle_request([?APP, ?API, "command", Id], 'GET', _Arg) ->
+    {ok, Command} = ls1mcs_store:get_command(erlang:list_to_integer(Id)),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+handle_request([?APP, ?API, "command", Id, "response"], 'GET', _Arg) ->
+    % TODO
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+%% -----------------------------------------------------------------------------
+%%  Telemetry
+%% -----------------------------------------------------------------------------
+
+%%
 %%  HAM Telemetry
 %%
 handle_request([?APP, ?API, "telemetry"], 'POST', Arg) ->
+    % TODO
     lager:debug("Got file, written to test-telemetry.dat"),
     file:write_file("test-telemetry.dat", Arg#arg.clidata),
     [
@@ -128,7 +187,15 @@ handle_request([?APP, ?API, "telemetry"], 'GET', _Arg) ->
         {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(TMFrames))}
     ];
 
+handle_request([?APP, ?API, "telemetry", "latest"], 'GET', _Arg) ->
+    {ok, [TMFrame]} = ls1mcs_store:get_tm(latest),   % TODO
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode(TMFrame))}
+    ];
+
 handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
+    % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[
@@ -143,6 +210,10 @@ handle_request([?APP, ?API, "telemetry", "5646"], 'GET', _Arg) ->
         ]})}
     ];
 
+
+%% -----------------------------------------------------------------------------
+%%  SAT Position
+%% -----------------------------------------------------------------------------
 
 %%
 %%  SAT position, example call:
@@ -256,6 +327,17 @@ serve_priv_file(FileName, ContentType) ->
 %%
 %%
 %%
+respond(Status, Response) ->
+    [
+        {status, Status},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(Response)}
+    ].
+
+
+
+%%
+%%
+%%
 timestamp_to_bin(undefined) ->
     null;
 
@@ -272,4 +354,9 @@ timestamp_to_bin(Now) ->
     erlang:iolist_to_binary(Date).
 
 
+%%
+%%
+%%
+to_int(String) when is_list(String) ->
+    erlang:list_to_integer(String).
 

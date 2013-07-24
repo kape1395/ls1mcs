@@ -8,7 +8,8 @@
     send_ping/0,
     send_take_photo/1,
     send_photo_meta/0,
-    send_photo_data/2
+    send_photo_data/3,
+    load_photo/5
 ]).
 -include("ls1mcs.hrl").
 
@@ -70,14 +71,31 @@ send_photo_meta() ->
 %%
 %%
 %%
-send_photo_data(From, Till) ->
+send_photo_data(Size, From, Till) ->
     {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
         addr = arduino,
         port = photo_data,
         ack = false,
-        data = <<From:16, Till:16>>
+        data = <<Size:8, From:16, Till:16>>
     }).
 
+load_photo(CRef, Size, From, Till, PhotoFile) ->
+    {ok, PhotoBin} = file:read_file(PhotoFile),
+    load_photo_bin(CRef, Size, 0, Till - From, PhotoBin).
+
+load_photo_bin(_CRef, _Size, Index, Count, _Data) when Index >= Count ->
+    ok;
+
+load_photo_bin(CRef, Size, Index, Count, Data) ->
+    case Data of
+        <<Block:Size/binary, Tail/binary>> when size(Tail) > 0 ->
+            Frame = #ls1p_data_frame{eof = false, cref = CRef, fragment = Index, data = Block},
+            ok = ls1mcs_store:add_ls1p_frame(Frame, <<>>, erlang:now()),
+            load_photo_bin(CRef, Size, Index + 1, Count, Tail);
+        End ->
+            Frame = #ls1p_data_frame{eof = true, cref = CRef, fragment = Index, data = End},
+            ok = ls1mcs_store:add_ls1p_frame(Frame, <<>>, erlang:now())
+    end.
 
 
 %% =============================================================================

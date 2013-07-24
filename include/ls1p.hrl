@@ -49,7 +49,7 @@
 %%
 %%  Correlation reference, 16 bits.
 %%
--type ls1p_cref() :: integer().
+-type ls1p_cref() :: (CRef :: integer() | {Epoch :: integer(), CRef :: integer()}).
 
 
 %%

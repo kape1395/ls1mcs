@@ -7,6 +7,7 @@
 -export([start_link/0, is_installed/0, install/0, install/1, wait_for_tables/1]).
 -export([
     next_cref/0,
+    get_ls1p_frame/1,
     add_ls1p_frame/3,
     add_unknown_frame/2,
     get_tm/1,
@@ -170,18 +171,44 @@ create_tables(Nodes) ->
 %%
 next_cref() ->
     Next = mnesia:dirty_update_counter(ls1mcs_store_counter, cref, 1),
-    CRef = Next rem 16#FFFF,
-    Epoch = Next div 16#FFFF,
-    {ok, Epoch, CRef}.
+    {ok, cref_from_id(Next)}.
+
+
+%%
+%%  Get LS1P frame.
+%%
+get_ls1p_frame({cmd, all}) ->
+    List = mnesia:dirty_match_object(#ls1mcs_store_ls1p_sent{_ = '_'}),
+    {ok, [ Frame || #ls1mcs_store_ls1p_sent{frame = Frame} <- List ]};
+
+get_ls1p_frame({cmd, {Epoch, CRef}}) ->
+    case mnesia:dirty_read(ls1mcs_store_ls1p_sent, {Epoch, CRef}) of
+        [] ->
+            {error, not_found};
+        [#ls1mcs_store_ls1p_sent{frame = Frame}] ->
+            {ok, Frame}
+    end;
+
+get_ls1p_frame({ack, {Epoch, CRef}}) ->
+    List = mnesia:dirty_read(ls1mcs_store_ls1p_recv, {Epoch, CRef}),
+    {ok, [ Frame || #ls1mcs_store_ls1p_recv{frame = Frame} <- List, is_record(Frame, ls1p_ack_frame) ]};
+
+get_ls1p_frame({data, {Epoch, CRef}}) ->
+    List = mnesia:dirty_read(ls1mcs_store_ls1p_recv, {Epoch, CRef}),
+    {ok, [ Frame || #ls1mcs_store_ls1p_recv{frame = Frame} <- List, is_record(Frame, ls1p_data_frame) ]};
+
+get_ls1p_frame({recv, {Epoch, CRef}}) ->
+    List = mnesia:dirty_read(ls1mcs_store_ls1p_recv, {Epoch, CRef}),
+    {ok, [ Frame || #ls1mcs_store_ls1p_recv{frame = Frame} <- List ]}.
 
 
 %%
 %%  Add LS1P frame.
 %%
-add_ls1p_frame(Frame = #ls1p_cmd_frame{cref = CRef}, Bytes, Timestamp) ->
+add_ls1p_frame(Frame = #ls1p_cmd_frame{cref = {Epoch, CRef}}, Bytes, Timestamp) when is_integer(Epoch) ->
     Activity = fun () ->
         ok = mnesia:write(#ls1mcs_store_ls1p_sent{
-            cref = CRef,
+            cref = {Epoch, CRef},
             frame = Frame,
             bytes = Bytes,
             sent_time = Timestamp
@@ -190,11 +217,12 @@ add_ls1p_frame(Frame = #ls1p_cmd_frame{cref = CRef}, Bytes, Timestamp) ->
     end,
     mnesia:activity(transaction, Activity);
 
-add_ls1p_frame(Frame = #ls1p_ack_frame{cref = CRef}, Bytes, Timestamp) ->
+add_ls1p_frame(Frame = #ls1p_ack_frame{cref = {Epoch, CRef}}, Bytes, Timestamp) ->
     Activity = fun () ->
+        ResolvedCRef = resolve_recv_cref(Epoch, CRef, Timestamp),
         ok = mnesia:write(#ls1mcs_store_ls1p_recv{
-            cref = CRef,
-            frame = Frame,
+            cref = ResolvedCRef,
+            frame = Frame#ls1p_ack_frame{cref = ResolvedCRef},
             bytes = Bytes,
             recv_time = Timestamp
         }),
@@ -202,11 +230,12 @@ add_ls1p_frame(Frame = #ls1p_ack_frame{cref = CRef}, Bytes, Timestamp) ->
     end,
     mnesia:activity(transaction, Activity);
 
-add_ls1p_frame(Frame = #ls1p_data_frame{cref = CRef}, Bytes, Timestamp) ->
+add_ls1p_frame(Frame = #ls1p_data_frame{cref = {Epoch, CRef}}, Bytes, Timestamp) ->
     Activity = fun () ->
+        ResolvedCRef = resolve_recv_cref(Epoch, CRef, Timestamp),
         ok = mnesia:write(#ls1mcs_store_ls1p_recv{
-            cref = CRef,
-            frame = Frame,
+            cref = ResolvedCRef,
+            frame = Frame#ls1p_data_frame{cref = ResolvedCRef},
             bytes = Bytes,
             recv_time = Timestamp
         }),
@@ -308,5 +337,39 @@ code_change(_OldVsn, State, _Extra) ->
 %% =============================================================================
 %%  Helper functions.
 %% =============================================================================
+
+
+%%
+%%
+%%
+cref_from_id(Id) ->
+    CRef = Id rem 16#FFFF,
+    Epoch = Id div 16#FFFF,
+    {Epoch, CRef}.
+
+
+%%
+%%  Resolve unknown epoch. Avoid duplicate keys.
+%%
+resolve_recv_cref(Epoch, CRef, Timestamp) when is_integer(Epoch) ->
+%    case mnesia:read(ls1mcs_store_ls1p_recv, {Epoch, CRef}) of
+%        [] ->
+            {Epoch, CRef};
+%        _ ->
+%            {Epoch, CRef, Timestamp}
+%    end;
+
+resolve_recv_cref(undefined, CRef, Timestamp) ->
+    case mnesia:dirty_read(ls1mcs_store_counter, cref) of
+        [#ls1mcs_store_counter{value = This}] ->
+            {ThisEpoch, ThisCRef} = cref_from_id(This),
+            case ThisCRef >= CRef of
+                true -> resolve_recv_cref(ThisEpoch, CRef, Timestamp);
+                false -> resolve_recv_cref(ThisEpoch - 1, CRef, Timestamp)
+            end;
+        [] ->
+            resolve_recv_cref(-1, CRef, Timestamp)
+    end.
+
 
 

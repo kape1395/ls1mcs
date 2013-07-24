@@ -1,5 +1,5 @@
 -module(ls1mcs_yaws_json).
--export([encode_list/1, encode/1]).
+-export([encode_list/1, encode/1, decode/2]).
 -include("ls1mcs.hrl").
 
 
@@ -45,6 +45,65 @@ encode(#user_cmd_enum{desc = Desc, value = Value}) ->
         {desc, Desc},
         {value, Value}
     ]};
+
+
+%% -----------------------------------------------------------------------------
+%%  LS1P
+%% -----------------------------------------------------------------------------
+encode({cref, {Epoch, CRef}}) ->
+    EpochBin = erlang:integer_to_binary(Epoch),
+    CRefBin = erlang:integer_to_binary(CRef),
+    <<EpochBin/binary, "_", CRefBin/binary>>;
+
+encode({cref, {Epoch, CRef, {MegaSec, Sec, MicroSec}}}) ->
+    EpochBin    = erlang:integer_to_binary(Epoch),
+    CRefBin     = erlang:integer_to_binary(CRef),
+    MegaSecBin  = erlang:integer_to_binary(MegaSec),
+    SecBin      = erlang:integer_to_binary(Sec),
+    MicroSecBin = erlang:integer_to_binary(MicroSec),
+    <<EpochBin/binary, "_", CRefBin/binary, "_", MegaSecBin/binary, "_", SecBin/binary, "_", MicroSecBin/binary>>;
+
+encode(#ls1p_cmd_frame{
+        addr = Addr,
+        port = Port,
+        ack = Ack,
+        cref = CRef,
+        delay = Delay,
+        data = Data
+    }) ->
+    {[
+        {addr, Addr},
+        {port, Port},
+        {ack, Ack},
+        {cref, encode({cref, CRef})},
+        {delay, Delay},
+        {data, encode_hex(Data)}
+    ]};
+
+encode(#ls1p_ack_frame{
+        status = Status,
+        cref = CRef,
+        recv_status = RecvStatus
+    }) ->
+    {[
+        {status, Status},
+        {cref, encode({cref, CRef})},
+        {recv_status, RecvStatus}
+    ]};
+
+encode(#ls1p_data_frame{
+        eof = Eof,
+        cref = CRef,
+        fragment = Fragment,
+        data = Data
+    }) ->
+    {[
+        {eof, Eof},
+        {cref, encode({cref, CRef})},
+        {fragment, Fragment},
+        {data, encode_hex(Data)}
+    ]};
+
 
 %% -----------------------------------------------------------------------------
 %%  Telemetry
@@ -184,3 +243,34 @@ encode(#tm_gyro{wx = Wx, wy = Wy, wz = Wz, temp = Temp}) ->
     ]}.
 
 
+%%
+%%
+%%
+encode_hex(Binary) ->
+    erlang:iolist_to_binary([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(Binary)]).
+
+
+
+
+decode(cref, CRef) when is_list(CRef) ->
+    decode(cref, erlang:list_to_binary(CRef));
+
+decode(cref, CRef) when is_binary(CRef) ->
+    case binary:split(CRef, <<"_">>, [global]) of
+        [EpochBin, CRefBin] ->
+            {
+                erlang:binary_to_integer(EpochBin),
+                erlang:binary_to_integer(CRefBin)
+            };
+        [EpochBin, CRefBin, MegaSecBin, SecBin, MicroSecBin] ->
+            {
+                erlang:binary_to_integer(EpochBin),
+                erlang:binary_to_integer(CRefBin),
+                {
+                    erlang:binary_to_integer(MegaSecBin),
+                    erlang:binary_to_integer(SecBin),
+                    erlang:binary_to_integer(MicroSecBin)
+                }
+            }
+
+    end.

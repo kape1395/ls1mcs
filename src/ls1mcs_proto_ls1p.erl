@@ -2,7 +2,7 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, decode_tm/1]).
+-export([start_link/3, decode_tm/1, merged_response/2]).
 -export([send/2, received/2]).
 -export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -162,23 +162,23 @@ code_change(_OldVsn, State, _Extra) ->
 encode(Frame) when is_record(Frame, ls1p_ack_frame) ->
     #ls1p_ack_frame{
         status = Status,
-        cref = Cref,
+        cref = {_Epoch, CRef},
         recv_status = RecvStatus
     } = Frame,
     StatusBin = encode_bool(Status),
-    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, Cref:16, RecvStatus:8>>,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16, RecvStatus:8>>,
     {ok, FrameBin};
 
 %%  Data frame.
 encode(Frame) when is_record(Frame, ls1p_data_frame) ->
     #ls1p_data_frame{
         eof = Eof,
-        cref = Cref,
+        cref = {_Epoch, CRef},
         fragment = Fragment,
         data = Data
     } = Frame,
     EofBin = encode_bool(Eof),
-    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16, Fragment:16, Data/binary>>,
     {ok, FrameBin};
 
 %%  Telemetry frame.
@@ -193,12 +193,12 @@ encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
 encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
     #ls1p_cmd_frame{
         addr = Addr, port = Port, ack = Ack,
-        cref = Cref, delay = Delay, data = Data
+        cref = {_Epoch, CRef}, delay = Delay, data = Data
     } = Frame,
     AddrBin = encode_addr(Addr),
     PortBin = encode_port(Addr, Port),
     AckBin  = encode_bool(Ack),
-    FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>,
+    FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, CRef:16, Delay:16, Data/binary>>,
     {ok, FrameBin}.
 
 
@@ -209,21 +209,21 @@ encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
 %%
 
 %%  Acknowledgement frame.
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, Cref:16, RecvStatus:8>>) ->
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16, RecvStatus:8>>) ->
     Status = decode_bool(StatusBin),
     Frame = #ls1p_ack_frame{
         status = Status,
-        cref = Cref,
+        cref = {undefined, CRef},
         recv_status = RecvStatus
     },
     {ok, Frame};
 
 %%  Data frame
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, Cref:16, Fragment:16, Data/binary>>) ->
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16, Fragment:16, Data/binary>>) ->
     Eof = decode_bool(EofBin),
     Frame = #ls1p_data_frame{
         eof = Eof,
-        cref = Cref,
+        cref = {undefined, CRef},
         fragment = Fragment,
         data = Data
     },
@@ -237,7 +237,7 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Telemetry/binary>>) ->
     {ok, Frame};
 
 %%  Command frame
-decode(<<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>) ->
+decode(<<AddrBin:3, PortBin:4, AckBin:1, CRef:16, Delay:16, Data/binary>>) ->
     Addr = decode_addr(AddrBin),
     Port = decode_port(Addr, PortBin),
     Ack = decode_bool(AckBin),
@@ -245,7 +245,7 @@ decode(<<AddrBin:3, PortBin:4, AckBin:1, Cref:16, Delay:16, Data/binary>>) ->
         addr = Addr,
         port = Port,
         ack = Ack,
-        cref = Cref,
+        cref = {undefined, CRef},
         delay = Delay,
         data = Data
     },
@@ -495,5 +495,29 @@ decode_tm_gyro(Telemetry) ->
         wz = Wz,
         temp = Temp
     }.
+
+
+%%
+%%  Merge photo.
+%%
+-spec merged_response(#ls1p_cmd_frame{}, [#ls1p_data_frame{}])
+        -> {ok, binary()}.
+
+merged_response(CmdFrame, DataFrames) ->
+    {ok, BlockSize, FromBlock, TillBlock} = fragment_metainfo(CmdFrame),
+    ConstructFun = fun (Index) ->
+        case lists:keyfind(Index - FromBlock, #ls1p_data_frame.fragment, DataFrames) of
+            #ls1p_data_frame{data = Data} -> Data;
+            false -> <<0:(BlockSize*8)>>
+        end
+    end,
+    Merged = erlang:iolist_to_binary([ ConstructFun(I) || I <- lists:seq(FromBlock, TillBlock - 1)]),
+    {ok, Merged}.
+
+
+
+fragment_metainfo(#ls1p_cmd_frame{addr = arduino, port = photo_data, data = Data}) ->
+    <<BlockSize:8, From:16, Till:16>> = Data,
+    {ok, BlockSize, From, Till}.
 
 
