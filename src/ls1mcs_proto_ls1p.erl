@@ -497,6 +497,11 @@ decode_tm_gyro(Telemetry) ->
     }.
 
 
+
+%% =============================================================================
+%%  Data reconstruction.
+%% =============================================================================
+
 %%
 %%  Merge photo.
 %%
@@ -511,7 +516,7 @@ merged_response(CmdFrame, DataFrames) ->
             false -> <<0:(BlockSize*8)>>
         end
     end,
-    Merged = erlang:iolist_to_binary([ ConstructFun(I) || I <- lists:seq(FromBlock, TillBlock - 1)]),
+    Merged = erlang:iolist_to_binary([ ConstructFun(I) || I <- lists:seq(FromBlock, TillBlock - 1) ]),
     {ok, Merged}.
 
 
