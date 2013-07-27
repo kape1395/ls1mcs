@@ -8,7 +8,7 @@ ebin
 .ditz-config
 .project
 .settings/
-.kateproject*
+.kateproject.d/
 ebin-erlide/
 erl_crash.dump
 log/
