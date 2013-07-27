@@ -301,7 +301,7 @@ decode_bool(1) -> true.
 %%
 decode_tm(Telemetry) when is_binary(Telemetry) ->
     <<
-        Time:32,
+        Time:32/little,
         EPS:43/binary,
         He:16/binary,
         Att1:34/binary,
@@ -352,27 +352,27 @@ decode_tm_eps(Telemetry) ->
         (2) -> 'Fixed_SW_PPT'
     end,
     <<
-        PV1:16,
-        PV2:16,
-        PV3:16,
-        PC:16,
-        BV:16,
-        SC:16,
-        TempBC1:16/signed,
-        TempBC2:16/signed,
-        TempBC3:16/signed,
-        TempOB:16/signed,
-        BattTemp1:16/signed,
-        BattTemp2:16/signed,
-        Latchup50V1:16,
-        Latchup50V2:16,
-        Latchup50V3:16,
-        Latchup33V1:16,
-        Latchup33V2:16,
-        Latchup33V3:16,
+        PV1:16/little,
+        PV2:16/little,
+        PV3:16/little,
+        PC:16/little,
+        BV:16/little,
+        SC:16/little,
+        TempBC1:16/little-signed,
+        TempBC2:16/little-signed,
+        TempBC3:16/little-signed,
+        TempOB:16/little-signed,
+        BattTemp1:16/little-signed,
+        BattTemp2:16/little-signed,
+        Latchup50V1:16/little,
+        Latchup50V2:16/little,
+        Latchup50V3:16/little,
+        Latchup33V1:16/little,
+        Latchup33V2:16/little,
+        Latchup33V3:16/little,
         Reset:8,
-        Bootcount:16,
-        SwErrors:16,
+        Bootcount:16/little,
+        SwErrors:16/little,
         PPTMode:8,
         ChannelStatusQH:1,
         ChannelStatusQS:1,
@@ -421,14 +421,14 @@ decode_tm_eps(Telemetry) ->
 %%
 decode_tm_he(Telemetry) ->
     <<
-        OpCounter:16,
-        MSP430Temp:16/signed,
+        OpCounter:16/little,
+        MSP430Temp:16/little-signed,
         TimeCount1:8,
         TimeCount2:8,
         TimeCount3:8,
         RSSI:8,
-        BytesReceived:32,
-        BytesTransmitted:32
+        BytesReceived:32/little,
+        BytesTransmitted:32/little
     >> = Telemetry,
     #tm_he{
         op_counter = OpCounter,
@@ -446,9 +446,9 @@ decode_tm_he(Telemetry) ->
 %%
 decode_tm_mag(Telemetry) ->
     <<
-        Bx:16,
-        By:16,
-        Bz:16
+        Bx:16/little,
+        By:16/little,
+        Bz:16/little
     >> = Telemetry,
     #tm_mag{
         bx = Bx,
@@ -462,13 +462,13 @@ decode_tm_mag(Telemetry) ->
 %%
 decode_tm_mpu(Telemetry) ->
     <<
-        Gx:16,
-        Gy:16,
-        Gz:16,
-        Ax:16,
-        Ay:16,
-        Az:16,
-        Temp:16
+        Gx:16/little,
+        Gy:16/little,
+        Gz:16/little,
+        Ax:16/little,
+        Ay:16/little,
+        Az:16/little,
+        Temp:16/little
     >> = Telemetry,
     #tm_mpu{
         gx = Gx,
@@ -486,9 +486,9 @@ decode_tm_mpu(Telemetry) ->
 %%
 decode_tm_gyro(Telemetry) ->
     <<
-        Wx:16,
-        Wy:16,
-        Wz:16,
+        Wx:16/little,
+        Wy:16/little,
+        Wz:16/little,
         Temp:8
     >> = Telemetry,
     #tm_gyro{
