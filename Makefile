@@ -7,6 +7,9 @@ deps:
 	$(REBAR) get-deps
 
 compile:
+	env LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations" $(REBAR) compile apps=ls1mcs
+
+compile-all:
 	env LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations" $(REBAR) compile
 
 check: test itest
@@ -33,5 +36,5 @@ clean-all:
 kateproject:
 	echo "{ \"name\": \"${APP}\", \"files\": [ { \"git\": 1 } ] }" > .kateproject
 
-.PHONY: all deps compile check test itest doc clean clean-all
+.PHONY: all deps compile compile-all check test itest doc clean clean-all
 

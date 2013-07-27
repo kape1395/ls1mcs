@@ -111,6 +111,8 @@ handle_cast({send, Frame}, State = #state{lower = Lower}) ->
 
 handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
     try decode(DataBin) of
+        {ok, Frame} when is_record(Frame, ls1p_cmd_frame) ->
+            lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
         {ok, Frame} ->
             lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
             ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
