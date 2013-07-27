@@ -9,7 +9,8 @@
     send_take_photo/1,
     send_photo_meta/0,
     send_photo_data/3,
-    load_photo/5
+    load_photo/5,
+    load_photo_frames/3
 ]).
 -include("ls1mcs.hrl").
 
@@ -79,6 +80,10 @@ send_photo_data(Size, From, Till) ->
         data = <<Size:8, From:16, Till:16>>
     }).
 
+
+%%
+%%  Load a photo from file to DB.
+%%
 load_photo(CRef, Size, From, Till, PhotoFile) ->
     {ok, PhotoBin} = file:read_file(PhotoFile),
     load_photo_bin(CRef, Size, 0, Till - From, PhotoBin).
@@ -96,6 +101,46 @@ load_photo_bin(CRef, Size, Index, Count, Data) ->
             Frame = #ls1p_data_frame{eof = true, cref = CRef, fragment = Index, data = End},
             ok = ls1mcs_store:add_ls1p_frame(Frame, <<>>, erlang:now())
     end.
+
+
+%%
+%%  Load fixed-length binary frames file and send it to the LS1P protocol handler.
+%%
+load_photo_frames(FramesFile, FrameLen, LSRef) when is_list(FramesFile) ->
+    {ok, FramesBin} = file:read_file(FramesFile),
+    case FramesBin of
+        <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, _Flag:1, CRef:16, _/binary>> ->
+            lager:debug("First frame is DATA frame with cref=~p", [CRef]),
+            load_photo_frames(FramesBin, FrameLen, LSRef);
+        _->
+            load_photo_frames(FramesBin, FrameLen, LSRef)
+        %<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, _Flag:1, _/binary>> ->
+        %    lager:debug("First frame is ACK. Rejecting."),
+        %    {error, acks};
+        %<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, _Flag:1, _/binary>> ->
+        %    lager:debug("First frame is TM frame. Rejecting.")
+    end;
+
+load_photo_frames(FramesBin, FrameLen, LSRef) ->
+    case FramesBin of
+        <<>> ->
+            ok;
+        <<FrameBin:FrameLen/binary, Tail/binary>> ->
+            ok = load_photo_frames_received(FrameBin, LSRef),
+            load_photo_frames(Tail, FrameLen, LSRef);
+        LastFrameBin ->
+            ok = load_photo_frames_received(LastFrameBin, LSRef),
+            ok
+    end.
+
+load_photo_frames_received(<<>>, _LSRef) ->
+    lager:error("empty frame");
+
+load_photo_frames_received(FrameBin, LSRef) ->
+    <<_BadHdr:8, FrameTail/binary>> = FrameBin,
+    FixedFrame = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, 0:1, FrameTail/binary>>,
+    ok = ls1mcs_protocol:received(LSRef, FixedFrame).
+
 
 
 %% =============================================================================

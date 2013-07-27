@@ -71,6 +71,8 @@ To send some command via the communication link, run the following in the erlang
     ls1mcs_utl_test:load_photo(FrameId, 200, 0, 50000, "test/data/photo.jpg").
     % See http://localhost:8000/ls1mcs/api/ls1p_frame/0_7/photo
 
+    ls1mcs_utl_test:load_photo_frames("temp-photo/20130727210211.log", 200, LSRef).
+
 
 
 Sending tele-commands

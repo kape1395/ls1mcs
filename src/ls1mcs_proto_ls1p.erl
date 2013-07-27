@@ -9,11 +9,6 @@
 -include("ls1mcs.hrl").
 -include("ls1p.hrl").
 
--define(GROUND_ADDR, 2#111).
--define(GROUND_PORT_ACK,  16#0).
--define(GROUND_PORT_DATA, 16#1).
--define(GROUND_PORT_TM,   16#2).
-
 
 -define(ADDR_MAP, [
     {arm,       0},
@@ -168,7 +163,7 @@ encode(Frame) when is_record(Frame, ls1p_ack_frame) ->
         recv_status = RecvStatus
     } = Frame,
     StatusBin = encode_bool(Status),
-    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16, RecvStatus:8>>,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16/little, RecvStatus:8>>,
     {ok, FrameBin};
 
 %%  Data frame.
@@ -180,7 +175,7 @@ encode(Frame) when is_record(Frame, ls1p_data_frame) ->
         data = Data
     } = Frame,
     EofBin = encode_bool(Eof),
-    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16, Fragment:16, Data/binary>>,
+    FrameBin = <<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16/little, Fragment:16/little, Data/binary>>,
     {ok, FrameBin};
 
 %%  Telemetry frame.
@@ -200,7 +195,7 @@ encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
     AddrBin = encode_addr(Addr),
     PortBin = encode_port(Addr, Port),
     AckBin  = encode_bool(Ack),
-    FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, CRef:16, Delay:16, Data/binary>>,
+    FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, CRef:16/little, Delay:16/little, Data/binary>>,
     {ok, FrameBin}.
 
 
@@ -211,7 +206,7 @@ encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
 %%
 
 %%  Acknowledgement frame.
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16, RecvStatus:8>>) ->
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16/little, RecvStatus:8>>) ->
     Status = decode_bool(StatusBin),
     Frame = #ls1p_ack_frame{
         status = Status,
@@ -221,7 +216,7 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_ACK:4, StatusBin:1, CRef:16, RecvStatus:8>
     {ok, Frame};
 
 %%  Data frame
-decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16, Fragment:16, Data/binary>>) ->
+decode(<<?GROUND_ADDR:3, ?GROUND_PORT_DATA:4, EofBin:1, CRef:16/little, Fragment:16/little, Data/binary>>) ->
     Eof = decode_bool(EofBin),
     Frame = #ls1p_data_frame{
         eof = Eof,
@@ -239,7 +234,7 @@ decode(<<?GROUND_ADDR:3, ?GROUND_PORT_TM:4, 0:1, Telemetry/binary>>) ->
     {ok, Frame};
 
 %%  Command frame
-decode(<<AddrBin:3, PortBin:4, AckBin:1, CRef:16, Delay:16, Data/binary>>) ->
+decode(<<AddrBin:3, PortBin:4, AckBin:1, CRef:16/little, Delay:16/little, Data/binary>>) ->
     Addr = decode_addr(AddrBin),
     Port = decode_port(Addr, PortBin),
     Ack = decode_bool(AckBin),
