@@ -237,7 +237,7 @@
 %%  Total: 233 bytes
 %%
 -record(tm, {
-    time    :: uint32(),
+    time    :: uint32(),    %% Centi-seconds (1s / 100).
     eps     :: #tm_eps{},
     he      :: #tm_he{},
     att     :: [#tm_att{}]  %% x5

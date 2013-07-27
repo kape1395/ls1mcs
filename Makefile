@@ -1,7 +1,7 @@
 REBAR=rebar
 APP=ls1mcs
 
-all: compile
+all: compile-all
 
 deps:
 	$(REBAR) get-deps

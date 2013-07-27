@@ -2,7 +2,7 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, decode_tm/1, merged_response/2]).
+-export([start_link/3, decode_tm/1, merged_response/1, merged_response/2]).
 -export([send/2, received/2]).
 -export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -511,20 +511,121 @@ decode_tm_gyro(Telemetry) ->
         -> {ok, binary()}.
 
 merged_response(CmdFrame, DataFrames) ->
-    {ok, BlockSize, FromBlock, TillBlock} = fragment_metainfo(CmdFrame),
-    ConstructFun = fun (Index) ->
-        case lists:keyfind(Index - FromBlock, #ls1p_data_frame.fragment, DataFrames) of
-            #ls1p_data_frame{data = Data} -> Data;
-            false -> <<0:(BlockSize*8)>>
+    merged_response([{CmdFrame, DataFrames}]).
+
+
+
+%%
+%%  Merge photo, downloaded by multiple downlink commands.
+%%
+
+-spec merged_response([{#ls1p_cmd_frame{}, [#ls1p_data_frame{}]}])
+        -> {ok, binary()}.
+
+merged_response(Commands) ->
+    BlockSets = [ merge_to_blocks(C, D) || {C, D} <- Commands ],
+    MergedBlocks = lists:foldl(fun overlay_block_sets/2, [], BlockSets),
+    FillGaps = fun ({From, Till, Data}, {LastTill, Blocks}) ->
+        ZerosBitLen = (From - LastTill) * 8,
+        {Till, [Data, <<0:ZerosBitLen>> | Blocks]}
+    end,
+    {_, MergedIOList} = lists:foldl(FillGaps, {0, []}, MergedBlocks),
+    Flattened = erlang:iolist_to_binary(lists:reverse(MergedIOList)),
+    {ok, Flattened}.
+
+%%
+%%  Applies set of overlay blocks to set of base blocks.
+%%  Input must be sorted?
+%%
+overlay_block_sets(Overlay, []) ->
+    Overlay;
+
+overlay_block_sets(Overlay, Base) ->
+    lists:foldl(fun overlay_block/2, Base, Overlay).
+
+
+%%
+%%  Applies single overlay block to a set of base blocks.
+%%
+overlay_block(OverlayBlock, BaseBlocks) ->
+    F = fun(B, {Before, O, After}) ->
+        case overlay(O, B) of
+            overlay_before_base -> {Before, O, [B | After]};
+            overlay_after_base -> {[B | Before], O, After};
+            NewOverlayedBlock ->  {Before, NewOverlayedBlock, After}
         end
     end,
-    Merged = erlang:iolist_to_binary([ ConstructFun(I) || I <- lists:seq(FromBlock, TillBlock - 1) ]),
-    {ok, Merged}.
+    {BeforeOverlay, OverlayedBlock, AfterOverlay} = lists:foldl(F, {[], OverlayBlock, []}, BaseBlocks),
+    lists:reverse(BeforeOverlay) ++ [OverlayedBlock] ++ lists:reverse(AfterOverlay).
 
 
+%%
+%%  Overlays two blocks. The first one has priority over the second one.
+%%
+overlay({_OFrom, OTill, _OData}, {BFrom, _BTill, _BData}) when OTill < BFrom -> overlay_before_base;
+overlay({OFrom, _OTill, _OData}, {_BFrom, BTill, _BData}) when OFrom > BTill -> overlay_after_base;
 
+% Overlay block covers entire base block.
+overlay({OFrom, OTill, OData}, {BFrom, BTill, _BData}) when OFrom =< BFrom, OTill >= BTill ->
+    {OFrom, OTill, OData};
+
+% Overlay block is in the middle of the base block.
+overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OFrom > BFrom, OTill < BTill ->
+    PrefixSize = BFrom - OFrom,
+    OverlappedSize = OTill - OFrom,
+    <<Prefix:PrefixSize/binary, _:OverlappedSize/binary, Suffix/binary>> = BData,
+    {BFrom, BTill, <<Prefix/binary, OData/binary, Suffix/binary>>};
+
+% Overlay block covers front of the base block (or touches it).
+overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OFrom =< BFrom ->
+    OverlappedSize = BFrom - OTill,
+    <<_:OverlappedSize/binary, Suffix>> = BData,
+    {OFrom, BTill, <<OData/binary, Suffix/binary>>};
+
+% Overlay block covers tail of the base block (or touches it).
+overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OTill >= BTill ->
+    PrefixSize = OFrom - BFrom,
+    <<Prefix:PrefixSize/binary, _Suffix/binary>> = BData,
+    {BFrom, OTill, <<Prefix/binary, OData/binary>>}.
+
+
+%%
+%%  Create non-overlapping and non-touching blocks out of data frames,
+%%  that are response to a single command frame.
+%%
+%%  Reverse with usort is needed here to drop old duplicated data.
+%%  TODO: Sort by time desc explicitly.
+%%
+merge_to_blocks(_CmdFrame, []) ->
+    [];
+
+merge_to_blocks(CmdFrame, DataFrames) ->
+    {ok, BlockSize, FromBlock, _TillBlock} = fragment_metainfo(CmdFrame),
+    SortedDataFrames = lists:ukeysort(#ls1p_data_frame.fragment, lists:reverse(DataFrames)),
+    %
+    FrameToBlock = fun (#ls1p_data_frame{fragment = F, data = D}) ->
+        From = BlockSize * (FromBlock + F),
+        {From, From + byte_size(D), D}
+    end,
+    %
+    MergeFrames = fun (Frame, [LastBlock = {LastFrom, LastTill, LastData} | OtherBlocks]) ->
+        NewBlock = {From, Till, Data} = FrameToBlock(Frame),
+        case From =:= LastTill of
+            true ->
+                MergedBlock = {LastFrom, Till, <<LastData/binary, Data/binary>>},
+                [MergedBlock | OtherBlocks];
+            false ->
+                [NewBlock, LastBlock | OtherBlocks]
+        end
+    end,
+    %
+    [FirstDF | OtherDFs] = SortedDataFrames,
+    lists:reverse(lists:foldl(MergeFrames, [FrameToBlock(FirstDF)], OtherDFs)).
+
+
+%%
+%%  Extracts meta-info from the specified frame.
+%%
 fragment_metainfo(#ls1p_cmd_frame{addr = arduino, port = photo_data, data = Data}) ->
     <<BlockSize:8, From:16, Till:16>> = Data,
     {ok, BlockSize, From, Till}.
-
-
