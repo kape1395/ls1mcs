@@ -83,10 +83,6 @@ handle_call({send, Ls1pCmdFrame}, _From, State = #state{link = LinkRef}) ->
     ok = ls1mcs_protocol:send(LinkRef, FrameToSend),
     {reply, {ok, {Epoch, CRef}}, State};
 
-handle_call({received, Frame}, _From, State) when is_record(Frame, ls1p_cmd_frame) ->
-    lager:debug("ls1mcs_connection: dropping received (echoed?) command frame: ~p", [Frame]),
-    {reply, ok, State};
-
 handle_call({received, Frame}, _From, State) ->
     lager:info("ls1mcs_connection: received a frame: ~p", [Frame]),
     % TODO

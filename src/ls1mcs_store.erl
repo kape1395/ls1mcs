@@ -351,13 +351,8 @@ cref_from_id(Id) ->
 %%
 %%  Resolve unknown epoch. Avoid duplicate keys.
 %%
-resolve_recv_cref(Epoch, CRef, Timestamp) when is_integer(Epoch) ->
-%    case mnesia:read(ls1mcs_store_ls1p_recv, {Epoch, CRef}) of
-%        [] ->
-            {Epoch, CRef};
-%        _ ->
-%            {Epoch, CRef, Timestamp}
-%    end;
+resolve_recv_cref(Epoch, CRef, _Timestamp) when is_integer(Epoch) ->
+    {Epoch, CRef};
 
 resolve_recv_cref(undefined, CRef, Timestamp) ->
     case mnesia:dirty_read(ls1mcs_store_counter, cref) of
