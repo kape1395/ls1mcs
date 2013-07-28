@@ -4,9 +4,8 @@
 -module(ls1mcs_yaws).
 -compile([{parse_transform, lager_transform}]).
 -export([out/1]).
--export([url/2, respond/2]).
+-export([url/2]).
 -include("ls1mcs.hrl").
--include("ls1mcs_yaws.hrl").
 -include_lib("yaws/include/yaws_api.hrl").
 
 -define(APP, "ls1mcs").
@@ -120,16 +119,5 @@ serve_priv_file(FileName, ContentType) ->
 %%
 url(api, Path) ->
     list_to_binary(string:join(["", ?APP, ?API | Path], "/")).
-
-
-%%
-%%
-%%
-respond(Status, Response) ->
-    [
-        {status, Status},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(Response)}
-    ].
-
 
 

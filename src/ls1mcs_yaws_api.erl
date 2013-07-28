@@ -6,8 +6,10 @@
 -compile([{parse_transform, lager_transform}]).
 -export([handle_request/3]).
 -include("ls1mcs.hrl").
--include("ls1mcs_yaws.hrl").
 -include_lib("yaws/include/yaws_api.hrl").
+
+-define(MEDIATYPE_JSON, "application/vnd.ls1mcs-v1+json; level=0").
+-define(MEDIATYPE_TERM, "application/x-erlang-term").
 
 
 handle_request([], 'GET', _Arg) ->
@@ -222,6 +224,8 @@ handle_request(["sat", _SAT, "position", "predicted", "current"], 'GET', _Arg) -
 %%
 %%
 respond(Status, Response) ->
-    ls1mcs_yaws:respond(Status, Response).
-
+    [
+        {status, Status},
+        {content, ?MEDIATYPE_JSON, jiffy:encode(Response)}
+    ].
 

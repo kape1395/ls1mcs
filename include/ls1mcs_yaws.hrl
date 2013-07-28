@@ -1,2 +1,0 @@
--define(MEDIATYPE_JSON, "application/vnd.ls1mcs-v1+json; level=0").
--define(MEDIATYPE_TERM, "application/x-erlang-term").
