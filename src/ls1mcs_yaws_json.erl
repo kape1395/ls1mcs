@@ -1,5 +1,5 @@
 -module(ls1mcs_yaws_json).
--export([encode/1, encode_list/1, encode_tstamp/1, decode/2]).
+-export([encode/1, encode_list/1, encode_tstamp/1, decode/2, decode_atom/1]).
 -include("ls1mcs.hrl").
 
 
@@ -10,6 +10,23 @@
 %%
 %%
 %%
+encode({root}) ->
+    {[
+        links([
+            link(self,                  url([])),
+            link(telemetry,             url([telemetry])),
+            %
+            link(command_addresses,     url([command_address])),
+            link(user_cmd_specs,        url([user_cmd_spec])),
+            link(commands,              url([command])),
+            link(immediate_commands,    url([immediate_command])),
+            link(command_plans,         url([command_plan])),
+            link(ls1p_frames,           url([ls1p_frame])),
+            %
+            link(sats,                  url([sat]))
+        ])
+    ]};
+
 encode(#command_address{desc = Desc, addr = Addr}) ->
     {[
         {desc, Desc},
@@ -305,6 +322,22 @@ decode(cref, CRef) when is_binary(CRef) ->
     end.
 
 
+%%
+%%
+%%
+decode_atom(null) ->
+    undefined;
+
+decode_atom(Atom) when is_atom(Atom) ->
+    Atom;
+
+decode_atom(Atom) when is_list(Atom) ->
+    erlang:list_to_existing_atom(Atom);
+
+decode_atom(Atom) when is_binary(Atom) ->
+    erlang:binary_to_existing_atom(Atom).
+
+
 
 %% =============================================================================
 %%  Helpers for HAL support.
@@ -320,8 +353,12 @@ url(Path) ->
 %%
 %%  Used for constructing URLs.
 %%
+to_string(String) when is_atom(String) ->
+    erlang:atom_to_list(String);
+
 to_string(String) when is_list(String) ->
     String;
+
 to_string(Integer) when is_integer(Integer) ->
     erlang:integer_to_list(Integer).
 

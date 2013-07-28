@@ -12,44 +12,47 @@
 -define(MEDIATYPE_TERM, "application/x-erlang-term").
 
 
+%% =============================================================================
+%%  Resource handling functions.
+%% =============================================================================
+
+%% -----------------------------------------------------------------------------
+%%  Root.
+%% -----------------------------------------------------------------------------
+
 handle_request([], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {header, {"Link", "<command>; rel=commands"}},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_object({root}));
 
 
 %% -----------------------------------------------------------------------------
 %%  Command resources
 %% -----------------------------------------------------------------------------
 
+%%
+%%  Command address.
+%%
 handle_request(["command_address"], 'GET', _Arg) ->
     CommandAddrs = ls1mcs_command:command_addresses(),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(CommandAddrs))}
-    ];
+    respond(200, json_list(CommandAddrs));
 
+%%
+%%  User command spec.
+%%
 handle_request(["user_cmd_spec"], 'GET', _Arg) ->
     UserCmdSpecs = ls1mcs_command:user_cmd_specs(),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(UserCmdSpecs))}
-    ];
+    respond(200, json_list(UserCmdSpecs));
 
 handle_request(["user_cmd_spec", Addr], 'GET', _Arg) ->
-    AddrAtom = erlang:list_to_existing_atom(Addr),
+    AddrAtom = ls1mcs_yaws_json:decode_atom(Addr),
     UserCmdSpecs = lists:filter(
         fun (#user_cmd_spec{addr = A}) -> AddrAtom =:= A end,
         ls1mcs_command:user_cmd_specs()
     ),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(UserCmdSpecs))}
-    ];
+    respond(200, json_list(UserCmdSpecs));
 
+%%
+%%  Immediate command.
+%%
 handle_request(["immediate_command"], 'GET', _Arg) ->
     % TODO
     [
@@ -219,6 +222,20 @@ handle_request(["sat", _SAT, "position", "predicted", "current"], 'GET', _Arg) -
 %% =============================================================================
 %%  Helper functions.
 %% =============================================================================
+
+%%
+%%
+%%
+json_object(Object) ->
+    ls1mcs_yaws_json:encode(Object).
+
+
+%%
+%%
+%%
+json_list(Objects) ->
+    ls1mcs_yaws_json:encode_list(Objects).
+
 
 %%
 %%

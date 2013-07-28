@@ -1,6 +1,7 @@
 deps
 ebin
 *.swp
+*.kate-swp
 *.log
 *~
 *.dat
