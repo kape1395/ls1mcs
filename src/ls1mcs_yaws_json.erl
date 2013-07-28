@@ -56,18 +56,18 @@ encode(#user_cmd_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = C
         {params, encode_list(Params)}
     ]};
 
-encode(#user_cmd_param{name = Name, desc = Desc, type = Type, enum = Enum}) ->
-    EnumEncoded = case Enum of
+encode(#user_cmd_param{name = Name, desc = Desc, type = Type, opts = Opts}) ->
+    OptsEncoded = case Opts of
         undefined -> [];
-        _ -> [ {opts, encode_list(Enum)} ]  % enum is reserved word in JavaScript.
+        _ -> [ {opts, encode_list(Opts)} ]
     end,
     {[
         {name, Name},
         {desc, Desc},
         {type, Type}
-    ] ++ EnumEncoded};
+    ] ++ OptsEncoded};
 
-encode(#user_cmd_enum{desc = Desc, value = Value}) ->
+encode(#user_cmd_opts{desc = Desc, value = Value}) ->
     {[
         {desc, Desc},
         {value, Value}

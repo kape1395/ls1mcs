@@ -77,6 +77,17 @@ received(Ref, Data) when is_binary(Data) ->
     mode        %% Operation mode: std | tnc
 }).
 
+-record(addr, {
+    call    :: list(),
+    ssid    :: integer()
+}).
+-record(frame, {
+    dst     :: #addr{},
+    src     :: #addr{},
+    data    :: binary()
+}).
+
+
 
 %% =============================================================================
 %%  Callbacks for gen_server.
@@ -109,7 +120,7 @@ handle_call(_Message, _From, State) ->
 %%  Encode frame and send it to the lower protocol.
 %%
 handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower = Lower, mode = Mode}) ->
-    Frame = #ax25_frame{
+    Frame = #frame{
         dst = Remote,
         src = Local,
         data = Data
@@ -127,7 +138,7 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
     %%  Decode all frames and sent them to the upper level.
     ReceivedFrameFun = fun (FrameBinary) ->
         case catch decode(FrameBinary, Mode) of
-            {ok, #ax25_frame{data = FrameInfo}} ->
+            {ok, #frame{data = FrameInfo}} ->
                 ok = ls1mcs_protocol:received(Upper, FrameInfo);
             Error ->
                 io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, FrameBinary])
@@ -148,7 +159,7 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
 
 handle_cast({received, Received}, State = #state{upper = Upper, mode = tnc = Mode}) ->
     case catch decode(Received, Mode) of
-        {ok, #ax25_frame{data = FrameInfo}} ->
+        {ok, #frame{data = FrameInfo}} ->
             ok = ls1mcs_protocol:received(Upper, FrameInfo);
         Error ->
             io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, Received])
@@ -185,19 +196,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %%
-%%  Parses Call Sign into #ax25_addr{}.
+%%  Parses Call Sign into #addr{}.
 %%
 parse_call(CallString) when is_list(CallString) ->
     case lists:member($-, CallString) of
         false ->
-            #ax25_addr{call = CallString, ssid = 0};
+            #addr{call = CallString, ssid = 0};
         true ->
             SplitFun = fun (C) -> C =/= $- end,
             {Call, [$- | SSID]} = lists:splitwith(SplitFun, CallString),
-            #ax25_addr{call = Call, ssid = list_to_integer(SSID)}
+            #addr{call = Call, ssid = list_to_integer(SSID)}
     end;
 
-parse_call(Call) when is_record(Call, ax25_addr) ->
+parse_call(Call) when is_record(Call, addr) ->
     Call.
 
 
@@ -229,7 +240,7 @@ split_frames(Data) ->
 %%  DstAddr = #addr{call = "LY2EN", ssid=0},
 %%  SrcAddr = #addr{call = "LY1BWB", ssid=0},
 %%
-encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, std) ->
+encode(#frame{dst = DstAddr, src = SrcAddr, data = Data}, std) ->
     EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.
     EncodedSrcAddr = encode_address(SrcAddr, 0, 1), %% Command, Source addr.
     Address = reverse_bits(<<EncodedDstAddr/binary, EncodedSrcAddr/binary>>),
@@ -249,7 +260,7 @@ encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, std) ->
     BitstuffedFrameContents = bitstuff(FrameWithFCS),
     {ok, <<?AX25_FLAG:8, BitstuffedFrameContents/binary, ?AX25_FLAG:8>>};
 
-encode(#ax25_frame{dst = DstAddr, src = SrcAddr, data = Data}, tnc) ->
+encode(#frame{dst = DstAddr, src = SrcAddr, data = Data}, tnc) ->
     EncodedDstAddr = encode_address(DstAddr, 1, 0), %% Command, Dest address.
     EncodedSrcAddr = encode_address(SrcAddr, 0, 1), %% Command, Source addr.
     Address = <<EncodedDstAddr/binary, EncodedSrcAddr/binary>>,
@@ -292,9 +303,9 @@ decode(BitstuffedFrame, std) ->
     %% Parse control byte (not two bytes), PID and Payload.
     <<_M1:3, _PF:1, _M2:2, ?CTRL_FRAME_U:2, _PID:8, Info/binary>> = reverse_bits(ControlPidInfo),
 
-    {ok, #ax25_frame{
-        dst = #ax25_addr{call = DstCall, ssid = DstSSID},
-        src = #ax25_addr{call = SrcCall, ssid = SrcSSID},
+    {ok, #frame{
+        dst = #addr{call = DstCall, ssid = DstSSID},
+        src = #addr{call = SrcCall, ssid = SrcSSID},
         data = Info
     }};
 
@@ -312,9 +323,9 @@ decode(Frame, tnc) ->
     %% Parse control byte (not two bytes), PID and Payload.
     <<_M1:3, _PF:1, _M2:2, ?CTRL_FRAME_U:2, _PID:8, Info/binary>> = ControlPidInfo,
 
-    {ok, #ax25_frame{
-        dst = #ax25_addr{call = DstCall, ssid = DstSSID},
-        src = #ax25_addr{call = SrcCall, ssid = SrcSSID},
+    {ok, #frame{
+        dst = #addr{call = DstCall, ssid = DstSSID},
+        src = #addr{call = SrcCall, ssid = SrcSSID},
         data = Info
     }}.
 
@@ -322,7 +333,7 @@ decode(Frame, tnc) ->
 %%  Address: see [1], section 3.12.2.
 %%  SSID: see http://aprs.org/aprs11/SSIDs.txt
 %%
-encode_address(#ax25_addr{call = Call, ssid = SSID}, CBit, LastExtBit) ->
+encode_address(#addr{call = Call, ssid = SSID}, CBit, LastExtBit) ->
     BinCall = list_to_binary(Call),
     <<A1:8, A2:8, A3:8, A4:8, A5:8, A6:8>> = rpad(BinCall, 6, 16#20),
     <<

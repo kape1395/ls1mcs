@@ -30,13 +30,13 @@ user_cmd_specs() ->
             #user_cmd_param{name = cref, type = integer, desc = <<"Command ref id">>}
         ]},
         #user_cmd_spec{addr = arm, port = downlink, desc = <<"Downlink buffer fragment">>, params = [
-            #user_cmd_param{name = bufid, type = integer, desc = <<"Buffer">>, enum = [
-                #user_cmd_enum{desc = <<"Command Log">>,       value = 0},
-                #user_cmd_enum{desc = <<"Telemetry Archive">>, value = 1},
-                #user_cmd_enum{desc = <<"EPS Log">>,           value = 2},
-                #user_cmd_enum{desc = <<"GPS Binary Log">>,    value = 3},
-                #user_cmd_enum{desc = <<"GPS NMEA Log">>,      value = 4},
-                #user_cmd_enum{desc = <<"Helium Log">>,        value = 5}
+            #user_cmd_param{name = bufid, type = integer, desc = <<"Buffer">>, opts = [
+                #user_cmd_opts{desc = <<"Command Log">>,       value = 0},
+                #user_cmd_opts{desc = <<"Telemetry Archive">>, value = 1},
+                #user_cmd_opts{desc = <<"EPS Log">>,           value = 2},
+                #user_cmd_opts{desc = <<"GPS Binary Log">>,    value = 3},
+                #user_cmd_opts{desc = <<"GPS NMEA Log">>,      value = 4},
+                #user_cmd_opts{desc = <<"Helium Log">>,        value = 5}
             ]},
             #user_cmd_param{name = from, type = integer, desc = <<"Frame from (inclusive)">>},
             #user_cmd_param{name = till, type = integer, desc = <<"Frame till (exclusive)">>}
@@ -44,11 +44,11 @@ user_cmd_specs() ->
         #user_cmd_spec{addr = arm, port = runtime_tm, ack = true, desc = <<"Downlink realtime telemetry">>, params = [
         ]},
         #user_cmd_spec{addr = arm, port = job_period, ack = true, desc = <<"Set job period">>, params = [
-            #user_cmd_param{name = jobid, type = integer, desc = <<"Job">>, enum = [
-                #user_cmd_enum{desc = <<"Telemetry broadcast update">>,     value = 0},
-                #user_cmd_enum{desc = <<"Housekeeping tm collection">>,     value = 1},
-                #user_cmd_enum{desc = <<"Attitude telemetry collection">>,  value = 2},
-                #user_cmd_enum{desc = <<"GPS telemetry collection">>,       value = 3}
+            #user_cmd_param{name = jobid, type = integer, desc = <<"Job">>, opts = [
+                #user_cmd_opts{desc = <<"Telemetry broadcast update">>,     value = 0},
+                #user_cmd_opts{desc = <<"Housekeeping tm collection">>,     value = 1},
+                #user_cmd_opts{desc = <<"Attitude telemetry collection">>,  value = 2},
+                #user_cmd_opts{desc = <<"GPS telemetry collection">>,       value = 3}
             ]},
             #user_cmd_param{name = interval, type = integer, desc = <<"Interval (secs)">>}
         ]},
@@ -58,10 +58,10 @@ user_cmd_specs() ->
         %%  Arduino commands.
         %%
         #user_cmd_spec{addr = arduino, port = take_photo, ack = true, desc = <<"Take a photo">>, params = [
-            #user_cmd_param{name = resid, type = integer, desc = <<"Resolution">>, enum = [
-                #user_cmd_enum{desc = <<"Resolution 1">>, value = 0},
-                #user_cmd_enum{desc = <<"Resolution 2">>, value = 1},
-                #user_cmd_enum{desc = <<"Resolution 3">>, value = 2}
+            #user_cmd_param{name = resid, type = integer, desc = <<"Resolution">>, opts = [
+                #user_cmd_opts{desc = <<"Resolution 1">>, value = 0},
+                #user_cmd_opts{desc = <<"Resolution 2">>, value = 1},
+                #user_cmd_opts{desc = <<"Resolution 3">>, value = 2}
             ]}
         ]},
         #user_cmd_spec{addr = arduino, port = photo_meta, ack = true, desc = <<"Downlink photo metadata">>, params = [

@@ -7,27 +7,11 @@
 
 
 %% =============================================================================
-%%  AX.25 Structures.
-%% =============================================================================
-
--record(ax25_addr, {
-    call    :: list(),
-    ssid    :: integer()
-}).
--record(ax25_frame, {
-    dst     :: #ax25_addr{},
-    src     :: #ax25_addr{},
-    data    :: binary()
-}).
-
-
-
-%% =============================================================================
-%%  Command specifications.
+%%  Commands.
 %% =============================================================================
 
 
--record(user_cmd_enum, {
+-record(user_cmd_opts, {
     desc        :: binary(),
     value       :: integer() | float() | atom()
 }).
@@ -35,8 +19,8 @@
 -record(user_cmd_param, {
     name        :: atom(),
     desc        :: binary(),
-    type        :: (integer | float | string | enum),
-    enum        :: [#user_cmd_enum{}]
+    type        :: (integer | float | string | opts),
+    opts        :: [#user_cmd_opts{}]
 }).
 
 -record(user_cmd_spec, {
@@ -53,10 +37,6 @@
     addr        :: atom()
 }).
 
-
-%% =============================================================================
-%%  Commands.
-%% =============================================================================
 
 %%
 %%  Represents single LS1P command.
@@ -111,6 +91,11 @@
     status      :: atom()
 }).
 
+
+%% =============================================================================
+%%  SAT related structures.
+%% =============================================================================
+
 %%
 %%  See GPredict user manual
 %%
@@ -128,6 +113,7 @@
     daylight,       % Visibility
     eclipsed        % Visibility
 }).
+
 
 
 %% =============================================================================
