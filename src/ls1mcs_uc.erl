@@ -2,8 +2,17 @@
 %%  User commands.
 %%
 -module(ls1mcs_uc).
--export([groups/0, specs/0]).
+-export([add/1, groups/0, specs/0]).
 -include("ls1mcs.hrl").
+
+
+%%
+%%
+%%
+add(UserCmd) when is_record(UserCmd, user_cmd) ->
+    {ok, UserCmdId} = ls1mcs_store:add_user_cmd(UserCmd),
+    % TODO
+    {ok, UserCmdId}.
 
 
 %%

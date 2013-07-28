@@ -1,5 +1,5 @@
 -module(ls1mcs_yaws_json).
--export([encode/1, encode_list/1, encode_tstamp/1, decode/2, decode_atom/1]).
+-export([encode/1, encode_self/2, encode_list/1, encode_tstamp/1, decode/2, decode_atom/1, decode_integer/1]).
 -include("ls1mcs.hrl").
 
 
@@ -71,6 +71,30 @@ encode(#user_cmd_opts{desc = Desc, value = Value}) ->
         {value, Value}
     ]};
 
+encode(#user_cmd_arg{name = Name, value = Value}) ->
+    {[
+        {name, Name},
+        {value, Value}
+    ]};
+
+encode(#user_cmd{
+        id = Id,
+        spec = Spec,
+        args = Args,
+        immediate = Immediate,
+        approved = Approved,
+        issued = Issued,
+        status = Status
+    }) ->
+    {[
+        {id, Id},
+        {spec, Spec},
+        {args, encode_list(Args)},
+        {immediate, Immediate},
+        {approved, encode_tstamp(Approved)},
+        {issued, encode_tstamp(Issued)},
+        {status, Status}
+    ]};
 
 %% -----------------------------------------------------------------------------
 %%  LS1P Frames
@@ -284,8 +308,18 @@ encode(#tm_gyro{wx = Wx, wy = Wy, wz = Wz, temp = Temp}) ->
 
 
 %%
+%%
+%%
+encode_self(user_cmd, Id) ->
+    {[ links([link(self, url([command, user, Id]))]) ]}.
+
+
+%%
 %%  Encode list of entities.
 %%
+encode_list(undefined) ->
+    null;
+
 encode_list(List) ->
     [ encode(E) || E <- List ].
 
@@ -308,12 +342,12 @@ encode_tstamp({{Y, M, D}, {H, Mi, S}}) ->
     Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ", Args),
     erlang:iolist_to_binary(Date);
 
-encode_tstamp(Now) ->
-    {_MegaSecs, _Secs, MicroSecs} = Now,
+encode_tstamp(Now = {_MegaSecs, _Secs, MicroSecs}) ->
     {{Y, M, D}, {H, Mi, S}} = calendar:now_to_datetime(Now),
     Args = [Y, M, D, H, Mi, S, MicroSecs],
     Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0B.~6.10.0BZ", Args),
     erlang:iolist_to_binary(Date).
+
 
 
 
@@ -342,7 +376,37 @@ decode(cref, CRef) when is_binary(CRef) ->
                 }
             }
 
-    end.
+    end;
+
+decode(user_cmd, {PL}) ->
+    #user_cmd{
+        id          = decode_integer(proplists:get_value(<<"id">>, PL)),
+        spec        = decode_atom(proplists:get_value(<<"spec">>, PL)),
+        args        = decode_list(user_cmd_arg, proplists:get_value(<<"args">>, PL)),
+        immediate   = undefined,
+        approved    = undefined,
+        issued      = undefined,
+        status      = undefined
+    };
+
+decode(user_cmd_arg, {PL}) ->
+    #user_cmd_arg{
+        name    = decode_atom(proplists:get_value(<<"name">>, PL)),
+        value   = decode_binary(proplists:get_value(<<"value">>, PL))
+    }.
+
+
+%%
+%%
+%%
+decode_list(_Type, null) ->
+    undefined;
+
+decode_list(_Type, undefined) ->
+    undefined;
+
+decode_list(Type, List) ->
+    [ decode(Type, Elem) || Elem <- List ].
 
 
 %%
@@ -358,7 +422,42 @@ decode_atom(Atom) when is_list(Atom) ->
     erlang:list_to_existing_atom(Atom);
 
 decode_atom(Atom) when is_binary(Atom) ->
-    erlang:binary_to_existing_atom(Atom).
+    erlang:binary_to_existing_atom(Atom, utf8).
+
+
+%%
+%%
+%%
+decode_binary(null) ->
+    undefined;
+
+decode_binary(undefined) ->
+    undefined;
+
+decode_binary(Binary) when is_binary(Binary) ->
+    Binary;
+
+decode_binary(Binary) when is_integer(Binary) ->
+    erlang:integer_to_binary(Binary).
+
+
+%%
+%%
+%%
+decode_integer(null) ->
+    undefined;
+
+decode_integer(undefined) ->
+    undefined;
+
+decode_integer(Integer) when is_integer(Integer) ->
+    Integer;
+
+decode_integer(Integer) when is_list(Integer) ->
+    erlang:list_to_integer(Integer);
+
+decode_integer(Integer) when is_binary(Integer) ->
+    erlang:binary_to_integer(Integer).
 
 
 

@@ -53,17 +53,19 @@
 %%
 -record(user_cmd_arg, {
     name        :: atom(),
-    value       :: integer() | float() | binary()
+    value       :: binary()
 }).
 
 %%
 %%  Single command issued by a user.
 %%  These commands are instances of #user_cmd_spec{}.
 %%
+%%  TODO: Add plan.
+%%
 -record(user_cmd, {
-    id          :: integer(),
-    spec        :: atom(),
-    params      :: [#user_cmd_arg{}],
+    id          :: integer(),           % Auto-generated id.
+    spec        :: atom(),              % Spec name.
+    args        :: [#user_cmd_arg{}],
     immediate   :: boolean(),
     approved    :: timestamp(),
     issued      :: timestamp(),
@@ -72,6 +74,7 @@
 
 
 %%
+%%  TODO: Review
 %%  Represents single LS1P command.
 %%  It can be composite or atomic.
 %%
@@ -87,6 +90,7 @@
 }).
 
 %%
+%%  TODO: Review
 %%  Single command frame, sent over the radio link.
 %%  These frames are generated based on issued #user_cmd{}s.
 %%  The frame can have multiple #sat_cmd{}s, in the case of multi-command.
