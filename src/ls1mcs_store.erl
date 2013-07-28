@@ -150,10 +150,11 @@ wait_for_tables(Timeout) ->
 %%
 create_tables(Nodes) ->
     DefOptDC = {disc_copies, Nodes},
+    ORD = ordered_set,
     OK = {atomic, ok},
     OK = mnesia:create_table(ls1mcs_store_ls1p_sent, [{type, set}, ?ATTRS(ls1mcs_store_ls1p_sent), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_ls1p_recv, [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_recv), DefOptDC]),
-    OK = mnesia:create_table(ls1mcs_store_ls1p_tm,   [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_tm),   DefOptDC]),
+    OK = mnesia:create_table(ls1mcs_store_ls1p_tm,   [{type, ORD}, ?ATTRS(ls1mcs_store_ls1p_tm),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_ls1p_unkn, [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_unkn), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_pred_pass, [{type, set}, ?ATTRS(ls1mcs_store_pred_pass), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_counter,   [{type, set}, ?ATTRS(ls1mcs_store_counter),   DefOptDC]),
@@ -278,7 +279,19 @@ add_unknown_frame(Bytes, Timestamp) ->
 get_tm(all) ->
     Records = mnesia:dirty_match_object(#ls1mcs_store_ls1p_tm{source = gs, _ = '_'}),
     Frames = [ Frame || #ls1mcs_store_ls1p_tm{frame = Frame} <- Records ],
-    {ok, Frames}.
+    {ok, Frames};
+
+get_tm(latest) ->
+    Activity = fun () ->
+        case mnesia:last(ls1mcs_store_ls1p_tm) of
+            '$end_of_table' ->
+                {ok, []};
+            LastKey ->
+                [#ls1mcs_store_ls1p_tm{frame = Frame}] = mnesia:read(ls1mcs_store_ls1p_tm, LastKey),
+                {ok, [Frame]}
+        end
+    end,
+    mnesia:activity(transaction, Activity).
 
 
 %%

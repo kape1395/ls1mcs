@@ -93,7 +93,7 @@ handle_request(["ls1p_frame", FrameId], 'GET', _Arg) ->
     CRef = ls1mcs_yaws_json:decode(cref, FrameId),
     case ls1mcs_store:get_ls1p_frame({cmd, CRef}) of
         {ok, Frame} -> respond(200, ls1mcs_yaws_json:encode(Frame));
-        {error, not_found} -> respond(404, <<"Not found.">>)
+        {error, not_found} -> respond_error(404, <<"Not found.">>)
     end;
 
 handle_request(["ls1p_frame", FrameId, "ack"], 'GET', _Arg) ->
@@ -139,37 +139,23 @@ handle_request(["command", Id, "response"], 'GET', _Arg) ->
 %%  Telemetry
 %% -----------------------------------------------------------------------------
 
-%%
-%%  HAM Telemetry
-%%
-handle_request(["telemetry"], 'POST', Arg) ->
-    % TODO
-    lager:debug("Got file, written to test-telemetry.dat"),
-    file:write_file("test-telemetry.dat", Arg#arg.clidata),
-    [
-        {status, 200}%,
-        %{content, ?MEDIATYPE_JSON, jiffy:encode({[
-        %    {'_links', {[
-        %        {self, {[{self, url(["telemetry", "5646"])}]}}
-        %    ]}}
-        %]})}
-    ];
-
 handle_request(["telemetry"], 'GET', _Arg) ->
+    respond(200, json_object({telemetry}));
+
+%%
+%%  Telemetry collected by ground station.
+%%
+handle_request(["telemetry", "gs"], 'GET', _Arg) ->
     {ok, TMFrames} = ls1mcs_store:get_tm(all),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode_list(TMFrames))}
-    ];
+    respond(200, json_list(TMFrames));
 
-handle_request(["telemetry", "latest"], 'GET', _Arg) ->
-    {ok, [TMFrame]} = ls1mcs_store:get_tm(latest),   % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode(ls1mcs_yaws_json:encode(TMFrame))}
-    ];
+handle_request(["telemetry", "gs", "latest"], 'GET', _Arg) ->
+    case ls1mcs_store:get_tm(latest) of
+        {ok, [TMFrame]} -> respond(200, json_object(TMFrame));
+        {ok, []} -> respond_error(404, <<"Have no telemetry yet.">>)
+    end;
 
-handle_request(["telemetry", "5646"], 'GET', _Arg) ->
+handle_request(["telemetry", "gs", "5646"], 'GET', _Arg) ->
     % TODO
     [
         {status, 200}%,
@@ -184,6 +170,31 @@ handle_request(["telemetry", "5646"], 'GET', _Arg) ->
         %    {field5, 3.1415}
         %]})}
     ];
+
+%%
+%%  HAM Telemetry
+%%
+handle_request(["telemetry", "ham"], 'GET', _Arg) ->
+    respond(200, json_list([]));    % TODO
+
+handle_request(["telemetry", "ham"], 'POST', Arg) ->
+    % TODO
+    lager:debug("Got file, written to test-telemetry.dat"),
+    file:write_file("test-telemetry.dat", Arg#arg.clidata),
+    [
+        {status, 200}%,
+        %{content, ?MEDIATYPE_JSON, jiffy:encode({[
+        %    {'_links', {[
+        %        {self, {[{self, url(["telemetry", "5646"])}]}}
+        %    ]}}
+        %]})}
+    ];
+
+%%
+%%  Telemetry archive.
+%%
+handle_request(["telemetry", "archive"], 'GET', _Arg) ->
+    respond(200, json_list([]));    % TODO
 
 
 %% -----------------------------------------------------------------------------
@@ -245,4 +256,15 @@ respond(Status, Response) ->
         {status, Status},
         {content, ?MEDIATYPE_JSON, jiffy:encode(Response)}
     ].
+
+
+respond_error(Status, ReasonMsg) ->
+    [
+        {status, Status},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[
+            {code, unknown},
+            {msg, ReasonMsg}
+        ]})}
+    ].
+
 

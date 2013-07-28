@@ -14,6 +14,7 @@ encode({root}) ->
     {[
         links([
             link(self,                  url([])),
+            %
             link(telemetry,             url([telemetry])),
             %
             link(command_addresses,     url([command_address])),
@@ -26,6 +27,18 @@ encode({root}) ->
             link(sats,                  url([sat]))
         ])
     ]};
+
+encode({telemetry}) ->
+    {[
+        links([
+            link(self,      url([telemetry])),
+            link(latest,    url([telemetry, gs, latest])),
+            link(gs,        url([telemetry, gs])),
+            link(ham,       url([telemetry, ham])),
+            link(archive,   url([telemetry, archive]))
+        ])
+    ]};
+
 
 encode(#command_address{desc = Desc, addr = Addr}) ->
     {[
