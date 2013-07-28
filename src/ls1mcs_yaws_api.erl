@@ -35,14 +35,14 @@ handle_request(["command"], 'GET', _Arg) ->
     respond(200, json_object({command}));
 
 %%
-%%  Command address.
+%%  Command addresses.
 %%
 handle_request(["command", "address"], 'GET', _Arg) ->
     CommandAddrs = ls1mcs_command:command_addresses(),
     respond(200, json_list(CommandAddrs));
 
 %%
-%%  User command spec.
+%%  User command specs.
 %%
 handle_request(["command", "specification"], 'GET', _Arg) ->
     UserCmdSpecs = ls1mcs_command:user_cmd_specs(),
@@ -57,57 +57,42 @@ handle_request(["command", "specification", Addr], 'GET', _Arg) ->
     respond(200, json_list(UserCmdSpecs));
 
 %%
+%%  User commands (RO).
 %%
-%%
-handle_request(["___command", Id], 'GET', _Arg) ->
+handle_request(["command", "user"], 'GET', _Arg) ->
+    respond(200, json_list([]));    % TODO
+
+handle_request(["command", "user", Id], 'GET', _Arg) ->
     {ok, Command} = ls1mcs_store:get_command(erlang:list_to_integer(Id)),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_list([]));    % TODO
 
-handle_request(["___command", Id, "response"], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
-
+handle_request(["command", "user", Id, "response"], 'GET', _Arg) ->
+    respond(200, json_list([]));    % TODO
 
 %%
-%%  Immediate command.
+%%  SAT commands (RO).
+%%
+handle_request(["command", "sat"], 'GET', _Arg) ->
+    respond(200, json_list([]));    % TODO
+
+%%
+%%  Immediate command (RW).
 %%
 handle_request(["command", "immediate"], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_list([]));    % TODO
 
 handle_request(["command", "immediate", _CommandId], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_list([]));    % TODO
 
 handle_request(["command", "plan", _CommandPlanId], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_list([]));    % TODO
 
 handle_request(["command", "plan", _CommandPlanId, "commmand"], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
+    respond(200, json_list([]));    % TODO
 
-%%
-%%  ls1p_frame
-%%
+%% -----------------------------------------------------------------------------
+%%  LS1P Frames
+%% -----------------------------------------------------------------------------
 
 handle_request(["ls1p_frame"], 'GET', _Arg) ->
     {ok, Frame} = ls1mcs_store:get_ls1p_frame({cmd, all}),
@@ -130,20 +115,18 @@ handle_request(["ls1p_frame", FrameId, "data"], 'GET', _Arg) ->
     {ok, Frames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
     respond(200, ls1mcs_yaws_json:encode_list(Frames));
 
+handle_request(["ls1p_frame", FrameId, "data", "content"], 'GET', _Arg) ->
+    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
+    {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
+    {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
+    {ok, MergedData} = ls1mcs_proto_ls1p:merged_response(CmdFrame, DataFrames),
+    respond(200, media_type_for_response(CmdFrame), MergedData);
+
 handle_request(["ls1p_frame", FrameId, "recv"], 'GET', _Arg) ->
     CRef = ls1mcs_yaws_json:decode(cref, FrameId),
     {ok, Frames} = ls1mcs_store:get_ls1p_frame({recv, CRef}),
     respond(200, ls1mcs_yaws_json:encode_list(Frames));
 
-handle_request(["ls1p_frame", FrameId, "photo"], 'GET', _Arg) ->
-    CRef = ls1mcs_yaws_json:decode(cref, FrameId),
-    {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
-    {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
-    {ok, Photo} = ls1mcs_proto_ls1p:merged_response(CmdFrame, DataFrames),
-    [
-        {status, 200},
-        {content, "image/jpeg", Photo}
-    ];
 
 %% -----------------------------------------------------------------------------
 %%  Telemetry
@@ -268,6 +251,19 @@ respond(Status, Response) ->
     ].
 
 
+%%
+%%
+%%
+respond(Status, MediaType, Response) ->
+    [
+        {status, Status},
+        {content, MediaType, Response}
+    ].
+
+
+%%
+%%
+%%
 respond_error(Status, ReasonMsg) ->
     [
         {status, Status},
@@ -276,5 +272,17 @@ respond_error(Status, ReasonMsg) ->
             {msg, ReasonMsg}
         ]})}
     ].
+
+
+%%
+%%  Determine media type for response data of the specified command.
+%%
+media_type_for_response(CmdFrame) ->
+    case CmdFrame of
+        #ls1p_cmd_frame{addr = arduino, port = photo_data} ->
+            "image/jpeg";
+        _ ->
+            "application/octet-stream"
+    end.
 
 

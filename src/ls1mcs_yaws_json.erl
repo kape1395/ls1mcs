@@ -14,23 +14,17 @@ encode({root}) ->
     {[
         links([
             link(self,                  url([])),
-            link(telemetry,             url([telemetry])),
             link(command,               url([command])),
             link(ls1p_frames,           url([ls1p_frame])),
+            link(telemetry,             url([telemetry])),
             link(sats,                  url([sat]))
         ])
     ]};
 
-encode({telemetry}) ->
-    {[
-        links([
-            link(self,      url([telemetry])),
-            link(latest,    url([telemetry, gs, latest])),
-            link(gs,        url([telemetry, gs])),
-            link(ham,       url([telemetry, ham])),
-            link(archive,   url([telemetry, archive]))
-        ])
-    ]};
+
+%% -----------------------------------------------------------------------------
+%%  Commands
+%% -----------------------------------------------------------------------------
 
 encode({command}) ->
     {[
@@ -81,8 +75,9 @@ encode(#user_cmd_enum{desc = Desc, value = Value}) ->
 
 
 %% -----------------------------------------------------------------------------
-%%  LS1P
+%%  LS1P Frames
 %% -----------------------------------------------------------------------------
+
 encode({cref, {Epoch, CRef}}) ->
     EpochBin = erlang:integer_to_binary(Epoch),
     CRefBin = erlang:integer_to_binary(CRef),
@@ -141,6 +136,17 @@ encode(#ls1p_data_frame{
 %% -----------------------------------------------------------------------------
 %%  Telemetry
 %% -----------------------------------------------------------------------------
+
+encode({telemetry}) ->
+    {[
+        links([
+            link(self,      url([telemetry])),
+            link(latest,    url([telemetry, gs, latest])),
+            link(gs,        url([telemetry, gs])),
+            link(ham,       url([telemetry, ham])),
+            link(archive,   url([telemetry, archive]))
+        ])
+    ]};
 
 encode(#ls1p_tm_frame{data = Data}) ->
     encode(ls1mcs_proto_ls1p:decode_tm(Data));
