@@ -3,9 +3,9 @@
 %%  See http://www.ax25.net/kiss.aspx for more details.
 %%
 -module(ls1mcs_proto_kiss).
--compile([{parse_transform, lager_transform}]).
 -behaviour(gen_fsm).
 -behaviour(ls1mcs_protocol).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/3, send/2, received/2]). % Public API
 -export([idle/2, frame_start/2, frame_data/2, frame_esc/2]). %% FSM States
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).

@@ -1,35 +1,38 @@
--module(ls1mcs_command).
--export([command_addresses/0, user_cmd_specs/0]).
+%%
+%%  User commands.
+%%
+-module(ls1mcs_uc).
+-export([groups/0, specs/0]).
 -include("ls1mcs.hrl").
 
 
 %%
+%%  Returns a list of available user command groups.
 %%
-%%
-command_addresses() ->
+groups() ->
     [
-        #command_address{addr = arm,     desc = <<"ARM">>},
-        #command_address{addr = arduino, desc = <<"Arduino">>},
-        #command_address{addr = eps,     desc = <<"EPS">>},
-        #command_address{addr = gps,     desc = <<"GPS">>},
-        #command_address{addr = helium,  desc = <<"Helium">>}
+        #user_cmd_group{name = arm,     desc = <<"ARM">>},
+        #user_cmd_group{name = arduino, desc = <<"Arduino">>},
+        #user_cmd_group{name = eps,     desc = <<"EPS">>},
+        #user_cmd_group{name = gps,     desc = <<"GPS">>},
+        #user_cmd_group{name = helium,  desc = <<"Helium">>}
     ].
 
 
 %%
+%%  Returns a list of available user command specs.
 %%
-%%
-user_cmd_specs() ->
+specs() ->
     [
         %%
         %%  ARM commands
         %%
-        #user_cmd_spec{addr = arm, port = ping, ack = true, desc = <<"Ping">>, params = [
+        #user_cmd_spec{group = arm, name = ping, desc = <<"Ping">>, params = [
         ]},
-        #user_cmd_spec{addr = arm, port = kill, ack = true, desc = <<"Terminate scheduled command">>, params = [
+        #user_cmd_spec{group = arm, name = kill, desc = <<"Terminate scheduled command">>, params = [
             #user_cmd_param{name = cref, type = integer, desc = <<"Command ref id">>}
         ]},
-        #user_cmd_spec{addr = arm, port = downlink, desc = <<"Downlink buffer fragment">>, params = [
+        #user_cmd_spec{group = arm, name = downlink, desc = <<"Downlink buffer fragment">>, params = [
             #user_cmd_param{name = bufid, type = integer, desc = <<"Buffer">>, opts = [
                 #user_cmd_opts{desc = <<"Command Log">>,       value = 0},
                 #user_cmd_opts{desc = <<"Telemetry Archive">>, value = 1},
@@ -41,9 +44,9 @@ user_cmd_specs() ->
             #user_cmd_param{name = from, type = integer, desc = <<"Frame from (inclusive)">>},
             #user_cmd_param{name = till, type = integer, desc = <<"Frame till (exclusive)">>}
         ]},
-        #user_cmd_spec{addr = arm, port = runtime_tm, ack = true, desc = <<"Downlink realtime telemetry">>, params = [
+        #user_cmd_spec{group = arm, name = runtime_tm, desc = <<"Downlink realtime telemetry">>, params = [
         ]},
-        #user_cmd_spec{addr = arm, port = job_period, ack = true, desc = <<"Set job period">>, params = [
+        #user_cmd_spec{group = arm, name = job_period, desc = <<"Set job period">>, params = [
             #user_cmd_param{name = jobid, type = integer, desc = <<"Job">>, opts = [
                 #user_cmd_opts{desc = <<"Telemetry broadcast update">>,     value = 0},
                 #user_cmd_opts{desc = <<"Housekeeping tm collection">>,     value = 1},
@@ -57,16 +60,16 @@ user_cmd_specs() ->
         %%
         %%  Arduino commands.
         %%
-        #user_cmd_spec{addr = arduino, port = take_photo, ack = true, desc = <<"Take a photo">>, params = [
+        #user_cmd_spec{group = arduino, name = take_photo, desc = <<"Take a photo">>, params = [
             #user_cmd_param{name = resid, type = integer, desc = <<"Resolution">>, opts = [
                 #user_cmd_opts{desc = <<"Resolution 1">>, value = 0},
                 #user_cmd_opts{desc = <<"Resolution 2">>, value = 1},
                 #user_cmd_opts{desc = <<"Resolution 3">>, value = 2}
             ]}
         ]},
-        #user_cmd_spec{addr = arduino, port = photo_meta, ack = true, desc = <<"Downlink photo metadata">>, params = [
+        #user_cmd_spec{group = arduino, name = photo_meta, desc = <<"Downlink photo metadata">>, params = [
         ]},
-        #user_cmd_spec{addr = arduino, port = photo_data, ack = true, desc = <<"Downlink photo fragment">>, params = [
+        #user_cmd_spec{group = arduino, name = photo_data, desc = <<"Downlink photo fragment">>, params = [
             #user_cmd_param{name = from, type = integer, desc = <<"Frame from (inclusive)">>},
             #user_cmd_param{name = till, type = integer, desc = <<"Frame till (exclusive)">>}
         ]},
@@ -74,24 +77,24 @@ user_cmd_specs() ->
         %%
         %%  EPS Commands
         %%
-        #user_cmd_spec{addr = eps, port = command, ack = true, desc = <<"Generic EPS Command">>, params = [
+        #user_cmd_spec{group = eps, name = eps_command, desc = <<"Generic EPS Command">>, params = [
             #user_cmd_param{type = string, desc = <<"Command in hex">>}
         ]},
 
         %%
         %%  GPS Commands
         %%
-        #user_cmd_spec{addr = gps, port = binary, ack = true, desc = <<"Generic GPS Binary Command">>, params = [
+        #user_cmd_spec{group = gps, name = gps_binary_cmd, desc = <<"Generic GPS Binary Command">>, params = [
             #user_cmd_param{name = payload, type = string, desc = <<"Command in hex">>}
         ]},
-        #user_cmd_spec{addr = gps, port = nmea, ack = true, desc = <<"Generic GPS NMEA Command">>, params = [
+        #user_cmd_spec{group = gps, name = gps_nmea_cmd, desc = <<"Generic GPS NMEA Command">>, params = [
             #user_cmd_param{name = payload, type = string, desc = <<"Command">>}
         ]},
 
         %%
         %%  Helium-100 Commands
         %%
-        #user_cmd_spec{addr = helium, port = command, ack = true, desc = <<"Generic Helium Command">>, params = [
+        #user_cmd_spec{group = helium, name = he_command, desc = <<"Generic Helium Command">>, params = [
             #user_cmd_param{name = payload, type = string, desc = <<"Command in hex">>}
         ]}
     ].

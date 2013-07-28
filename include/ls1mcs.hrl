@@ -10,12 +10,19 @@
 %%  Commands.
 %% =============================================================================
 
-
+%%
+%%  Options for user command parameters.
+%%  Enum is a valid name for this entity.
+%%  The latter is not used because enum is reserved name in some languages.
+%%
 -record(user_cmd_opts, {
     desc        :: binary(),
     value       :: integer() | float() | atom()
 }).
 
+%%
+%%  Describes parameter for a user command.
+%%
 -record(user_cmd_param, {
     name        :: atom(),
     desc        :: binary(),
@@ -23,18 +30,44 @@
     opts        :: [#user_cmd_opts{}]
 }).
 
+%%
+%%  Used for grouping user commands.
+%%
+-record(user_cmd_group, {
+    desc        :: binary(),
+    name        :: atom()
+}).
+
+%%
+%%  Describes user command.
+%%
 -record(user_cmd_spec, {
     desc            :: binary(),
-    addr            :: atom(),
-    port            :: atom(),
-    ack = false     :: boolean(),   %%  Default value for the ack field.
-    comp = false    :: boolean(),   %%  True, if the command is translated to several commands before sending to SAT.
+    name            :: atom(),
+    group           :: atom(),      %%  Group name, see #user_cmd_group{}.
     params = []     :: [#user_cmd_param{}]
 }).
 
--record(command_address, {
-    desc        :: binary(),
-    addr        :: atom()
+%%
+%%  Command arguments, instances of #user_cmd_param{}.
+%%
+-record(user_cmd_arg, {
+    name        :: atom(),
+    value       :: integer() | float() | binary()
+}).
+
+%%
+%%  Single command issued by a user.
+%%  These commands are instances of #user_cmd_spec{}.
+%%
+-record(user_cmd, {
+    id          :: integer(),
+    spec        :: atom(),
+    params      :: [#user_cmd_arg{}],
+    immediate   :: boolean(),
+    approved    :: timestamp(),
+    issued      :: timestamp(),
+    status      :: atom()               % TODO: List of values?
 }).
 
 
@@ -63,32 +96,6 @@
     sat_cmds    :: [integer()],     %%
     sent        :: timestamp(),     %%
     status      :: atom()           %% status of the command
-}).
-
-%%
-%%  Command arguments, instances of cmd_param.
-%%
--record(user_cmd_arg, {
-    name        :: atom(),
-    value       :: integer() | float() | binary()
-}).
-
-%%
-%%  Single command issued by a user.
-%%  These commands are instances of command_spec.
-%%
--record(user_cmd, {
-    id          :: integer(),
-    addr        :: atom(),
-    port        :: atom(),
-    ack         :: boolean(),
-    delay       :: integer(),
-    params      :: [#user_cmd_arg{}],
-    immediate   :: boolean(),
-    approved    :: timestamp(),     %% auto | true | false ?
-    issued      :: timestamp(),
-    cmd_frames  :: [#cmd_frame{}],
-    status      :: atom()
 }).
 
 

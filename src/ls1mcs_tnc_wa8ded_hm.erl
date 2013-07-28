@@ -6,9 +6,9 @@
 %%  See `http://www.ir3ip.net/iw3fqg/doc/wa8ded.htm` for more details.
 %%
 -module(ls1mcs_tnc_wa8ded_hm).
--compile([{parse_transform, lager_transform}]).
 -behavour(gen_server).
 -behaviour(ls1mcs_protocol).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/4, send/2, received/2, invoke/2]). % Public API
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 

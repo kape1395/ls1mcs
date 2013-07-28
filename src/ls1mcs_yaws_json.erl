@@ -30,29 +30,27 @@ encode({command}) ->
     {[
         links([
             link(self,      url([command])),
-            link(addrs,     url([command, address])),           % User command addresses
-            link(specs,     url([command, specification])),     % User command specs
-            link(user_cmds, url([command, user])),              % User commands
-            link(sat_cmds,  url([command, sat])),               % SAT commands
-            link(plans,     url([command, plan])),              % Plans
-            link(immediate, url([command, immediate]))          % Immediate commands
+            link(addrs,     url([command, group])),     % User command addresses
+            link(specs,     url([command, spec])),      % User command specs
+            link(user_cmds, url([command, user])),      % User commands
+            link(sat_cmds,  url([command, sat])),       % SAT commands
+            link(plans,     url([command, plan])),      % Plans
+            link(immediate, url([command, immediate]))  % Immediate commands
         ])
     ]};
 
 
-encode(#command_address{desc = Desc, addr = Addr}) ->
+encode(#user_cmd_group{desc = Desc, name = Name}) ->
     {[
         {desc, Desc},
-        {addr, Addr}
+        {name, Name}
     ]};
 
-encode(#user_cmd_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = Comp, params = Params}) ->
+encode(#user_cmd_spec{name = Name, desc = Desc, group = Group, params = Params}) ->
     {[
+        {name, Name},
         {desc, Desc},
-        {addr, Addr},
-        {port, Port},
-        {ack, Ack},
-        {comp, Comp},
+        {group, Group},
         {params, encode_list(Params)}
     ]};
 

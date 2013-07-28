@@ -37,22 +37,22 @@ handle_request(["command"], 'GET', _Arg) ->
 %%
 %%  Command addresses.
 %%
-handle_request(["command", "address"], 'GET', _Arg) ->
-    CommandAddrs = ls1mcs_command:command_addresses(),
-    respond(200, json_list(CommandAddrs));
+handle_request(["command", "group"], 'GET', _Arg) ->
+    CmdGroups = ls1mcs_uc:groups(),
+    respond(200, json_list(CmdGroups));
 
 %%
 %%  User command specs.
 %%
-handle_request(["command", "specification"], 'GET', _Arg) ->
-    UserCmdSpecs = ls1mcs_command:user_cmd_specs(),
+handle_request(["command", "spec"], 'GET', _Arg) ->
+    UserCmdSpecs = ls1mcs_uc:specs(),
     respond(200, json_list(UserCmdSpecs));
 
-handle_request(["command", "specification", Addr], 'GET', _Arg) ->
-    AddrAtom = ls1mcs_yaws_json:decode_atom(Addr),
+handle_request(["command", "spec", Group], 'GET', _Arg) ->
+    GroupAtom = ls1mcs_yaws_json:decode_atom(Group),
     UserCmdSpecs = lists:filter(
-        fun (#user_cmd_spec{addr = A}) -> AddrAtom =:= A end,
-        ls1mcs_command:user_cmd_specs()
+        fun (#user_cmd_spec{group = G}) -> GroupAtom =:= G end,
+        ls1mcs_uc:specs()
     ),
     respond(200, json_list(UserCmdSpecs));
 
