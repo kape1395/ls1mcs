@@ -25,24 +25,30 @@ handle_request([], 'GET', _Arg) ->
 
 
 %% -----------------------------------------------------------------------------
-%%  Command resources
+%%  Commands
 %% -----------------------------------------------------------------------------
+
+%%
+%%  Root resource for commands.
+%%
+handle_request(["command"], 'GET', _Arg) ->
+    respond(200, json_object({command}));
 
 %%
 %%  Command address.
 %%
-handle_request(["command_address"], 'GET', _Arg) ->
+handle_request(["command", "address"], 'GET', _Arg) ->
     CommandAddrs = ls1mcs_command:command_addresses(),
     respond(200, json_list(CommandAddrs));
 
 %%
 %%  User command spec.
 %%
-handle_request(["user_cmd_spec"], 'GET', _Arg) ->
+handle_request(["command", "specification"], 'GET', _Arg) ->
     UserCmdSpecs = ls1mcs_command:user_cmd_specs(),
     respond(200, json_list(UserCmdSpecs));
 
-handle_request(["user_cmd_spec", Addr], 'GET', _Arg) ->
+handle_request(["command", "specification", Addr], 'GET', _Arg) ->
     AddrAtom = ls1mcs_yaws_json:decode_atom(Addr),
     UserCmdSpecs = lists:filter(
         fun (#user_cmd_spec{addr = A}) -> AddrAtom =:= A end,
@@ -51,30 +57,48 @@ handle_request(["user_cmd_spec", Addr], 'GET', _Arg) ->
     respond(200, json_list(UserCmdSpecs));
 
 %%
+%%
+%%
+handle_request(["___command", Id], 'GET', _Arg) ->
+    {ok, Command} = ls1mcs_store:get_command(erlang:list_to_integer(Id)),
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+handle_request(["___command", Id, "response"], 'GET', _Arg) ->
+    % TODO
+    [
+        {status, 200},
+        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
+    ];
+
+
+%%
 %%  Immediate command.
 %%
-handle_request(["immediate_command"], 'GET', _Arg) ->
+handle_request(["command", "immediate"], 'GET', _Arg) ->
     % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
-handle_request(["immediate_command", _CommandId], 'GET', _Arg) ->
+handle_request(["command", "immediate", _CommandId], 'GET', _Arg) ->
     % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
-handle_request(["command_plan", _CommandPlanId], 'GET', _Arg) ->
+handle_request(["command", "plan", _CommandPlanId], 'GET', _Arg) ->
     % TODO
     [
         {status, 200},
         {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
-handle_request(["command_plan", _CommandPlanId, "commmand"], 'GET', _Arg) ->
+handle_request(["command", "plan", _CommandPlanId, "commmand"], 'GET', _Arg) ->
     % TODO
     [
         {status, 200},
@@ -119,20 +143,6 @@ handle_request(["ls1p_frame", FrameId, "photo"], 'GET', _Arg) ->
     [
         {status, 200},
         {content, "image/jpeg", Photo}
-    ];
-
-handle_request(["command", Id], 'GET', _Arg) ->
-    {ok, Command} = ls1mcs_store:get_command(erlang:list_to_integer(Id)),
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
-    ];
-
-handle_request(["command", Id, "response"], 'GET', _Arg) ->
-    % TODO
-    [
-        {status, 200},
-        {content, ?MEDIATYPE_JSON, jiffy:encode({[]})}
     ];
 
 %% -----------------------------------------------------------------------------

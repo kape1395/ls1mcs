@@ -14,16 +14,9 @@ encode({root}) ->
     {[
         links([
             link(self,                  url([])),
-            %
             link(telemetry,             url([telemetry])),
-            %
-            link(command_addresses,     url([command_address])),
-            link(user_cmd_specs,        url([user_cmd_spec])),
-            link(commands,              url([command])),
-            link(immediate_commands,    url([immediate_command])),
-            link(command_plans,         url([command_plan])),
+            link(command,               url([command])),
             link(ls1p_frames,           url([ls1p_frame])),
-            %
             link(sats,                  url([sat]))
         ])
     ]};
@@ -36,6 +29,19 @@ encode({telemetry}) ->
             link(gs,        url([telemetry, gs])),
             link(ham,       url([telemetry, ham])),
             link(archive,   url([telemetry, archive]))
+        ])
+    ]};
+
+encode({command}) ->
+    {[
+        links([
+            link(self,      url([command])),
+            link(addrs,     url([command, address])),           % User command addresses
+            link(specs,     url([command, specification])),     % User command specs
+            link(user_cmds, url([command, user])),              % User commands
+            link(sat_cmds,  url([command, sat])),               % SAT commands
+            link(plans,     url([command, plan])),              % Plans
+            link(immediate, url([command, immediate]))          % Immediate commands
         ])
     ]};
 
@@ -59,7 +65,7 @@ encode(#user_cmd_spec{desc = Desc, addr = Addr, port = Port, ack = Ack, comp = C
 encode(#user_cmd_param{name = Name, desc = Desc, type = Type, enum = Enum}) ->
     EnumEncoded = case Enum of
         undefined -> [];
-        _ -> [ {enum, encode_list(Enum)} ]
+        _ -> [ {opts, encode_list(Enum)} ]  % enum is reserved word in JavaScript.
     end,
     {[
         {name, Name},
