@@ -1,14 +1,11 @@
 -module(ls1mcs_yaws_json).
--export([encode_list/1, encode/1, decode/2]).
+-export([encode/1, encode_list/1, encode_tstamp/1, decode/2]).
 -include("ls1mcs.hrl").
 
 
-%%
-%%
-%%
-encode_list(List) ->
-    [ encode(E) || E <- List ].
-
+%% =============================================================================
+%%  Encoder.
+%% =============================================================================
 
 %%
 %%
@@ -114,6 +111,9 @@ encode(#ls1p_tm_frame{data = Data}) ->
 
 encode(#tm{time = Time, eps = EPS, he = He, att = Att}) ->
     {[
+        links([
+            link(self, url(["telemetry", Time]))
+        ]),
         {time, Time},
         {eps, encode(EPS)},
         {he, encode(He)},
@@ -244,13 +244,42 @@ encode(#tm_gyro{wx = Wx, wy = Wy, wz = Wz, temp = Temp}) ->
 
 
 %%
+%%  Encode list of entities.
 %%
+encode_list(List) ->
+    [ encode(E) || E <- List ].
+
+
+%%
+%%  Encode binary to HEX string.
 %%
 encode_hex(Binary) ->
     erlang:iolist_to_binary([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(Binary)]).
 
 
+%%
+%%  Encode timestamp.
+%%
+encode_tstamp(undefined) ->
+    null;
 
+encode_tstamp({{Y, M, D}, {H, Mi, S}}) ->
+    Args = [Y, M, D, H, Mi, S],
+    Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ", Args),
+    erlang:iolist_to_binary(Date);
+
+encode_tstamp(Now) ->
+    {_MegaSecs, _Secs, MicroSecs} = Now,
+    {{Y, M, D}, {H, Mi, S}} = calendar:now_to_datetime(Now),
+    Args = [Y, M, D, H, Mi, S, MicroSecs],
+    Date = io_lib:format("~B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0B.~6.10.0BZ", Args),
+    erlang:iolist_to_binary(Date).
+
+
+
+%% =============================================================================
+%%  Decoder.
+%% =============================================================================
 
 decode(cref, CRef) when is_list(CRef) ->
     decode(cref, erlang:list_to_binary(CRef));
@@ -274,3 +303,40 @@ decode(cref, CRef) when is_binary(CRef) ->
             }
 
     end.
+
+
+
+%% =============================================================================
+%%  Helpers for HAL support.
+%% =============================================================================
+
+%%
+%%  Formats API URL.
+%%
+url(Path) ->
+    ls1mcs_yaws:url(api, lists:map(fun to_string/1, Path)).
+
+
+%%
+%%  Used for constructing URLs.
+%%
+to_string(String) when is_list(String) ->
+    String;
+to_string(Integer) when is_integer(Integer) ->
+    erlang:integer_to_list(Integer).
+
+
+%%
+%%  Produces HAL _links attribute.
+%%
+links(Links) ->
+    {'_links', {Links}}.
+
+%%
+%%  Produces HAL link.
+%%
+link(Name, Url) ->
+    {Name, {[
+        {href, Url}
+    ]}}.
+
