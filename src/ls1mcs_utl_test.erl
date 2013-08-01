@@ -39,7 +39,7 @@ start() ->
 %%
 %%
 send_ping() ->
-    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+    {ok, _CRef} = ls1mcs_sat_link:send(#ls1p_cmd_frame{
         addr = arm,
         port = ping
     }).
@@ -50,7 +50,7 @@ send_ping() ->
 %%
 send_take_photo(Delay) ->
     Resolution = 0,
-    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+    {ok, _CRef} = ls1mcs_sat_link:send(#ls1p_cmd_frame{
         addr = arduino,
         port = take_photo,
         ack = true,
@@ -63,7 +63,7 @@ send_take_photo(Delay) ->
 %%
 %%
 send_photo_meta() ->
-    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+    {ok, _CRef} = ls1mcs_sat_link:send(#ls1p_cmd_frame{
         addr = arduino,
         port = photo_meta
     }).
@@ -73,7 +73,7 @@ send_photo_meta() ->
 %%
 %%
 send_photo_data(Size, From, Till) ->
-    {ok, _CRef} = ls1mcs_connection:send(#ls1p_cmd_frame{
+    {ok, _CRef} = ls1mcs_sat_link:send(#ls1p_cmd_frame{
         addr = arduino,
         port = photo_data,
         ack = false,

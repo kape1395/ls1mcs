@@ -2,11 +2,12 @@
 %%  User command: photo.
 %%  Takes photo, gets its metadata and downloads it.
 %%
--module(ls1mcs_uc_photo).
+-module(ls1mcs_usr_cmd_photo).
+-behaviour(ls1mcs_usr_cmd).
 -behaviour(gen_fsm).
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/0]).
--export([]).
+-export([sat_cmd_status/3]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 
@@ -23,13 +24,24 @@ start_link() ->
     gen_fsm:start_link({via, gproc, ?MODULE}, ?MODULE, {}, []). % TODO
 
 
-
 %% =============================================================================
 %%  Internal data structures.
 %% =============================================================================
 
 -record(state, {
 }).
+
+
+%% =============================================================================
+%%  Callbacks for ls1mcs_usr_cmd.
+%% =============================================================================
+
+%%
+%%
+%%
+sat_cmd_status(_UsrCmdId, _SatCmdId, _Status) ->
+    ok. % TODO
+
 
 
 %% =============================================================================

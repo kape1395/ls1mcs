@@ -38,21 +38,21 @@ handle_request(["command"], 'GET', _Arg) ->
 %%  Command addresses.
 %%
 handle_request(["command", "group"], 'GET', _Arg) ->
-    CmdGroups = ls1mcs_uc:groups(),
+    CmdGroups = ls1mcs_usr_cmd:groups(),
     respond(200, json_list(CmdGroups));
 
 %%
 %%  User command specs.
 %%
 handle_request(["command", "spec"], 'GET', _Arg) ->
-    UserCmdSpecs = ls1mcs_uc:specs(),
+    UserCmdSpecs = ls1mcs_usr_cmd:specs(),
     respond(200, json_list(UserCmdSpecs));
 
 handle_request(["command", "spec", Group], 'GET', _Arg) ->
     GroupAtom = ls1mcs_yaws_json:decode_atom(Group),
     UserCmdSpecs = lists:filter(
         fun (#user_cmd_spec{group = G}) -> GroupAtom =:= G end,
-        ls1mcs_uc:specs()
+        ls1mcs_usr_cmd:specs()
     ),
     respond(200, json_list(UserCmdSpecs));
 
@@ -87,7 +87,7 @@ handle_request(["command", "immediate"], 'GET', _Arg) ->
 handle_request(["command", "immediate"], 'POST', Arg) ->
     UserCmd = ls1mcs_yaws_json:decode(user_cmd, jiffy:decode(Arg#arg.clidata)),
     Now = erlang:now(),
-    {ok, UserCmdId} = ls1mcs_uc:add(UserCmd#user_cmd{
+    {ok, UserCmdId} = ls1mcs_usr_cmd:add(UserCmd#user_cmd{
         id = undefined,
         immediate = true,
         approved = Now,

@@ -1,18 +1,59 @@
 %%
 %%  User commands.
 %%
--module(ls1mcs_uc).
+-module(ls1mcs_usr_cmd).
 -export([add/1, groups/0, specs/0]).
+-export([send_sat_cmd/3]).
+-export([sat_cmd_failed/2, sat_cmd_completed/2]).
 -include("ls1mcs.hrl").
 
 
+
+-callback sat_cmd_status(
+        UsrCmdId :: term(),
+        SatCmdId :: term(),
+        Status :: (completed | failed)
+    ) -> ok.
+
+
+
 %%
-%%
+%%  Call this to execute new user cmd.
 %%
 add(UserCmd) when is_record(UserCmd, user_cmd) ->
     {ok, UserCmdId} = ls1mcs_store:add_user_cmd(UserCmd),
     % TODO
     {ok, UserCmdId}.
+
+
+%%
+%%  Used by usr_cmd implementations to send sat cmd
+%%  (and receive its notifications later).
+%%
+send_sat_cmd(UsrCmdMod, UsrCmdId, SatCmd) ->
+    {ok, _FrameId} = ls1mcs_sat_link:send({usr_cmd_ref, UsrCmdMod, UsrCmdId}, SatCmd).
+
+
+%%
+%%  Invoked by sat_cmd.
+%%
+sat_cmd_failed(undefined, _SatCmdId) ->
+    ok; % for frames, not initated by usr_cmd
+
+sat_cmd_failed({usr_cmd_ref, UsrCmdMod, UsrCmdId}, SatCmdId) ->
+    ok = UsrCmdMod:sat_cmd_status(UsrCmdId, SatCmdId, failed),
+    ok.
+
+
+%%
+%%  Invoked by sat_cmd.
+%%
+sat_cmd_completed(undefined, _SatCmdId) ->
+    ok; % for frames, not initated by usr_cmd
+
+sat_cmd_completed({usr_cmd_ref, UsrCmdMod, UsrCmdId}, SatCmdId) ->
+    ok = UsrCmdMod:sat_cmd_status(UsrCmdId, SatCmdId, completed),
+    ok.
 
 
 %%
