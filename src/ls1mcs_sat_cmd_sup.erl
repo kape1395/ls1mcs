@@ -3,7 +3,7 @@
 %%
 -module(ls1mcs_sat_cmd_sup).
 -behaviour(supervisor).
--export([start_link/0, add/3]).
+-export([start_link/0, add/4]).
 -export([init/1]).
 
 
@@ -22,8 +22,8 @@ start_link() ->
 %%
 %%  Start new command execution.
 %%
-add(SatCmd, UsrCmdRef, Ls1pRef) ->
-    supervisor:start_child(?MODULE, [SatCmd, UsrCmdRef, Ls1pRef]).
+add(SatCmd, UsrCmdRef, Ls1pRef, Sender) ->
+    supervisor:start_child(?MODULE, [SatCmd, UsrCmdRef, Ls1pRef, Sender]).
 
 
 

@@ -4,7 +4,7 @@
 -module(ls1mcs_sat_cmd).
 -behaviour(gen_fsm).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/3, received/1]).
+-export([start_link/4, received/1]).
 -export([sending/2, waiting_ack/2, receiving_data/2]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 -include("ls1p.hrl").
@@ -22,9 +22,9 @@
 %%
 %%  Frame should be already registered.
 %%
-start_link(SatCmd, UsrCmdRef, Ls1pRef) ->
+start_link(SatCmd, UsrCmdRef, Ls1pRef, Sender) ->
     #ls1p_cmd_frame{cref = FrameId} = SatCmd,
-    gen_fsm:start_link(?REF(FrameId), ?MODULE, {SatCmd, UsrCmdRef, Ls1pRef}, []).
+    gen_fsm:start_link(?REF(FrameId), ?MODULE, {SatCmd, UsrCmdRef, Ls1pRef, Sender}, []).
 
 
 %%
@@ -57,7 +57,8 @@ received(Data = #ls1p_data_frame{cref = FrameId}) ->
 %%
 %%
 %%
-init({SatCmd, UsrCmdRef, Ls1pRef}) ->
+init({SatCmd, UsrCmdRef, Ls1pRef, Sender}) ->
+    erlang:link(Sender),
     gen_fsm:send_event(self(), start),
     StateData = #state{
         sat_cmd = SatCmd,

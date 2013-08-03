@@ -2,6 +2,10 @@
 -define(LS1MCS_HRL, 1).
 -include("ls1p.hrl").
 
+-type sat_cmd_id() :: integer().
+-type usr_cmd_id() :: integer().
+-type usr_cmd_ref() :: {module(), usr_cmd_id()}.
+
 -type cref() :: ls1p_cref().
 -type timestamp() :: os:timestamp().
 
@@ -63,7 +67,7 @@
 %%  TODO: Add plan.
 %%
 -record(user_cmd, {
-    id          :: integer(),           % Auto-generated id.
+    id          :: usr_cmd_id(),        % Auto-generated id.
     spec        :: atom(),              % Spec name.
     args        :: [#user_cmd_arg{}],
     immediate   :: boolean(),
@@ -79,7 +83,7 @@
 %%  It can be composite or atomic.
 %%
 -record(sat_cmd, {
-    id          :: integer(),
+    id          :: sat_cmd_id(),
     cmd_frame   :: integer(),
     ls1p_frame  :: #ls1p_cmd_frame{},   %% CRef is in this structure.
     acked       :: timestamp(),
