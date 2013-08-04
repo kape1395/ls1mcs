@@ -79,6 +79,12 @@ handle_request(["command", "sat"], 'GET', _Arg) ->
     {ok, SatCmds} = ls1mcs_store:get_sat_cmds(all),
     respond(200, json_list(SatCmds));
 
+handle_request(["command", "sat", Id], 'GET', _Arg) ->
+    case ls1mcs_store:get_sat_cmds({id, ls1mcs_yaws_json:decode_integer(Id)}) of
+        {ok, [Command]} -> respond(200, json_object(Command));
+        {ok, []} -> respond_error(404, <<"Command not found by id.">>)
+    end;
+
 %%
 %%  Immediate command (RW).
 %%
