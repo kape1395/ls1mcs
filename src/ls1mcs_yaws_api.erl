@@ -60,8 +60,8 @@ handle_request(["command", "spec", Group], 'GET', _Arg) ->
 %%  User commands (RO).
 %%
 handle_request(["command", "usr"], 'GET', _Arg) ->
-    {ok, UserCmds} = ls1mcs_store:get_usr_cmds(all),
-    respond(200, json_list(UserCmds));
+    {ok, UsrCmds} = ls1mcs_store:get_usr_cmds(all),
+    respond(200, json_list(UsrCmds));
 
 handle_request(["command", "usr", Id], 'GET', _Arg) ->
     case ls1mcs_store:get_usr_cmds({id, ls1mcs_yaws_json:decode_integer(Id)}) of
@@ -76,7 +76,8 @@ handle_request(["command", "usr", Id, "response"], 'GET', _Arg) ->
 %%  SAT commands (RO).
 %%
 handle_request(["command", "sat"], 'GET', _Arg) ->
-    respond(200, json_list([]));    % TODO
+    {ok, SatCmds} = ls1mcs_store:get_sat_cmds(all),
+    respond(200, json_list(SatCmds));
 
 %%
 %%  Immediate command (RW).

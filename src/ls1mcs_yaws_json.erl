@@ -96,9 +96,33 @@ encode(#usr_cmd{
         {status, Status}
     ]};
 
+encode(#sat_cmd{
+        id = Id,
+        usr_cmd_id = UsrCmdId,
+        cmd_frame = CmdFrame,
+        acked = Acked,
+        executed = Executed,
+        dat_recv = DatRecv,
+        eof_recv = EofRecv,
+        log_recv = LogRecv
+    }) ->
+    {[
+        {id, Id},
+        {usr_cmd_id, UsrCmdId},
+        {cmd_frame, encode(CmdFrame)},
+        {acked, encode_tstamp(Acked)},
+        {executed, encode_tstamp(Executed)},
+        {dat_recv, encode_tstamp(DatRecv)},
+        {eof_recv, encode_tstamp(EofRecv)},
+        {log_recv, encode_tstamp(LogRecv)}
+    ]};
+
 %% -----------------------------------------------------------------------------
 %%  LS1P Frames
 %% -----------------------------------------------------------------------------
+
+encode({cref, undefined}) ->
+    null;
 
 encode({cref, {Epoch, CRef}}) ->
     EpochBin = erlang:integer_to_binary(Epoch),
