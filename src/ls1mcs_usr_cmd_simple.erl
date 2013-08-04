@@ -27,8 +27,8 @@
         -> {ok, pid()} | term().
 
 start_link(UsrCmd = #usr_cmd{id = UsrCmdId}, UsrCmdSpec) ->
-    CmdFrame = cmd_frame(UsrCmd, UsrCmdSpec),
-    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd, CmdFrame}, []).
+    SatCmd = mk_sat_cmd(UsrCmd, UsrCmdSpec),
+    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd, SatCmd}, []).
 
 
 
@@ -62,13 +62,11 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 %%
 %%
-init({UsrCmd, CmdFrame}) ->
+init({UsrCmd, SatCmd}) ->
     gen_fsm:send_event(self(), start),
     StateData = #state{
         usr_cmd = UsrCmd,
-        sat_cmd = #sat_cmd{
-            cmd_frame = CmdFrame
-        }
+        sat_cmd = SatCmd
     },
     {ok, starting, StateData}.
 
@@ -123,74 +121,94 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%
 %%  Creates LS1P command frame for the specified user command.
 %%
-cmd_frame(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
+mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
     case SpecName of
         ping ->
-            #ls1p_cmd_frame{
-                addr = arm,
-                port = ping,
-                ack = true
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = ping,
+                    ack = true
+                }
             };
         kill ->
             CRef = arg_val(cref, Args),
-            #ls1p_cmd_frame{
-                addr = arm,
-                port = kill,
-                ack = true,
-                data = <<CRef:16/little>>
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = kill,
+                    ack = true,
+                    data = <<CRef:16/little>>
+                }
             };
         downlink ->
             BufId = arg_val(bufid, Args),
             BlkSz = arg_val(blksz, Args),
             From = arg_val(from, Args),
             Till = arg_val(till, Args),
-            #ls1p_cmd_frame{
-                addr = arm,
-                port = downlink,
-                ack = false,
-                data = <<BufId:8, BlkSz:8, From:16/little, Till:16/little>>
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = downlink,
+                    ack = false,
+                    data = <<BufId:8, BlkSz:8, From:16/little, Till:16/little>>
+                },
+                exp_dfc = Till - From
             };
         runtime_tm ->
-            #ls1p_cmd_frame{
-                addr = arm,
-                port = runtime_tm,
-                ack = false
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = runtime_tm,
+                    ack = false
+                },
+                exp_dfc = 1
             };
         job_period ->
             JobId = arg_val(jobid, Args),
             Interval  = arg_val(interval, Args),
-            #ls1p_cmd_frame{
-                addr = arm,
-                port = job_period,
-                ack = false,
-                data = <<JobId:8, Interval:16/little>>
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = job_period,
+                    ack = false,
+                    data = <<JobId:8, Interval:16/little>>
+                }
             };
         take_photo ->
             ResId = arg_val(resid, Args),
             Delay = arg_val(delay, Args),
             PhotoCRef = ls1mcs_store:next_photo_cref(),
-            #ls1p_cmd_frame{
-                addr = arduino,
-                port = take_photo,
-                ack = true,
-                delay = Delay,
-                data = <<PhotoCRef:16/little, ResId:8>>
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arduino,
+                    port = take_photo,
+                    ack = true,
+                    delay = Delay,
+                    data = <<PhotoCRef:16/little, ResId:8>>
+                }
             };
         photo_meta ->
-            #ls1p_cmd_frame{
-                addr = arduino,
-                port = photo_meta,
-                ack = false
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arduino,
+                    port = photo_meta,
+                    ack = false
+                },
+                exp_dfc = 1
             };
         photo_data ->
             BlkSz = arg_val(blksz, Args),
             From = arg_val(from, Args),
             Till = arg_val(till, Args),
-            #ls1p_cmd_frame{
-                addr = arduino,
-                port = photo_data,
-                ack = false,
-                data = <<BlkSz:8, From:16/little, Till:16/little>>
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arduino,
+                    port = photo_data,
+                    ack = false,
+                    data = <<BlkSz:8, From:16/little, Till:16/little>>
+                },
+                exp_dfc = Till - From
             }
     end.
 

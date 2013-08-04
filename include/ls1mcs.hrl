@@ -85,7 +85,9 @@
 %%
 -record(sat_cmd, {
     id          :: sat_cmd_id(),
+    usr_cmd_id  :: usr_cmd_id(),
     cmd_frame   :: #ls1p_cmd_frame{},
+    exp_dfc = 0 :: integer(),           %% Expected data frame count.
     acked       :: timestamp(),
     executed    :: timestamp(),
     dat_recv    :: timestamp(),         %% time of the first data frame received.

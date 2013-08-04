@@ -2,7 +2,7 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, decode_tm/1, decode_photo_meta/1, merged_response/1, merged_response/2]).
+-export([start_link/3, decode_tm/1, decode_photo_meta/1, merged_response_fragments/1, merged_response/1, merged_response/2]).
 -export([send/2, received/2]).
 -export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -512,6 +512,17 @@ decode_photo_meta(Binary) ->
 
 
 
+-spec merged_response_fragments(
+        [{#ls1p_cmd_frame{}, [#ls1p_data_frame{}]}]
+        ) ->
+        {ok, [{From :: integer(), Till :: integer(), Data :: binary()}]}.
+
+merged_response_fragments(Commands) ->
+    BlockSets = [ merge_to_blocks(C, D) || {C, D} <- Commands ],
+    MergedBlocks = lists:foldl(fun overlay_block_sets/2, [], BlockSets),
+    {ok, MergedBlocks}.
+
+
 %%
 %%  Merge photo.
 %%
@@ -531,8 +542,7 @@ merged_response(CmdFrame, DataFrames) ->
         -> {ok, binary()}.
 
 merged_response(Commands) ->
-    BlockSets = [ merge_to_blocks(C, D) || {C, D} <- Commands ],
-    MergedBlocks = lists:foldl(fun overlay_block_sets/2, [], BlockSets),
+    {ok, MergedBlocks} = merged_response_fragments(Commands),
     FillGaps = fun ({From, Till, Data}, {LastTill, Blocks}) ->
         ZerosBitLen = (From - LastTill) * 8,
         {Till, [Data, <<0:ZerosBitLen>> | Blocks]}

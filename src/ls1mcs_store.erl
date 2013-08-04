@@ -154,6 +154,7 @@ wait_for_tables(Timeout) ->
 %%
 -record(ls1mcs_store_sat_cmd, {
     id,
+    usr_cmd_id,
     cmd
 }).
 
@@ -376,13 +377,18 @@ get_sat_cmds({id, Id}) ->
             {ok, []};
         [#ls1mcs_store_sat_cmd{cmd = C}] ->
             {ok, [C]}
-    end.
+    end;
+
+get_sat_cmds({usr_cmd, UsrCmdId}) ->
+    Records = mnesia:dirty_match_object(#ls1mcs_store_sat_cmd{usr_cmd_id = UsrCmdId, _ = '_'}),
+    Cmds = [ C || #ls1mcs_store_sat_cmd{cmd = C} <- Records ],
+    {ok, Cmds}.
 
 
 %%
 %%  Add new or update existing SAT command.
 %%
-add_sat_cmd(SatCmd = #sat_cmd{id = SuppliedId}) ->
+add_sat_cmd(SatCmd = #sat_cmd{id = SuppliedId, usr_cmd_id = UsrCmdId}) ->
     Id = case SuppliedId of
         undefined -> mnesia:dirty_update_counter(ls1mcs_store_counter, sat_cmd, 1);
         _         -> SuppliedId
@@ -390,6 +396,7 @@ add_sat_cmd(SatCmd = #sat_cmd{id = SuppliedId}) ->
     Activity = fun () ->
         ok = mnesia:write(#ls1mcs_store_sat_cmd{
             id = Id,
+            usr_cmd_id = UsrCmdId,
             cmd = SatCmd#sat_cmd{id = Id}
         }),
         {ok, Id}

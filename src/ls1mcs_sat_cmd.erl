@@ -15,7 +15,9 @@
 -include("ls1p.hrl").
 
 -define(REF(CmdFrameId), {via, gproc, {n, l, {?MODULE, CmdFrameId}}}).
--define(DATA_TIMEOUT, 600000).  % 600000 ms = 10 min
+-define(ACK_TIMEOUT, 10000).    % 10s   - time to wait for ack.
+-define(DATA_SI_DURA, 5000).    % 2s    - time to initialize sending on the SAT side.
+-define(DATA_FS_DURA,  500).    % 0.5s  - time to send 1 data frame.
 
 
 
@@ -51,6 +53,7 @@ received(Data = #ls1p_data_frame{cref = CRef}) ->
     sat_cmd     :: #sat_cmd{},      %% SAT command to send.
     usr_cmd_ref :: usr_cmd_ref(),   %% User command ID, that initiated this command.
     ls1p_ref    :: term(),          %% Protocol ref to send frame to.
+    need_data   :: boolean(),       %% True, if some data frames are expected.
     have_data   :: boolean()        %% True, if at least 1 data frame was received.
 }).
 
@@ -62,7 +65,7 @@ received(Data = #ls1p_data_frame{cref = CRef}) ->
 %%
 %%
 %%
-init({SatCmd = #sat_cmd{id = SatCmdId}, UsrCmdRef, Ls1pRef, Sender}) ->
+init({SatCmd = #sat_cmd{id = SatCmdId, exp_dfc = ExpectedDFCount}, UsrCmdRef, Ls1pRef, Sender}) ->
     erlang:link(Sender),
     gproc:reg({n, l, {?MODULE, cref(SatCmdId)}}),
     gen_fsm:send_event(self(), start),
@@ -70,6 +73,7 @@ init({SatCmd = #sat_cmd{id = SatCmdId}, UsrCmdRef, Ls1pRef, Sender}) ->
         sat_cmd = SatCmd,
         usr_cmd_ref = UsrCmdRef,
         ls1p_ref = Ls1pRef,
+        need_data = ExpectedDFCount > 0,
         have_data = false
     },
     {ok, sending, StateData}.
@@ -79,20 +83,25 @@ init({SatCmd = #sat_cmd{id = SatCmdId}, UsrCmdRef, Ls1pRef, Sender}) ->
 %%  Asynchronously send command to the link.
 %%  NOTE: We can implement awaiting of a session here.
 %%
-sending(start, StateData = #state{sat_cmd = SatCmd, ls1p_ref = Ls1pRef}) ->
+sending(start, StateData = #state{sat_cmd = SatCmd, ls1p_ref = Ls1pRef, need_data = NeedData}) ->
     #sat_cmd{
         id = SatCmdId,
-        cmd_frame = CmdFrame
+        cmd_frame = CmdFrame,
+        exp_dfc = ExpectedDFCount
     } = SatCmd,
     #ls1p_cmd_frame{
-        ack = NeedsAck,
+        ack = NeedAck,
         delay = Delay
     } = CmdFrame,
     CmdFrameWithCRef = CmdFrame#ls1p_cmd_frame{cref = cref(SatCmdId)},
     lager:info("ls1mcs_sat_cmd: sending cmd frame: ~p", [CmdFrameWithCRef]),
     ok = ls1mcs_protocol:send(Ls1pRef, CmdFrameWithCRef),
-    _TRef = gen_fsm:send_event_after(Delay * 1000 + ?DATA_TIMEOUT, timeout),
-    case {NeedsAck, needs_data(CmdFrame)} of
+    Timeout = case NeedData of
+        true -> ?ACK_TIMEOUT + (Delay * 1000) + ?DATA_SI_DURA + (ExpectedDFCount * ?DATA_FS_DURA);
+        false -> ?ACK_TIMEOUT
+    end,
+    _TRef = gen_fsm:send_event_after(Timeout, timeout),
+    case {NeedAck, NeedData} of
         {true,  _}     -> {next_state, waiting_ack, StateData};
         {false, true}  -> {next_state, receiving_data, StateData};
         {false, false} -> {stop, normal, StateData}
@@ -103,8 +112,12 @@ sending(start, StateData = #state{sat_cmd = SatCmd, ls1p_ref = Ls1pRef}) ->
 %%  Ack received. Either positive or negative.
 %%
 waiting_ack({recv, #ls1p_ack_frame{status = Status}}, StateData) ->
-    #state{sat_cmd = SatCmd = #sat_cmd{id = SatCmdId}, usr_cmd_ref = UsrCmdRef} = StateData,
-    case {Status, needs_data(SatCmd)} of
+    #state{
+        sat_cmd = #sat_cmd{id = SatCmdId},
+        usr_cmd_ref = UsrCmdRef,
+        need_data = NeedData
+    } = StateData,
+    case {Status, NeedData} of
         {true, true} ->
             {next_state, receiving_data, StateData};
         {true, false} ->
@@ -188,15 +201,5 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%
 cref(Id) ->
     ls1mcs_store:cref_from_sat_cmd_id(Id).
-
-
-%%
-%%
-%%
-needs_data(#ls1p_cmd_frame{addr = arm,      port = downlink  }) -> true;
-needs_data(#ls1p_cmd_frame{addr = arm,      port = runtime_tm}) -> true;
-needs_data(#ls1p_cmd_frame{addr = arduino,  port = photo_meta}) -> true;
-needs_data(#ls1p_cmd_frame{addr = arduino,  port = photo_data}) -> true;
-needs_data(#ls1p_cmd_frame{}) -> false.
 
 

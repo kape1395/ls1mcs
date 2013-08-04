@@ -29,7 +29,10 @@
 %%  (and receive its notifications later).
 %%
 send_sat_cmd(UsrCmdMod, UsrCmdId, SatCmd) ->
-    {ok, _SatCmdId} = ls1mcs_sat_link:send(SatCmd, {usr_cmd_ref, UsrCmdMod, UsrCmdId}).
+    {ok, _SatCmdId} = ls1mcs_sat_link:send(
+        SatCmd#sat_cmd{usr_cmd_id = UsrCmdId},
+        {usr_cmd_ref, UsrCmdMod, UsrCmdId}
+    ).
 
 
 
