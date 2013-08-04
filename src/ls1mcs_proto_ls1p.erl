@@ -2,7 +2,7 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, decode_tm/1, merged_response/1, merged_response/2]).
+-export([start_link/3, decode_tm/1, decode_photo_meta/1, merged_response/1, merged_response/2]).
 -export([send/2, received/2]).
 -export([encode/1, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -498,6 +498,20 @@ decode_tm_gyro(Telemetry) ->
 %% =============================================================================
 %%  Data reconstruction.
 %% =============================================================================
+
+
+%%
+%%
+%%
+decode_photo_meta(Binary) ->
+    <<
+        PhotoCRef:16/little,
+        PhotoTime:32/little,
+        PhotoSize:16/little
+    >> = Binary,
+    {PhotoCRef, PhotoTime, PhotoSize}.
+
+
 
 %%
 %%  Merge photo.
