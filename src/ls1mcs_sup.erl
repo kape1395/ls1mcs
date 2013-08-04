@@ -31,6 +31,7 @@ init({LinkCfg, GPredictCfg}) ->
     SLnkMod = ls1mcs_sat_link,
     LSupMod = ls1mcs_link_sup,  % Proto sup.
     SCmdMod = ls1mcs_sat_cmd_sup,
+    UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
 
     LinkRef = LSupMod:top_ref(),
@@ -44,6 +45,7 @@ init({LinkCfg, GPredictCfg}) ->
         {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
         {link,  {LSupMod,  start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
         {scmd,  {SCmdMod,  start_link, []},       permanent, 5000, supervisor, [SCmdMod]},
+        {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]},
         {slnk,  {SLnkMod,  start_link, SLnkArgs}, permanent, 5000, worker,     [SLnkMod]}
     ],
 

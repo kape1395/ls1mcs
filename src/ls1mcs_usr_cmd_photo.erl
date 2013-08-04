@@ -6,9 +6,12 @@
 -behaviour(ls1mcs_usr_cmd).
 -behaviour(gen_fsm).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/0]).
+-export([start_link/2]).
 -export([sat_cmd_status/3]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
+-include("ls1mcs.hrl").
+
+-define(REF(UsrCmdId), {via, gproc, {n, l, {?MODULE, UsrCmdId}}}).
 
 
 
@@ -20,8 +23,12 @@
 %%
 %%
 %%
-start_link() ->
-    gen_fsm:start_link({via, gproc, ?MODULE}, ?MODULE, {}, []). % TODO
+-spec start_link(#usr_cmd{}, #usr_cmd_spec{})
+        -> {ok, pid()} | term().
+
+start_link(UsrCmd = #usr_cmd{id = UsrCmdId}, _UsrCmdSpec) ->
+    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd}, []).
+
 
 
 %% =============================================================================
@@ -29,6 +36,7 @@ start_link() ->
 %% =============================================================================
 
 -record(state, {
+    usr_cmd
 }).
 
 
@@ -51,8 +59,8 @@ sat_cmd_status(_UsrCmdId, _SatCmdId, _Status) ->
 %%
 %%
 %%
-init({}) ->
-    {ok, unknown, #state{}}.    % TODO
+init({UsrCmd}) ->
+    {ok, unknown, #state{usr_cmd = UsrCmd}}.
 
 
 %%

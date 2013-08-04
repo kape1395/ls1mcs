@@ -12,7 +12,7 @@
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 -include("ls1mcs.hrl").
 
--define(REF(UsrCmdId), {via, gproc, {?MODULE, UsrCmdId}}).
+-define(REF(UsrCmdId), {via, gproc, {n, l, {?MODULE, UsrCmdId}}}).
 
 
 %% =============================================================================
@@ -23,11 +23,12 @@
 %%
 %%
 %%
--spec start_link(usr_cmd_id(), #sat_cmd{})
+-spec start_link(#usr_cmd{}, #usr_cmd_spec{})
         -> {ok, pid()} | term().
 
-start_link(UsrCmdId, SatCmd) ->
-    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmdId, SatCmd}, []).
+start_link(UsrCmd = #usr_cmd{id = UsrCmdId}, UsrCmdSpec) ->
+    CmdFrame = cmd_frame(UsrCmd, UsrCmdSpec),
+    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd, CmdFrame}, []).
 
 
 
@@ -36,8 +37,8 @@ start_link(UsrCmdId, SatCmd) ->
 %% =============================================================================
 
 -record(state, {
-    usr_cmd_id  :: usr_cmd_id(),    %% User command id.
-    sat_cmd     :: #sat_cmd{}       %% Sat command issued by this user command.
+    usr_cmd     :: #usr_cmd{},   %% User command id.
+    sat_cmd     :: #sat_cmd{}    %% Sat command issued by this user command.
 }).
 
 
@@ -61,15 +62,21 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 %%
 %%
-init({UsrCmdId, SatCmd}) ->
+init({UsrCmd, CmdFrame}) ->
     gen_fsm:send_event(self(), start),
-    {ok, starting, #state{usr_cmd_id = UsrCmdId, sat_cmd = SatCmd}}.
+    StateData = #state{
+        usr_cmd = UsrCmd,
+        sat_cmd = #sat_cmd{
+            cmd_frame = CmdFrame
+        }
+    },
+    {ok, starting, StateData}.
 
 
 %%
 %%  FSM State: starting.
 %%
-starting(start, StateData = #state{usr_cmd_id = UsrCmdId, sat_cmd = SatCmd}) ->
+starting(start, StateData = #state{usr_cmd = #usr_cmd{id = UsrCmdId}, sat_cmd = SatCmd}) ->
     {ok, SatCmdId} = ls1mcs_usr_cmd:send_sat_cmd(?MODULE, UsrCmdId, SatCmd),
     NewStateData = StateData#state{
         sat_cmd = SatCmd#sat_cmd{id = SatCmdId}
@@ -80,12 +87,12 @@ starting(start, StateData = #state{usr_cmd_id = UsrCmdId, sat_cmd = SatCmd}) ->
 %%
 %%  FSM State: executing.
 %%
-executing({sat_cmd_status, _SatCmdId, failed}, StateData = #state{usr_cmd_id = UsrCmdId, sat_cmd = SatCmd}) ->
-    lager:debug("User command failed, usr_cmd_id=~p, sat_cmd=~p", [UsrCmdId, SatCmd]),
+executing({sat_cmd_status, _SatCmdId, failed}, StateData = #state{usr_cmd = UsrCmd, sat_cmd = SatCmd}) ->
+    lager:debug("User command failed, usr_cmd=~p, sat_cmd=~p", [UsrCmd, SatCmd]),
     {stop, normal, StateData};
 
-executing({sat_cmd_status, _SatCmdId, completed}, StateData = #state{usr_cmd_id = UsrCmdId, sat_cmd = SatCmd}) ->
-    lager:debug("User command completed, usr_cmd_id=~p, sat_cmd=~p", [UsrCmdId, SatCmd]),
+executing({sat_cmd_status, _SatCmdId, completed}, StateData = #state{usr_cmd = UsrCmd, sat_cmd = SatCmd}) ->
+    lager:debug("User command completed, usr_cmd=~p, sat_cmd=~p", [UsrCmd, SatCmd]),
     {stop, normal, StateData}.
 
 
@@ -112,4 +119,86 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+%%
+%%  Creates LS1P command frame for the specified user command.
+%%
+cmd_frame(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
+    case SpecName of
+        ping ->
+            #ls1p_cmd_frame{
+                addr = arm,
+                port = ping,
+                ack = true
+            };
+        kill ->
+            CRef = arg_val(cref, Args),
+            #ls1p_cmd_frame{
+                addr = arm,
+                port = kill,
+                ack = true,
+                data = <<CRef:16/little>>
+            };
+        downlink ->
+            BufId = arg_val(bufid, Args),
+            BlkSz = arg_val(blksz, Args),
+            From = arg_val(from, Args),
+            Till = arg_val(till, Args),
+            #ls1p_cmd_frame{
+                addr = arm,
+                port = downlink,
+                ack = false,
+                data = <<BufId:8, BlkSz:8, From:16/little, Till:16/little>>
+            };
+        runtime_tm ->
+            #ls1p_cmd_frame{
+                addr = arm,
+                port = runtime_tm,
+                ack = false
+            };
+        job_period ->
+            JobId = arg_val(jobid, Args),
+            Interval  = arg_val(interval, Args),
+            #ls1p_cmd_frame{
+                addr = arm,
+                port = job_period,
+                ack = false,
+                data = <<JobId:8, Interval:16/little>>
+            };
+        take_photo ->
+            ResId = arg_val(resid, Args),
+            Delay = arg_val(delay, Args),
+            PhotoCRef = ls1mcs_store:next_photo_cref(),
+            #ls1p_cmd_frame{
+                addr = arduino,
+                port = take_photo,
+                ack = true,
+                delay = Delay,
+                data = <<PhotoCRef:16/little, ResId:8>>
+            };
+        photo_meta ->
+            #ls1p_cmd_frame{
+                addr = arduino,
+                port = photo_meta,
+                ack = false
+            };
+        photo_data ->
+            BlkSz = arg_val(blksz, Args),
+            From = arg_val(from, Args),
+            Till = arg_val(till, Args),
+            #ls1p_cmd_frame{
+                addr = arduino,
+                port = photo_data,
+                ack = false,
+                data = <<BlkSz:8, From:16/little, Till:16/little>>
+            }
+    end.
+
+
+%%
+%%  Returns user command argument as an integer.
+%%
+arg_val(Name, Args) ->
+    #usr_cmd_arg{name = Name, value = Value} = lists:keyfind(Name, #usr_cmd_arg.name, Args),
+    erlang:binary_to_integer(Value).
 

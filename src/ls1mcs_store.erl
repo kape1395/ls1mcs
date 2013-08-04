@@ -6,14 +6,15 @@
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/0, is_installed/0, install/0, install/1, wait_for_tables/1]).
 -export([
-    next_cref/0,
+    cref_from_sat_cmd_id/1,
     get_ls1p_frame/1,
     add_ls1p_frame/3,
     add_unknown_frame/2,
     get_tm/1,
     load_predicted_passes/1,
-    get_user_cmds/1,
-    add_user_cmd/1
+    get_usr_cmds/1, add_usr_cmd/1,
+    get_sat_cmds/1, add_sat_cmd/1,
+    next_photo_cref/0
 ]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include_lib("stdlib/include/qlc.hrl").
@@ -80,7 +81,8 @@ wait_for_tables(Timeout) ->
         ls1mcs_store_ls1p_tm,
         ls1mcs_store_ls1p_unkn,
         ls1mcs_store_pred_pass,
-        ls1mcs_store_user_cmd,
+        ls1mcs_store_usr_cmd,
+        ls1mcs_store_sat_cmd,
         ls1mcs_store_counter
     ],
     mnesia:wait_for_tables(Tables, Timeout).
@@ -142,7 +144,15 @@ wait_for_tables(Timeout) ->
 %%
 %%  User command.
 %%
--record(ls1mcs_store_user_cmd, {
+-record(ls1mcs_store_usr_cmd, {
+    id,
+    cmd
+}).
+
+%%
+%%  SAT command.
+%%
+-record(ls1mcs_store_sat_cmd, {
     id,
     cmd
 }).
@@ -168,7 +178,8 @@ create_tables(Nodes) ->
     OK = mnesia:create_table(ls1mcs_store_ls1p_tm,   [{type, ORD}, ?ATTRS(ls1mcs_store_ls1p_tm),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_ls1p_unkn, [{type, bag}, ?ATTRS(ls1mcs_store_ls1p_unkn), DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_pred_pass, [{type, set}, ?ATTRS(ls1mcs_store_pred_pass), DefOptDC]),
-    OK = mnesia:create_table(ls1mcs_store_user_cmd,  [{type, set}, ?ATTRS(ls1mcs_store_user_cmd),  DefOptDC]),
+    OK = mnesia:create_table(ls1mcs_store_usr_cmd,   [{type, set}, ?ATTRS(ls1mcs_store_usr_cmd),   DefOptDC]),
+    OK = mnesia:create_table(ls1mcs_store_sat_cmd,   [{type, set}, ?ATTRS(ls1mcs_store_sat_cmd),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_counter,   [{type, set}, ?ATTRS(ls1mcs_store_counter),   DefOptDC]),
     ok.
 
@@ -177,14 +188,6 @@ create_tables(Nodes) ->
 %% =============================================================================
 %%  Query functions
 %% =============================================================================
-
-
-%%
-%%  Generates new CRef.
-%%
-next_cref() ->
-    Next = mnesia:dirty_update_counter(ls1mcs_store_counter, cref, 1),
-    {ok, cref_from_id(Next)}.
 
 
 %%
@@ -326,16 +329,16 @@ load_predicted_passes(PredictedPasses) ->
 %%
 %%  Get user commands.
 %%
-get_user_cmds(all) ->
-    Records = mnesia:dirty_match_object(#ls1mcs_store_user_cmd{_ = '_'}),
-    Cmds = [ C || #ls1mcs_store_user_cmd{cmd = C} <- Records ],
+get_usr_cmds(all) ->
+    Records = mnesia:dirty_match_object(#ls1mcs_store_usr_cmd{_ = '_'}),
+    Cmds = [ C || #ls1mcs_store_usr_cmd{cmd = C} <- Records ],
     {ok, Cmds};
 
-get_user_cmds({id, Id}) ->
-    case mnesia:dirty_read(ls1mcs_store_user_cmd, Id) of
+get_usr_cmds({id, Id}) ->
+    case mnesia:dirty_read(ls1mcs_store_usr_cmd, Id) of
         [] ->
             {ok, []};
-        [#ls1mcs_store_user_cmd{cmd = C}] ->
+        [#ls1mcs_store_usr_cmd{cmd = C}] ->
             {ok, [C]}
     end.
 
@@ -343,21 +346,62 @@ get_user_cmds({id, Id}) ->
 %%
 %%  Add new or update existing user command.
 %%
-add_user_cmd(UserCmd = #user_cmd{id = SuppliedId}) ->
+add_usr_cmd(UserCmd = #usr_cmd{id = SuppliedId}) ->
     Id = case SuppliedId of
-        undefined -> mnesia:dirty_update_counter(ls1mcs_store_counter, user_cmd, 1);
+        undefined -> mnesia:dirty_update_counter(ls1mcs_store_counter, usr_cmd, 1);
         _         -> SuppliedId
     end,
     Activity = fun () ->
-        ok = mnesia:write(#ls1mcs_store_user_cmd{
+        ok = mnesia:write(#ls1mcs_store_usr_cmd{
             id = Id,
-            cmd = UserCmd#user_cmd{id = Id}
+            cmd = UserCmd#usr_cmd{id = Id}
         }),
         {ok, Id}
     end,
     mnesia:activity(transaction, Activity).
 
 
+
+%%
+%%  Get SAT commands.
+%%
+get_sat_cmds(all) ->
+    Records = mnesia:dirty_match_object(#ls1mcs_store_sat_cmd{_ = '_'}),
+    Cmds = [ C || #ls1mcs_store_sat_cmd{cmd = C} <- Records ],
+    {ok, Cmds};
+
+get_sat_cmds({id, Id}) ->
+    case mnesia:dirty_read(ls1mcs_store_sat_cmd, Id) of
+        [] ->
+            {ok, []};
+        [#ls1mcs_store_sat_cmd{cmd = C}] ->
+            {ok, [C]}
+    end.
+
+
+%%
+%%  Add new or update existing SAT command.
+%%
+add_sat_cmd(SatCmd = #sat_cmd{id = SuppliedId}) ->
+    Id = case SuppliedId of
+        undefined -> mnesia:dirty_update_counter(ls1mcs_store_counter, sat_cmd, 1);
+        _         -> SuppliedId
+    end,
+    Activity = fun () ->
+        ok = mnesia:write(#ls1mcs_store_sat_cmd{
+            id = Id,
+            cmd = SatCmd#sat_cmd{id = Id}
+        }),
+        {ok, Id}
+    end,
+    mnesia:activity(transaction, Activity).
+
+
+%%
+%%
+%%
+next_photo_cref() ->
+    mnesia:dirty_update_counter(ls1mcs_store_counter, photo_cref, 1).
 
 
 
@@ -400,11 +444,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%  Helper functions.
 %% =============================================================================
 
-
 %%
 %%
 %%
-cref_from_id(Id) ->
+cref_from_sat_cmd_id(Id) ->
     CRef = Id rem 16#FFFF,
     Epoch = Id div 16#FFFF,
     {Epoch, CRef}.
@@ -417,9 +460,9 @@ resolve_recv_cref(Epoch, CRef, _Timestamp) when is_integer(Epoch) ->
     {Epoch, CRef};
 
 resolve_recv_cref(undefined, CRef, Timestamp) ->
-    case mnesia:dirty_read(ls1mcs_store_counter, cref) of
+    case mnesia:dirty_read(ls1mcs_store_counter, sat_cmd) of
         [#ls1mcs_store_counter{value = This}] ->
-            {ThisEpoch, ThisCRef} = cref_from_id(This),
+            {ThisEpoch, ThisCRef} = cref_from_sat_cmd_id(This),
             case ThisCRef >= CRef of
                 true -> resolve_recv_cref(ThisEpoch, CRef, Timestamp);
                 false -> resolve_recv_cref(ThisEpoch - 1, CRef, Timestamp)

@@ -33,7 +33,7 @@ start_link(Name, Ls1pRef) ->
 -spec send(#sat_cmd{}, usr_cmd_ref())
         -> {ok, sat_cmd_id()}.
 
-send(SatCmd, UsrCmdRef) when is_record(SatCmd, ls1p_cmd_frame) ->
+send(SatCmd, UsrCmdRef) when is_record(SatCmd, sat_cmd) ->
     gen_server:call(?MODULE, {send, SatCmd, UsrCmdRef, self()}).
 
 
@@ -80,11 +80,11 @@ init({Ls1pRef}) ->
 %%
 %%
 handle_call({send, SatCmd, UsrCmdRef, Sender}, _From, State = #state{ls1p = Ls1pRef}) ->
-    {ok, FrameId = {_Epoch, _CRef}} = ls1mcs_store:next_cref(),
-    SatCmdWithId = SatCmd#ls1p_cmd_frame{cref = FrameId},
+    {ok, SatCmdId} = ls1mcs_store:add_sat_cmd(SatCmd),
+    SatCmdWithId = SatCmd#sat_cmd{id = SatCmdId},
     lager:info("ls1mcs_sat_link: sending sat cmd: ~p", [SatCmdWithId]),
     {ok, _Pid} = ls1mcs_sat_cmd_sup:add(SatCmdWithId, UsrCmdRef, Ls1pRef, Sender),
-    {reply, {ok, FrameId}, State};
+    {reply, {ok, SatCmdId}, State};
 
 handle_call({received, Ack = #ls1p_ack_frame{}}, _From, State) ->
     lager:info("ls1mcs_sat_link: received sat ack: ~p", [Ack]),

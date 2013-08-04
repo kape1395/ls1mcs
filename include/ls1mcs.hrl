@@ -4,7 +4,7 @@
 
 -type sat_cmd_id() :: integer().
 -type usr_cmd_id() :: integer().
--type usr_cmd_ref() :: {module(), usr_cmd_id()}.
+-type usr_cmd_ref() :: {usr_cmd_ref, module(), usr_cmd_id()}.
 
 -type cref() :: ls1p_cref().
 -type timestamp() :: os:timestamp().
@@ -19,7 +19,7 @@
 %%  Enum is a valid name for this entity.
 %%  The latter is not used because enum is reserved name in some languages.
 %%
--record(user_cmd_opts, {
+-record(usr_cmd_opts, {
     desc        :: binary(),
     value       :: integer() | float() | atom()
 }).
@@ -27,17 +27,17 @@
 %%
 %%  Describes parameter for a user command.
 %%
--record(user_cmd_param, {
+-record(usr_cmd_param, {
     name        :: atom(),
     desc        :: binary(),
     type        :: (integer | float | string | opts),
-    opts        :: [#user_cmd_opts{}]
+    opts        :: [#usr_cmd_opts{}]
 }).
 
 %%
 %%  Used for grouping user commands.
 %%
--record(user_cmd_group, {
+-record(usr_cmd_group, {
     desc        :: binary(),
     name        :: atom()
 }).
@@ -45,31 +45,32 @@
 %%
 %%  Describes user command.
 %%
--record(user_cmd_spec, {
+-record(usr_cmd_spec, {
     desc            :: binary(),
     name            :: atom(),
-    group           :: atom(),      %%  Group name, see #user_cmd_group{}.
-    params = []     :: [#user_cmd_param{}]
+    group           :: atom(),                      %% Group name, see #usr_cmd_group{}.
+    params = []     :: [#usr_cmd_param{}],
+    impl            :: {module(), atom(), list()}   %% MFA; #usr_cmd{} is added as a first param.
 }).
 
 %%
-%%  Command arguments, instances of #user_cmd_param{}.
+%%  Command arguments, instances of #usr_cmd_param{}.
 %%
--record(user_cmd_arg, {
+-record(usr_cmd_arg, {
     name        :: atom(),
     value       :: binary()
 }).
 
 %%
 %%  Single command issued by a user.
-%%  These commands are instances of #user_cmd_spec{}.
+%%  These commands are instances of #usr_cmd_spec{}.
 %%
 %%  TODO: Add plan.
 %%
--record(user_cmd, {
+-record(usr_cmd, {
     id          :: usr_cmd_id(),        % Auto-generated id.
     spec        :: atom(),              % Spec name.
-    args        :: [#user_cmd_arg{}],
+    args        :: [#usr_cmd_arg{}],
     immediate   :: boolean(),
     approved    :: timestamp(),
     issued      :: timestamp(),
@@ -84,8 +85,7 @@
 %%
 -record(sat_cmd, {
     id          :: sat_cmd_id(),
-    cmd_frame   :: integer(),
-    ls1p_frame  :: #ls1p_cmd_frame{},   %% CRef is in this structure.
+    cmd_frame   :: #ls1p_cmd_frame{},
     acked       :: timestamp(),
     executed    :: timestamp(),
     dat_recv    :: timestamp(),         %% time of the first data frame received.
@@ -96,7 +96,7 @@
 %%
 %%  TODO: Review
 %%  Single command frame, sent over the radio link.
-%%  These frames are generated based on issued #user_cmd{}s.
+%%  These frames are generated based on issued #usr_cmd{}s.
 %%  The frame can have multiple #sat_cmd{}s, in the case of multi-command.
 %%
 -record(cmd_frame, {

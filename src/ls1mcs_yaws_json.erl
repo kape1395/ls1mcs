@@ -32,7 +32,7 @@ encode({command}) ->
             link(self,      url([command])),
             link(addrs,     url([command, group])),     % User command addresses
             link(specs,     url([command, spec])),      % User command specs
-            link(user_cmds, url([command, user])),      % User commands
+            link(usr_cmds,  url([command, usr])),       % User commands
             link(sat_cmds,  url([command, sat])),       % SAT commands
             link(plans,     url([command, plan])),      % Plans
             link(immediate, url([command, immediate]))  % Immediate commands
@@ -40,13 +40,13 @@ encode({command}) ->
     ]};
 
 
-encode(#user_cmd_group{desc = Desc, name = Name}) ->
+encode(#usr_cmd_group{desc = Desc, name = Name}) ->
     {[
         {desc, Desc},
         {name, Name}
     ]};
 
-encode(#user_cmd_spec{name = Name, desc = Desc, group = Group, params = Params}) ->
+encode(#usr_cmd_spec{name = Name, desc = Desc, group = Group, params = Params}) ->
     {[
         {name, Name},
         {desc, Desc},
@@ -54,7 +54,7 @@ encode(#user_cmd_spec{name = Name, desc = Desc, group = Group, params = Params})
         {params, encode_list(Params)}
     ]};
 
-encode(#user_cmd_param{name = Name, desc = Desc, type = Type, opts = Opts}) ->
+encode(#usr_cmd_param{name = Name, desc = Desc, type = Type, opts = Opts}) ->
     OptsEncoded = case Opts of
         undefined -> [];
         _ -> [ {opts, encode_list(Opts)} ]
@@ -65,19 +65,19 @@ encode(#user_cmd_param{name = Name, desc = Desc, type = Type, opts = Opts}) ->
         {type, Type}
     ] ++ OptsEncoded};
 
-encode(#user_cmd_opts{desc = Desc, value = Value}) ->
+encode(#usr_cmd_opts{desc = Desc, value = Value}) ->
     {[
         {desc, Desc},
         {value, Value}
     ]};
 
-encode(#user_cmd_arg{name = Name, value = Value}) ->
+encode(#usr_cmd_arg{name = Name, value = Value}) ->
     {[
         {name, Name},
         {value, Value}
     ]};
 
-encode(#user_cmd{
+encode(#usr_cmd{
         id = Id,
         spec = Spec,
         args = Args,
@@ -310,8 +310,8 @@ encode(#tm_gyro{wx = Wx, wy = Wy, wz = Wz, temp = Temp}) ->
 %%
 %%
 %%
-encode_self(user_cmd, Id) ->
-    {[ links([link(self, url([command, user, Id]))]) ]}.
+encode_self(usr_cmd, Id) ->
+    {[ links([link(self, url([command, usr, Id]))]) ]}.
 
 
 %%
@@ -378,19 +378,19 @@ decode(cref, CRef) when is_binary(CRef) ->
 
     end;
 
-decode(user_cmd, {PL}) ->
-    #user_cmd{
+decode(usr_cmd, {PL}) ->
+    #usr_cmd{
         id          = decode_integer(proplists:get_value(<<"id">>, PL)),
         spec        = decode_atom(proplists:get_value(<<"spec">>, PL)),
-        args        = decode_list(user_cmd_arg, proplists:get_value(<<"args">>, PL)),
+        args        = decode_list(usr_cmd_arg, proplists:get_value(<<"args">>, PL)),
         immediate   = undefined,
         approved    = undefined,
         issued      = undefined,
         status      = undefined
     };
 
-decode(user_cmd_arg, {PL}) ->
-    #user_cmd_arg{
+decode(usr_cmd_arg, {PL}) ->
+    #usr_cmd_arg{
         name    = decode_atom(proplists:get_value(<<"name">>, PL)),
         value   = decode_binary(proplists:get_value(<<"value">>, PL))
     }.

@@ -51,7 +51,7 @@ handle_request(["command", "spec"], 'GET', _Arg) ->
 handle_request(["command", "spec", Group], 'GET', _Arg) ->
     GroupAtom = ls1mcs_yaws_json:decode_atom(Group),
     UserCmdSpecs = lists:filter(
-        fun (#user_cmd_spec{group = G}) -> GroupAtom =:= G end,
+        fun (#usr_cmd_spec{group = G}) -> GroupAtom =:= G end,
         ls1mcs_usr_cmd:specs()
     ),
     respond(200, json_list(UserCmdSpecs));
@@ -59,17 +59,17 @@ handle_request(["command", "spec", Group], 'GET', _Arg) ->
 %%
 %%  User commands (RO).
 %%
-handle_request(["command", "user"], 'GET', _Arg) ->
-    {ok, UserCmds} = ls1mcs_store:get_user_cmds(all),
+handle_request(["command", "usr"], 'GET', _Arg) ->
+    {ok, UserCmds} = ls1mcs_store:get_usr_cmds(all),
     respond(200, json_list(UserCmds));
 
-handle_request(["command", "user", Id], 'GET', _Arg) ->
-    case ls1mcs_store:get_user_cmds({id, ls1mcs_yaws_json:decode_integer(Id)}) of
+handle_request(["command", "usr", Id], 'GET', _Arg) ->
+    case ls1mcs_store:get_usr_cmds({id, ls1mcs_yaws_json:decode_integer(Id)}) of
         {ok, [Command]} -> respond(200, json_object(Command));
         {ok, []} -> respond_error(404, <<"Command not found by id.">>)
     end;
 
-handle_request(["command", "user", Id, "response"], 'GET', _Arg) ->
+handle_request(["command", "usr", Id, "response"], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO
 
 %%
@@ -85,15 +85,15 @@ handle_request(["command", "immediate"], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO
 
 handle_request(["command", "immediate"], 'POST', Arg) ->
-    UserCmd = ls1mcs_yaws_json:decode(user_cmd, jiffy:decode(Arg#arg.clidata)),
+    UserCmd = ls1mcs_yaws_json:decode(usr_cmd, jiffy:decode(Arg#arg.clidata)),
     Now = erlang:now(),
-    {ok, UserCmdId} = ls1mcs_usr_cmd:add(UserCmd#user_cmd{
+    {ok, UserCmdId} = ls1mcs_usr_cmd:issue(UserCmd#usr_cmd{
         id = undefined,
         immediate = true,
         approved = Now,
         issued = Now
     }),
-    respond(200, json_self(user_cmd, UserCmdId));
+    respond(200, json_self(usr_cmd, UserCmdId));
 
 handle_request(["command", "immediate", _CommandId], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO

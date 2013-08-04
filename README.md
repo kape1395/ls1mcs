@@ -97,6 +97,35 @@ Bytes received from He100 using `rp(ls1mcs_utl_uart_logger:recv(true)).`:
     %% {ok, <<72,101,32,4,0,27,63,167,134,162,64,64,64,64,224,152,178,100,138,156,64,97,3,240,36,4,238,0,0,0,0,0,78,113,194,44,196>>}
     %% See `test/data/test_he100_recv_ls1p_arduino_photo_data.dat`
 
+REST API
+========
+
+
+    POST http://localhost:8000/ls1mcs/api/command/immediate
+    {
+      "spec": "ping"
+    }
+    {
+      "spec": "take_photo",
+      "args": [
+        {"name": "resid", "value": 1},
+        {"name": "delay", "value": 5}
+      ]
+    }
+    {
+      "spec": "photo_meta"
+    }
+    {
+      "spec": "photo_data",
+      "args": [
+        {"name": "blksz", "value": 195},
+        {"name": "from", "value": 0},
+        {"name": "till", "value": 512}
+      ]
+    }
+    {
+      "spec": "dlnk_photo"
+    }
 
 
 Communication options
