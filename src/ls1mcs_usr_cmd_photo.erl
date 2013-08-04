@@ -37,11 +37,12 @@ start_link(UsrCmd = #usr_cmd{id = UsrCmdId}, _UsrCmdSpec) ->
 %% =============================================================================
 
 -record(state, {
-    id,
-    usr_cmd,
+    id,             %% User command id (the same as in usr_cmd, for convenience).
+    usr_cmd,        %% User command.
     last_cmd_id,    %% Last sat cmd ID.
-    retry_meta,
-    size            %% Photo size
+    retry_meta,     %% Maximal number of times the photo_meta command can be sent.
+    retry_data,     %% Maximal number of times the photo_data command can be sent.
+    data_gaps       %% Intervals in bytes for whose the data is to be downloaded.
 }).
 
 
@@ -69,7 +70,8 @@ init({UsrCmd = #usr_cmd{id = UsrCmdId}}) ->
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
-        retry_meta = 3
+        retry_meta = 3,
+        retry_data = 10
     },
     {ok, starting, StateData}.
 
@@ -99,10 +101,7 @@ getting_meta({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
     CRef = ls1mcs_store:cref_from_sat_cmd_id(SatCmdId),
     {ok, [#ls1p_data_frame{data = Metadata}]} = ls1mcs_store:get_ls1p_frame({data, CRef}),
     {_PhotoCRef, _PhotoTime, PhotoSize} = ls1mcs_proto_ls1p:decode_photo_meta(Metadata),
-    BlockSize = 195,
-    BlockTill = (PhotoSize div BlockSize) + 2,
-    NewStateData = send_photo_data(BlockSize, 0, BlockTill, StateData#state{size = PhotoSize}),
-    {next_state, getting_data, NewStateData};
+    download(StateData#state{data_gaps = [{0, PhotoSize}]});
 
 getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
     lager:warning(
@@ -116,12 +115,13 @@ getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
 %%  FSM State: getting_data.
 %%
 getting_data({sat_cmd_status, SatCmdId, failed}, StateData = #state{last_cmd_id = SatCmdId}) ->
-    lager:warning("ls1mcs_usr_cmd_photo: Unable to get photo contents."),
-    {stop, normal, StateData};
+    lager:warning("ls1mcs_usr_cmd_photo: Got photo_data failure."),
+    download(StateData);
 
 getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_id = SatCmdId}) ->
-    lager:warning("ls1mcs_usr_cmd_photo: Photo downloaded."),
-    {stop, normal, StateData};
+    lager:warning("ls1mcs_usr_cmd_photo: Got photo_data response."),
+    %% TODO: Check, what parts are missing.
+    download(StateData);
 
 getting_data({sat_cmd_status, SatCmdId, Status}, StateData) ->
     lager:warning(
@@ -154,6 +154,33 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+%%
+%%  Download first pending block of data.
+%%
+download(StateData = #state{data_gaps = []}) ->
+    lager:info("ls1mcs_usr_cmd_photo: Photo downloaded."),
+    {stop, normal, StateData};
+
+download(StateData = #state{retry_data = Retry}) when Retry =< 0 ->
+    lager:info("ls1mcs_usr_cmd_photo: Photo download failed (data retry count exceeded)."),
+    {stop, normal, StateData};
+
+download(StateData = #state{data_gaps = [FirstGap | _], retry_data = Retry}) ->
+    {From, Length} = FirstGap,
+    BlockSize = 195,
+    BlockFrom = in_block(From, BlockSize),
+    BlockTill = in_block(From + Length, BlockSize) + 1,
+    NewStateData = send_photo_data(BlockSize, BlockFrom, BlockTill, StateData#state{retry_data = Retry - 1}),
+    {next_state, getting_data, NewStateData}.
+
+
+%%
+%%  Calculates block index for the specified byte.
+%%
+in_block(BytePos, BlockSize) ->
+    BytePos div BlockSize.
+
 
 %%
 %%

@@ -50,7 +50,8 @@ received(Data = #ls1p_data_frame{cref = CRef}) ->
 -record(state, {
     sat_cmd     :: #sat_cmd{},      %% SAT command to send.
     usr_cmd_ref :: usr_cmd_ref(),   %% User command ID, that initiated this command.
-    ls1p_ref    :: term()           %% Protocol ref to send frame to.
+    ls1p_ref    :: term(),          %% Protocol ref to send frame to.
+    have_data   :: boolean()        %% True, if at least 1 data frame was received.
 }).
 
 
@@ -68,7 +69,8 @@ init({SatCmd = #sat_cmd{id = SatCmdId}, UsrCmdRef, Ls1pRef, Sender}) ->
     StateData = #state{
         sat_cmd = SatCmd,
         usr_cmd_ref = UsrCmdRef,
-        ls1p_ref = Ls1pRef
+        ls1p_ref = Ls1pRef,
+        have_data = false
     },
     {ok, sending, StateData}.
 
@@ -130,17 +132,25 @@ waiting_ack(timeout, StateData) ->
 %%
 receiving_data({recv, #ls1p_data_frame{eof = Eof}}, StateData) ->
     #state{sat_cmd = #sat_cmd{id = SatCmdId}, usr_cmd_ref = UsrCmdRef} = StateData,
+    NewStateData = StateData#state{have_data = true},
     case Eof of
         true ->
             ok = ls1mcs_usr_cmd:sat_cmd_completed(UsrCmdRef, SatCmdId),
-            {stop, normal, StateData};
+            {stop, normal, NewStateData};
         false ->
-            {next_state, receiving_data}
+            {next_state, receiving_data, NewStateData}
     end;
 
 receiving_data(timeout, StateData) ->
-    #state{sat_cmd = #sat_cmd{id = SatCmdId}, usr_cmd_ref = UsrCmdRef} = StateData,
-    ok = ls1mcs_usr_cmd:sat_cmd_completed(UsrCmdRef, SatCmdId),
+    #state{
+        sat_cmd = #sat_cmd{id = SatCmdId},
+        usr_cmd_ref = UsrCmdRef,
+        have_data = HaveData
+    } = StateData,
+    case HaveData of
+        true  -> ok = ls1mcs_usr_cmd:sat_cmd_completed(UsrCmdRef, SatCmdId);
+        false -> ok = ls1mcs_usr_cmd:sat_cmd_failed(UsrCmdRef, SatCmdId)
+    end,
     {stop, normal, StateData}.
 
 
