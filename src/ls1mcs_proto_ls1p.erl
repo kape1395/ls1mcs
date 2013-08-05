@@ -292,18 +292,17 @@ decode_bool(1) -> true.
 
 %%
 %%  Decode entire telemetry frame (without frame header byte).
-%%  Total length: 233 bytes
+%%  Total length: 219 bytes
 %%
 decode_tm(Telemetry) when is_binary(Telemetry) ->
     <<
         Time:32/little,
         EPS:43/binary,
         He:16/binary,
-        Att1:34/binary,
-        Att2:34/binary,
-        Att3:34/binary,
-        Att4:34/binary,
-        Att5:34/binary
+        Att1:39/binary,
+        Att2:39/binary,
+        Att3:39/binary,
+        Att4:39/binary
     >> = Telemetry,
     #tm{
         time = Time,
@@ -313,8 +312,7 @@ decode_tm(Telemetry) when is_binary(Telemetry) ->
             decode_tm_att(Att1),
             decode_tm_att(Att2),
             decode_tm_att(Att3),
-            decode_tm_att(Att4),
-            decode_tm_att(Att5)
+            decode_tm_att(Att4)
         ]
     }.
 
@@ -323,10 +321,10 @@ decode_tm(Telemetry) when is_binary(Telemetry) ->
 %%
 decode_tm_att(Telemetry) ->
     <<
-        Mag:6/binary,
-        MPU:14/binary,
-        Gyro1:7/binary,
-        Gyro2:7/binary
+        Mag:7/binary,
+        MPU:16/binary,
+        Gyro1:8/binary,
+        Gyro2:8/binary
     >> = Telemetry,
     #tm_att{
         mag = decode_tm_mag(Mag),
@@ -441,14 +439,16 @@ decode_tm_he(Telemetry) ->
 %%
 decode_tm_mag(Telemetry) ->
     <<
-        Bx:16/little,
-        By:16/little,
-        Bz:16/little
+        Bx:16/little-signed,
+        By:16/little-signed,
+        Bz:16/little-signed,
+        Bd:8
     >> = Telemetry,
     #tm_mag{
         bx = Bx,
         by = By,
-        bz = Bz
+        bz = Bz,
+        bd = Bd
     }.
 
 
@@ -457,21 +457,25 @@ decode_tm_mag(Telemetry) ->
 %%
 decode_tm_mpu(Telemetry) ->
     <<
-        Gx:16/little,
-        Gy:16/little,
-        Gz:16/little,
-        Ax:16/little,
-        Ay:16/little,
-        Az:16/little,
+        Gx:16/little-signed,
+        Gy:16/little-signed,
+        Gz:16/little-signed,
+        Gd:8,
+        Ax:16/little-signed,
+        Ay:16/little-signed,
+        Az:16/little-signed,
+        Ad:8,
         Temp:16/little
     >> = Telemetry,
     #tm_mpu{
         gx = Gx,
         gy = Gy,
         gz = Gz,
+        gd = Gd,
         ax = Ax,
         ay = Ay,
         az = Az,
+        ad = Ad,
         temp = Temp
     }.
 
@@ -481,15 +485,17 @@ decode_tm_mpu(Telemetry) ->
 %%
 decode_tm_gyro(Telemetry) ->
     <<
-        Wx:16/little,
-        Wy:16/little,
-        Wz:16/little,
+        Wx:16/little-signed,
+        Wy:16/little-signed,
+        Wz:16/little-signed,
+        Wd:8,
         Temp:8
     >> = Telemetry,
     #tm_gyro{
         wx = Wx,
         wy = Wy,
         wz = Wz,
+        wd = Wd,
         temp = Temp
     }.
 

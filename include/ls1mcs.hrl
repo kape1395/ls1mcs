@@ -159,34 +159,38 @@
 
 %%
 %%  Magnetometer data.
-%%  HMC5883L, 6 bytes
+%%  HMC5883L, 7 bytes
 %%
 -record(tm_mag, {
-    bx      :: uint16(),
-    by      :: uint16(),
-    bz      :: uint16()
+    bx      :: sint16(),
+    by      :: sint16(),
+    bz      :: sint16(),
+    bd      :: uint8()
 }).
 
 %%
-%%  MPU-6000A, 14 bytes
+%%  MPU-6000A, 16 bytes
 %%
 -record(tm_mpu, {
-    gx      :: uint16(),
-    gy      :: uint16(),
-    gz      :: uint16(),
-    ax      :: uint16(),
-    ay      :: uint16(),
-    az      :: uint16(),
+    gx      :: sint16(),
+    gy      :: sint16(),
+    gz      :: sint16(),
+    gd      :: uint8(),
+    ax      :: sint16(),
+    ay      :: sint16(),
+    az      :: sint16(),
+    ad      :: uint8(),
     temp    :: uint16()
 }).
 
 %%
-%%  L3GD20, 7 bytes
+%%  L3GD20, 8 bytes
 %%
 -record(tm_gyro, {
-    wx      :: uint16(),
-    wy      :: uint16(),
-    wz      :: uint16(),
+    wx      :: sint16(),
+    wy      :: sint16(),
+    wz      :: sint16(),
+    wd      :: uint8(),
     temp    :: uint8()
 }).
 
@@ -227,7 +231,7 @@
 }).
 
 %%
-%%  Total: 34 bytes
+%%  Total: 39 bytes
 %%
 -record(tm_att, {
     mag     :: #tm_mag{},
@@ -237,13 +241,13 @@
 }).
 
 %%
-%%  Total: 233 bytes
+%%  Total: 219 bytes
 %%
 -record(tm, {
-    time    :: uint32(),    %% Centi-seconds (1s / 100).
-    eps     :: #tm_eps{},
-    he      :: #tm_he{},
-    att     :: [#tm_att{}]  %% x5
+    time    :: uint32(),    %% 4, centi-seconds (1s / 100).
+    eps     :: #tm_eps{},   %% 43
+    he      :: #tm_he{},    %% 16
+    att     :: [#tm_att{}]  %% 39 x 4 = 156
 }).
 
 
