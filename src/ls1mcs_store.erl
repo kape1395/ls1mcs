@@ -265,7 +265,7 @@ add_ls1p_frame(Frame = #ls1p_tm_frame{}, Bytes, Timestamp) ->
     Activity = fun () ->
         ok = mnesia:write(#ls1mcs_store_ls1p_tm{
             id = Id,
-            frame = Frame,
+            frame = Frame#ls1p_tm_frame{id = Id, recv = Timestamp},
             bytes = Bytes,
             recv_time = Timestamp,
             source = gs

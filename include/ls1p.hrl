@@ -118,6 +118,8 @@
 %%  Telemetry frame, sent from SAT to GS.
 %%
 -record(ls1p_tm_frame, {
+    id          :: integer(),           %% Telemetry frame ID.
+    recv        :: timestamp(),         %% Receive time (GS).
     data = <<>> :: ls1p_payload()       %% TM data, including SAT's timestamp.
 }).
 

@@ -143,8 +143,7 @@
 -type uint32() :: non_neg_integer().
 
 %%
-%%  Transceiver data.
-%%  He-100, 16 bytes
+%%  Helium-100 (transceiver) data.
 %%
 -record(tm_he, {
     op_counter          :: uint16(),
@@ -158,44 +157,39 @@
 }).
 
 %%
-%%  Magnetometer data.
-%%  HMC5883L, 7 bytes
+%%  HMC5883L (magnetometer) data.
 %%
 -record(tm_mag, {
-    bx      :: sint16(),
-    by      :: sint16(),
-    bz      :: sint16(),
-    bd      :: uint8()
+    bx      :: float(),
+    by      :: float(),
+    bz      :: float()
 }).
 
 %%
-%%  MPU-6000A, 16 bytes
+%%  MPU-6000A (gyroscope and accelerometer) data.
 %%
 -record(tm_mpu, {
-    gx      :: sint16(),
-    gy      :: sint16(),
-    gz      :: sint16(),
-    gd      :: uint8(),
-    ax      :: sint16(),
-    ay      :: sint16(),
-    az      :: sint16(),
-    ad      :: uint8(),
-    temp    :: uint16()
+    gx      :: float(),
+    gy      :: float(),
+    gz      :: float(),
+    ax      :: float(),
+    ay      :: float(),
+    az      :: float(),
+    temp    :: integer()
 }).
 
 %%
-%%  L3GD20, 8 bytes
+%%  L3GD20 (gyroscope) data.
 %%
 -record(tm_gyro, {
-    wx      :: sint16(),
-    wy      :: sint16(),
-    wz      :: sint16(),
-    wd      :: uint8(),
-    temp    :: uint8()
+    wx      :: float(),
+    wy      :: float(),
+    wz      :: float(),
+    temp    :: integer()
 }).
 
 %%
-%%  P31U, 43 bytes
+%%  P31U (power unit) data.
 %%
 -record(tm_eps, {
     pv_1                :: uint16(),
@@ -231,7 +225,7 @@
 }).
 
 %%
-%%  Total: 39 bytes
+%%  Attitude data.
 %%
 -record(tm_att, {
     mag     :: #tm_mag{},
@@ -241,13 +235,13 @@
 }).
 
 %%
-%%  Total: 219 bytes
+%%  Telemetry data.
 %%
 -record(tm, {
-    time    :: uint32(),    %% 4, centi-seconds (1s / 100).
-    eps     :: #tm_eps{},   %% 43
-    he      :: #tm_he{},    %% 16
-    att     :: [#tm_att{}]  %% 39 x 4 = 156
+    time    :: float(),     %% SAT time.
+    eps     :: #tm_eps{},
+    he      :: #tm_he{},
+    att     :: [#tm_att{}]
 }).
 
 

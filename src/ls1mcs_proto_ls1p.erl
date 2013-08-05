@@ -290,41 +290,45 @@ decode_bool(1) -> true.
 %%  Telemetry decoder.
 %% =============================================================================
 
+
+
 %%
 %%  Decode entire telemetry frame (without frame header byte).
 %%  Total length: 219 bytes
 %%
 decode_tm(Telemetry) when is_binary(Telemetry) ->
     <<
-        Time:32/little,
-        EPS:43/binary,
-        He:16/binary,
-        Att1:39/binary,
-        Att2:39/binary,
-        Att3:39/binary,
-        Att4:39/binary
+        Time:32/little,     %% 4 bytes, centi-seconds (1s / 100).
+        EPS:43/binary,      %% EPS
+        He:16/binary,       %% Helium-100
+        Att1:39/binary,     %% Attitude read-1
+        Att2:39/binary,     %% Attitude read-2
+        Att3:39/binary,     %% Attitude read-3
+        Att4:39/binary      %% Attitude read-4
     >> = Telemetry,
+    AttReads = [
+        decode_tm_att(Att1),
+        decode_tm_att(Att2),
+        decode_tm_att(Att3),
+        decode_tm_att(Att4)
+    ],
     #tm{
-        time = Time,
+        time = Time / 100,
         eps = decode_tm_eps(EPS),
         he = decode_tm_he(He),
-        att = [
-            decode_tm_att(Att1),
-            decode_tm_att(Att2),
-            decode_tm_att(Att3),
-            decode_tm_att(Att4)
-        ]
+        att = AttReads
     }.
 
 %%
 %%  Decode attitude data.
+%%  Total length: 39 bytes
 %%
 decode_tm_att(Telemetry) ->
     <<
-        Mag:7/binary,
-        MPU:16/binary,
-        Gyro1:8/binary,
-        Gyro2:8/binary
+        Mag:7/binary,       %% HMC5883L
+        MPU:16/binary,      %% MPU-6000A
+        Gyro1:8/binary,     %% L3GD20
+        Gyro2:8/binary      %% L3GD20
     >> = Telemetry,
     #tm_att{
         mag = decode_tm_mag(Mag),
@@ -333,7 +337,10 @@ decode_tm_att(Telemetry) ->
         gyro_2 = decode_tm_gyro(Gyro2)
     }.
 
-
+%%
+%%  Decode P31U (power unit) data.
+%%  Total length: 43 bytes.
+%%
 decode_tm_eps(Telemetry) ->
     OnOffFun = fun
         (1) -> on;
@@ -410,7 +417,8 @@ decode_tm_eps(Telemetry) ->
     }.
 
 %%
-%%  Decode He-100 TM.
+%%  Decode Helium-100 (transceiver) data.
+%%  Total length: 16 bytes.
 %%
 decode_tm_he(Telemetry) ->
     <<
@@ -435,7 +443,8 @@ decode_tm_he(Telemetry) ->
     }.
 
 %%
-%%  Decode HMC5883L TM.
+%%  Decode HMC5883L (magnetometer) data.
+%%  Total length: 7 bytes.
 %%
 decode_tm_mag(Telemetry) ->
     <<
@@ -444,16 +453,17 @@ decode_tm_mag(Telemetry) ->
         Bz:16/little-signed,
         Bd:8
     >> = Telemetry,
+    BGain = erlang:element(Bd + 1, {0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35}),
     #tm_mag{
-        bx = Bx,
-        by = By,
-        bz = Bz,
-        bd = Bd
+        bx = Bx * BGain,
+        by = By * BGain,
+        bz = Bz * BGain
     }.
 
 
 %%
-%%  Decode MPU-6000A TM.
+%%  Decode MPU-6000A (gyroscope and accelerometer) data.
+%%  Total length: 16 bytes.
 %%
 decode_tm_mpu(Telemetry) ->
     <<
@@ -467,21 +477,22 @@ decode_tm_mpu(Telemetry) ->
         Ad:8,
         Temp:16/little
     >> = Telemetry,
+    GGain = erlang:element(Gd + 1, {0.00763, 0.0153, 0.0305, 0.0610}),
+    AGain = erlang:element(Ad + 1, {0.00060, 0.0012, 0.0024, 0.0048}),
     #tm_mpu{
-        gx = Gx,
-        gy = Gy,
-        gz = Gz,
-        gd = Gd,
-        ax = Ax,
-        ay = Ay,
-        az = Az,
-        ad = Ad,
+        gx = Gx * GGain,
+        gy = Gy * GGain,
+        gz = Gz * GGain,
+        ax = Ax * AGain,
+        ay = Ay * AGain,
+        az = Az * AGain,
         temp = Temp
     }.
 
 
 %%
-%%  Decode L3GD20 TM.
+%%  Decode L3GD20 (gyroscope) data.
+%%  Total length: 8 bytes.
 %%
 decode_tm_gyro(Telemetry) ->
     <<
@@ -491,11 +502,11 @@ decode_tm_gyro(Telemetry) ->
         Wd:8,
         Temp:8
     >> = Telemetry,
+    WGain = erlang:element(Wd + 1, {0.0061, 0.0153, 0.061}),
     #tm_gyro{
-        wx = Wx,
-        wy = Wy,
-        wz = Wz,
-        wd = Wd,
+        wx = Wx * WGain,
+        wy = Wy * WGain,
+        wz = Wz * WGain,
         temp = Temp
     }.
 
