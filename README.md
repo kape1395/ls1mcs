@@ -73,6 +73,13 @@ To send some command via the communication link, run the following in the erlang
 
     ls1mcs_utl_test:load_photo_frames("temp-photo/20130727210211.log", 200, LSRef).
 
+Test using user commands:
+
+    ls1mcs_usr_cmd:issue(#usr_cmd{spec = ping}).
+    ls1mcs_usr_cmd:issue(#usr_cmd{spec = job_period, args = [#usr_cmd_arg{name = jobid, value = <<"0">>}, #usr_cmd_arg{name = interval, value = <<"5">>}]}).
+    ls1mcs_usr_cmd:issue(#usr_cmd{spec = take_photo, args = [#usr_cmd_arg{name = resid, value = <<"0">>}, #usr_cmd_arg{name = delay, value = <<"0">>}]}).
+    ls1mcs_usr_cmd:issue(#usr_cmd{spec = photo_data, args = [#usr_cmd_arg{name = blksz, value = <<"100">>}, #usr_cmd_arg{name = from, value = <<"0">>}, #usr_cmd_arg{name = till, value = <<"10">>}]}).
+
 
 
 Sending tele-commands
