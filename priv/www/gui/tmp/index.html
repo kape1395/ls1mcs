@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>LS1-MCS</title>
+        <meta name="description" content="LS1-MCS">
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/bootstrap.custom.css">
+        <script src="js/vendor/modernizr-2.6.2.min.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+        <![endif]-->
+        <div class="container">
+            <div id="page-header">
+                <div class="pull-right">
+                    <a href="#immediate-commands">LS1-MCS</a> <small>a mission control centre for the LithuanicaSAT-1</small>
+                </div>
+                <div class="clearfix"></div>
+            </div>
+            <div id="pages">
+                <div id="main-tabs" class="tabbable">
+                    <ul class="nav nav-tabs">
+                        <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div id="immediate-commands" class="tab-pane">
+                            <table id="immcmd-send-table" class="table table-hover table-condensed span5 pull-left">
+                                <caption>Available commands</caption>
+                                <thead>
+                                    <th>Name</th>
+                                    <th>Arguments</th>
+                                    <th>Action</th>
+                                </thead>
+                                <tbody>
+                                    <tr id="immcmd__ping">
+                                        <td>ping</td>
+                                        <td>N/A</td>
+                                        <td><a href="#immcmd__ping">Send</a></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table id="immcmd-list-table" class="table table-hover table-condensed span6 pull-right">
+                                <caption>Issued commands</caption>
+                                <thead>
+                                    <th>Id</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="page-footer">
+                LS1-MCS, &copy; Karolis Petrauskas, 2013
+            </div>
+        </div>
+        <script src="js/vendor/jquery-1.8.3.min.js"></script>
+        <script src="js/vendor/bootstrap-2.2.2.min.js"></script>
+        <script src="js/plugins.js"></script>
+        <script src="js/main.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function () {
+                ls1mcs_init();
+            });
+        </script>
+    </body>
+</html>
