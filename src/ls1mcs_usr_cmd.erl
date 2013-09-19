@@ -51,8 +51,9 @@ start_link({M, F, A}) ->
 %%  Call this to issue new user cmd.
 %%
 issue(UsrCmd = #usr_cmd{spec = SpecName}) ->
-    {ok, UsrCmdId} = ls1mcs_store:add_usr_cmd(UsrCmd),
-    UsrCmdWithId = UsrCmd#usr_cmd{id = UsrCmdId},
+    UsrCmdNormalized = UsrCmd#usr_cmd{status = issued},
+    {ok, UsrCmdId} = ls1mcs_store:add_usr_cmd(UsrCmdNormalized),
+    UsrCmdWithId = UsrCmdNormalized#usr_cmd{id = UsrCmdId},
     lager:debug("ls1mcs_usr_cmd: Issuing usr cmd: ~p", [UsrCmdWithId]),
     case lists:keyfind(SpecName, #usr_cmd_spec.name, specs()) of
         Spec = #usr_cmd_spec{impl = {M, F, A}} ->

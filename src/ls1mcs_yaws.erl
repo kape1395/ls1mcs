@@ -14,6 +14,7 @@
 -define(PUB, "pub").
 -define(MCS, "mcs").
 -define(HAM, "ham").
+-define(TMP, "tmp").    % Temporary MCS GUI
 
 
 %% =============================================================================
@@ -48,19 +49,22 @@ handle_request([?APP, ?GUI, ?PUB | Tail] = Path, 'GET', Arg) ->
 handle_request([?APP, ?GUI, ?HAM | Tail] = Path, 'GET', Arg) ->
     serve_index_or_file([?GUI, ?HAM], Tail, Path, Arg);
 
+handle_request([?APP, ?GUI, ?TMP | Tail] = Path, 'GET', Arg) ->
+    serve_index_or_file([?GUI, ?TMP], Tail, Path, Arg);
+
 
 %% -----------------------------------------------------------------------------
 %%  Other paths
 %% -----------------------------------------------------------------------------
 
 handle_request([], 'GET', _Arg) ->
-    redirect_to_base([?APP, ?GUI, ?PUB]);
+    redirect_to_base([?APP, ?GUI, ?TMP]);
 
 handle_request([?APP], 'GET', _Arg) ->
-    redirect_to_base([?APP, ?GUI, ?PUB]);
+    redirect_to_base([?APP, ?GUI, ?TMP]);
 
 handle_request([?APP, ?GUI], 'GET', _Arg) ->
-    redirect_to_base([?APP, ?GUI, ?PUB]);
+    redirect_to_base([?APP, ?GUI, ?TMP]);
 
 handle_request(["favicon.ico" = FileName], 'GET', _Arg) ->
     serve_priv_file(FileName, yaws_api:mime_type(FileName));
