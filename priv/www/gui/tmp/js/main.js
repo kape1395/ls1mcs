@@ -35,6 +35,31 @@ function ls1mcs_immcmds_init() {
             dataType: "json"
         });
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_off']", function () {
+        $.ajax({
+            type: "POST",
+            url: api_url("command/immediate"),
+            data: JSON.stringify({spec: "job_period", args: [
+                {name: "jobid",    value: 0},
+                {name: "interval", value: 0}
+            ]}),
+            success: function () {ls1mcs_immcmds_load();},
+            dataType: "json"
+        });
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_set']", function () {
+        var interval = parseInt($("#immcmd__tmattbr_int").val());
+        $.ajax({
+            type: "POST",
+            url: api_url("command/immediate"),
+            data: JSON.stringify({spec: "job_period", args: [
+                {name: "jobid",    value: 0},
+                {name: "interval", value: interval}
+            ]}),
+            success: function () {ls1mcs_immcmds_load();},
+            dataType: "json"
+        });
+    });
     ls1mcs_immcmds_show();
 }
 
@@ -59,7 +84,7 @@ function ls1mcs_immcmds_load() {
 function ls1mcs_immcmds_render(commands) {
     commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
     var rows = "";
-    for (var i = 0; i < commands.length && i < 17; i++) {
+    for (var i = 0; i < commands.length && i < 13; i++) {
         var c = commands[i];
         rows += "<tr>";
         rows += "<td>" + c.id + "</td>";
