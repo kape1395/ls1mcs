@@ -142,5 +142,25 @@ init({ConnRef, void, _LinkOptions}) ->
     {ok, {{one_for_all, 100, 10}, [
         {void, {VoidMod, start_link, VoidArgs}, permanent, 5000, worker, [VoidMod]},
         {ls1p, {Ls1pMod, start_link, Ls1pArgs}, permanent, 5000, worker, [Ls1pMod]}
+    ]}};
+
+init({ConnRef, file, LinkOptions}) ->
+    DataDir = proplists:get_value(data_dir, LinkOptions),
+
+    FileMod = ls1mcs_tnc_file,
+    Ls1pMod = ?LS1P_MOD,
+
+    FileName = {n, l, FileMod},
+    Ls1pName = ?LS1P_NAME,
+
+    FileRef = ls1mcs_protocol:make_ref(FileMod, FileName),
+    Ls1pRef = ls1mcs_protocol:make_ref(Ls1pMod, Ls1pName),
+
+    FileArgs = [FileName, Ls1pRef, DataDir],
+    Ls1pArgs = [Ls1pName, FileRef, ConnRef],
+
+    {ok, {{one_for_all, 100, 10}, [
+        {file, {FileMod, start_link, FileArgs}, permanent, 5000, worker, [FileMod]},
+        {ls1p, {Ls1pMod, start_link, Ls1pArgs}, permanent, 5000, worker, [Ls1pMod]}
     ]}}.
 
