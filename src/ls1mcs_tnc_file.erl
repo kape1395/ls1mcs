@@ -172,11 +172,12 @@ send_to_file(Data, DataDir, FileIndex) ->
 recv_from_file(Filename, Upper) ->
     lager:info("Reading response from file ~p", [Filename]),
     {ok, HeFrame} = file:read_file(Filename),
-    <<"He", HeCmd:16, HeLen:16, HeHdrCkSum:16, HePayloadWithCkSum/binary>> = HeFrame,
+    <<"He", HeHdrFields:4/binary, HeHdrCkSum:2/binary, HePayloadWithCkSum/binary>> = HeFrame,
+    <<HeCmd:16, HeLen:16>> = HeHdrFields,
     HeCmd = 16#1003,
-    HeHdrCkSum = checksum(<<HeCmd:16, HeLen:16>>),
-    <<HePayload:HeLen/binary, HePayloadCksum>> = HePayloadWithCkSum,
-    HePayloadCksum = checksum(<<HeCmd:16, HeLen:16, HeHdrCkSum:16, HePayload:HeLen/binary>>),
+    HeHdrCkSum = checksum(HeHdrFields),
+    <<HePayload:HeLen/binary, HePayloadCksum/binary>> = HePayloadWithCkSum,
+    HePayloadCksum = checksum(<<HeHdrFields/binary, HeHdrCkSum/binary, HePayload/binary>>),
     ok = ls1mcs_protocol:received(Upper, HePayload).
 
 
