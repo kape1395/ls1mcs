@@ -209,6 +209,17 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<BlkSz:8, From:16/little, Till:16/little>>
                 },
                 exp_dfc = Till - From
+            };
+        eps_ch_status ->
+            Channel = arg_val(channel, Args),
+            Status = arg_val(status, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = eps,
+                    port = ch_status,
+                    ack = true,
+                    data = <<Channel:8, Status:8>>
+                }
             }
     end.
 

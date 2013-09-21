@@ -28,7 +28,7 @@
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},
     {arduino,   photo_data, 16#2},
-    {eps,       command,    16#0},
+    {eps,       ch_status,  16#0},
     {gps,       nmea,       16#0},
     {gps,       binary,     16#1},
     {helium,    command,    16#0},

@@ -451,7 +451,8 @@ decode_atom(Atom) when is_list(Atom) ->
     erlang:list_to_existing_atom(Atom);
 
 decode_atom(Atom) when is_binary(Atom) ->
-    erlang:binary_to_existing_atom(Atom, utf8).
+    %TODO: erlang:binary_to_existing_atom(Atom, utf8).
+    erlang:binary_to_atom(Atom, utf8).
 
 
 %%

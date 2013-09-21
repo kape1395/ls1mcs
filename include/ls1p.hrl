@@ -18,7 +18,7 @@
 %%
 -type ls1p_port_arm()       :: ping | kill | downlink | runtime_tm | job_period | multi.
 -type ls1p_port_arduino()   :: take_photo | photo_meta | photo_data.
--type ls1p_port_eps()       :: command.
+-type ls1p_port_eps()       :: ch_status.
 -type ls1p_port_gps()       :: nmea | binary.
 -type ls1p_port_helium()    :: command.
 -type ls1p_port_ground()    :: ack | data | telemetry.

@@ -42,13 +42,25 @@
                                 <tbody>
                                     <tr>
                                         <td>Ping</td>
-                                        <td>N/A</td>
+                                        <td>&nbsp;</td>
                                         <td><a href="#immcmd__ping">Send</a></td>
                                     </tr>
                                     <tr>
                                         <td>TM broadcast</td>
                                         <td><input id="immcmd__tmattbr_int" style="width:50px" value="10">s</td>
                                         <td><a href="#immcmd__tmattbr_set">Set</a> | <a href="#immcmd__tmattbr_off">Off</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>EPS channel</td>
+                                        <td><select id="immcmd__epsch_channel">
+                                            <option value="0">0 - 5V1 - Antenna depl.</option>
+                                            <option value="1">1 - 5V2 - Helium-100</option>
+                                            <option value="2">2 - 5V3 - Radio repeater</option>
+                                            <option value="3">3 - 3.3V1 - Arduino</option>
+                                            <option value="4">4 - 3.3V2 - ARM</option>
+                                            <option value="5">5 - 3.3V3 - GPS???</option>
+                                        </select></td>
+                                        <td><a href="#immcmd__epsch_on">On</a> | <a href="#immcmd__epsch_off">Off</a></td>
                                     </tr>
                                 </tbody>
                             </table>

@@ -22,43 +22,59 @@ function ls1mcs_pages_show_main() {
 //  Main tabs: "immediate command" tab
 // =============================================================================
 
+function ls1mcs_send_immediate_command(command)
+{
+    $.ajax({
+        type: "POST",
+        url: api_url("command/immediate"),
+        data: JSON.stringify(command),
+        success: function () {ls1mcs_immcmds_load();},
+        dataType: "json"
+    });
+}
 function ls1mcs_immcmds_init() {
     $("html").on("click", "a[href='#immediate-commands']", function () {
         ls1mcs_immcmds_show();
     });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__ping']", function () {
-        $.ajax({
-            type: "POST",
-            url: api_url("command/immediate"),
-            data: JSON.stringify({spec: "ping"}),
-            success: function () {ls1mcs_immcmds_load();},
-            dataType: "json"
-        });
+        ls1mcs_send_immediate_command(
+            {spec: "ping"}
+        );
     });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_off']", function () {
-        $.ajax({
-            type: "POST",
-            url: api_url("command/immediate"),
-            data: JSON.stringify({spec: "job_period", args: [
+        ls1mcs_send_immediate_command(
+            {spec: "job_period", args: [
                 {name: "jobid",    value: 0},
                 {name: "interval", value: 0}
-            ]}),
-            success: function () {ls1mcs_immcmds_load();},
-            dataType: "json"
-        });
+            ]}
+        );
     });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_set']", function () {
         var interval = parseInt($("#immcmd__tmattbr_int").val());
-        $.ajax({
-            type: "POST",
-            url: api_url("command/immediate"),
-            data: JSON.stringify({spec: "job_period", args: [
+        ls1mcs_send_immediate_command(
+            {spec: "job_period", args: [
                 {name: "jobid",    value: 0},
                 {name: "interval", value: interval}
-            ]}),
-            success: function () {ls1mcs_immcmds_load();},
-            dataType: "json"
-        });
+            ]}
+        );
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__epsch_on']", function () {
+        var channel = parseInt($("#immcmd__epsch_channel").val());
+        ls1mcs_send_immediate_command(
+            {spec: "eps_ch_status", args: [
+                {name: "channel",   value: channel},
+                {name: "status",    value: 1}
+            ]}
+        );
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__epsch_off']", function () {
+        var channel = parseInt($("#immcmd__epsch_channel").val());
+        ls1mcs_send_immediate_command(
+            {spec: "eps_ch_status", args: [
+                {name: "channel",   value: channel},
+                {name: "status",    value: 0}
+            ]}
+        );
     });
     ls1mcs_immcmds_show();
 }
