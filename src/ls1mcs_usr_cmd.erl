@@ -104,6 +104,14 @@ groups() ->
 %%
 specs() ->
     Simple = {ls1mcs_usr_cmd_simple, start_link, []},
+    EpsChannels = [
+        #usr_cmd_opts{desc = <<"0 - 5V1 - Antenna deploym.">>,      value = 0},
+        #usr_cmd_opts{desc = <<"1 - 5V2 - Helium-100 TX">>,         value = 1},
+        #usr_cmd_opts{desc = <<"2 - 5V3 - FM repeater">>,           value = 2},
+        #usr_cmd_opts{desc = <<"3 - 3.3V1 - Arduino">>,             value = 3},
+        #usr_cmd_opts{desc = <<"4 - 3.3V2 - ARM">>,                 value = 4},
+        #usr_cmd_opts{desc = <<"5 - 3.3V3 - Beacon (Beeline)">>,    value = 5}
+    ],
     [
         %%
         %%  ARM commands
@@ -163,21 +171,19 @@ specs() ->
         },
 
         %%
-        %%  EPS Commands
+        %%  EPS-related commands
         %%
         #usr_cmd_spec{group = eps, name = eps_ch_status, desc = <<"Set EPS channel status">>, impl = Simple, params = [
-            #usr_cmd_param{name = resid, type = integer, desc = <<"Channel">>, opts = [
-                #usr_cmd_opts{desc = <<"0 - 5V1 - Antenna deployment">>,    value = 0},
-                #usr_cmd_opts{desc = <<"1 - 5V2 - Helium-100 TX">>,         value = 1},
-                #usr_cmd_opts{desc = <<"2 - 5V3 - Radio repeater">>,        value = 2},
-                #usr_cmd_opts{desc = <<"3 - 3.3V1 - Arduino">>,             value = 3},
-                #usr_cmd_opts{desc = <<"4 - 3.3V2 - ARM">>,                 value = 4},
-                #usr_cmd_opts{desc = <<"5 - 3.3V3 - Beacon (Beeline)">>,    value = 5}
-            ]},
-            #usr_cmd_param{name = delay, type = integer, desc = <<"Status">>, opts = [
+            #usr_cmd_param{name = channel, type = integer, desc = <<"Channel">>, opts = EpsChannels},
+            #usr_cmd_param{name = status, type = integer, desc = <<"Status">>, opts = [
                 #usr_cmd_opts{desc = <<"On">>, value = 1},
                 #usr_cmd_opts{desc = <<"Off">>, value = 0}
             ]}
+        ]},
+        #usr_cmd_spec{group = eps, name = eps_ch_onoff, desc = <<"Set EPS channel status">>, impl = Simple, params = [
+            #usr_cmd_param{name = channel,  type = integer, desc = <<"Channel">>, opts = EpsChannels},
+            #usr_cmd_param{name = delay,    type = integer, desc = <<"Start delay">>},
+            #usr_cmd_param{name = duration, type = integer, desc = <<"Duration">>}
         ]},
 
         %%

@@ -32,6 +32,7 @@
                     </ul>
                     <div class="tab-content">
                         <div id="immediate-commands" class="tab-pane">
+                          <form><fieldset>
                             <table id="immcmd-send-table" class="table table-hover table-condensed span5 pull-left">
                                 <caption>Available commands</caption>
                                 <thead>
@@ -47,20 +48,28 @@
                                     </tr>
                                     <tr>
                                         <td>TM broadcast</td>
-                                        <td><input id="immcmd__tmattbr_int" style="width:50px" value="10">s</td>
+                                        <td>every <input id="immcmd__tmattbr_int" type="text" style="width:50px" value="10">s</td>
                                         <td><a href="#immcmd__tmattbr_set">Set</a> | <a href="#immcmd__tmattbr_off">Off</a></td>
                                     </tr>
                                     <tr>
                                         <td>EPS channel</td>
                                         <td><select id="immcmd__epsch_channel">
-                                            <option value="0">0 - 5V1 - Antenna deployment</option>
+                                            <option value="0">0 - 5V1 - Antenna deploym.</option>
                                             <option value="1">1 - 5V2 - Helium-100 TX</option>
-                                            <option value="2">2 - 5V3 - Radio repeater</option>
+                                            <option value="2">2 - 5V3 - FM repeater</option>
                                             <option value="3">3 - 3.3V1 - Arduino</option>
                                             <option value="4">4 - 3.3V2 - ARM</option>
                                             <option value="5">5 - 3.3V3 - Beacon (Beeline)</option>
                                         </select></td>
                                         <td><a href="#immcmd__epsch_on">On</a> | <a href="#immcmd__epsch_off">Off</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>FM repeater</td>
+                                        <td>
+                                            On after <input id="immcmd__fmrep_delay" type="text" style="width:50px" value="10">min for
+                                            <input id="immcmd__fmrep_duration" type="text" style="width:50px" value="10">min
+                                        </td>
+                                        <td><a href="#immcmd__fmrep_onoff">Send</a></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -73,6 +82,7 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
+                          </fieldset></form>
                         </div>
                     </div>
                 </div>
