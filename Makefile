@@ -29,6 +29,7 @@ clean:
 	$(REBAR) clean apps=$(APP)
 	rm -f itest/*.beam
 	rm -f doc/*.html doc/edoc-info
+	rm -rf rel/ls1mcs
 
 clean-all:
 	$(REBAR) clean
