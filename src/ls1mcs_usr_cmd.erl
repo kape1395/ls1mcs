@@ -108,9 +108,8 @@ specs() ->
         #usr_cmd_opts{desc = <<"0 - 5V1 - Antenna deploym.">>,      value = 0},
         #usr_cmd_opts{desc = <<"1 - 5V2 - Helium-100 TX">>,         value = 1},
         #usr_cmd_opts{desc = <<"2 - 5V3 - FM repeater">>,           value = 2},
-        #usr_cmd_opts{desc = <<"3 - 3.3V1 - Arduino">>,             value = 3},
-        #usr_cmd_opts{desc = <<"4 - 3.3V2 - ARM">>,                 value = 4},
-        #usr_cmd_opts{desc = <<"5 - 3.3V3 - Beacon (Beeline)">>,    value = 5}
+        #usr_cmd_opts{desc = <<"3 - 3.3V1 - Arduino + Beacon">>,    value = 3},
+        #usr_cmd_opts{desc = <<"4 - 3.3V2 - ARM">>,                 value = 4}
     ],
     [
         %%
