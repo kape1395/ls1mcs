@@ -230,7 +230,7 @@ add_ls1p_frame(Frame = #ls1p_cmd_frame{cref = {Epoch, CRef}}, Bytes, Timestamp) 
             bytes = Bytes,
             sent_time = Timestamp
         }),
-        ok
+        {ok, Frame}
     end,
     mnesia:activity(transaction, Activity);
 
@@ -243,7 +243,7 @@ add_ls1p_frame(Frame = #ls1p_ack_frame{cref = {Epoch, CRef}}, Bytes, Timestamp) 
             bytes = Bytes,
             recv_time = Timestamp
         }),
-        ok
+        {ok, Frame#ls1p_ack_frame{cref = ResolvedCRef}}
     end,
     mnesia:activity(transaction, Activity);
 
@@ -256,7 +256,7 @@ add_ls1p_frame(Frame = #ls1p_data_frame{cref = {Epoch, CRef}}, Bytes, Timestamp)
             bytes = Bytes,
             recv_time = Timestamp
         }),
-        ok
+        {ok, Frame#ls1p_data_frame{cref = ResolvedCRef}}
     end,
     mnesia:activity(transaction, Activity);
 
@@ -270,7 +270,7 @@ add_ls1p_frame(Frame = #ls1p_tm_frame{}, Bytes, Timestamp) ->
             recv_time = Timestamp,
             source = gs
         }),
-        ok
+        {ok, Frame}
     end,
     mnesia:activity(transaction, Activity).
 

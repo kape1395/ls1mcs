@@ -100,7 +100,7 @@ handle_call(_Message, _From, State) ->
 %%
 handle_cast({send, Frame}, State = #state{lower = Lower}) ->
     {ok, DataBin} = encode(Frame),
-    ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
+    {ok, _FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
@@ -110,8 +110,8 @@ handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
             lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
         {ok, Frame} ->
             lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
-            ok = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
-            ok = ls1mcs_protocol:received(Upper, Frame)
+            {ok, FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
+            ok = ls1mcs_protocol:received(Upper, FrameWithCRef)
     catch
         ErrType:ErrCode ->
             lager:debug(
