@@ -1,5 +1,7 @@
 REBAR=rebar
 APP=ls1mcs
+ENV=mcs
+COMPILE_ENV=LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations"
 
 all: compile-all
 
@@ -7,10 +9,10 @@ deps:
 	$(REBAR) get-deps
 
 compile:
-	env LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations" $(REBAR) compile apps=ls1mcs
+	env $(COMPILE_ENV) $(REBAR) compile apps=$(APP)
 
 compile-all:
-	env LDFLAGS=-lutil CFLAGS="-include string.h -Wno-deprecated-declarations" $(REBAR) compile
+	env $(COMPILE_ENV) $(REBAR) compile
 
 check: test itest
 
@@ -33,8 +35,14 @@ clean-all:
 	rm -f itest/*.beam
 	rm -f doc/*.html doc/edoc-info
 
-kateproject:
-	echo "{ \"name\": \"${APP}\", \"files\": [ { \"git\": 1 } ] }" > .kateproject
+clean-deps:
+	rm -rf deps
 
-.PHONY: all deps compile compile-all check test itest doc clean clean-all
+release-fresh: clean clean-deps deps compile-all release
+
+release:
+	cd rel && rm -rf $(APP) && $(REBAR) generate overlay_vars=vars/$(ENV).config
+
+
+.PHONY: all deps compile compile-all check test itest doc clean clean-all clean-deps release-fresh release
 
