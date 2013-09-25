@@ -28,7 +28,7 @@ out(Arg) ->
     Uri = yaws_api:request_url(Arg),
     Path = string:tokens(Uri#url.path, "/"),
     Method = yaws_api:http_request_method(Arg#arg.req),
-    lager:info("Handling request: path=~p, method=~p", [Path, Method]),
+    lager:debug("Handling request: path=~p, method=~p", [Path, Method]),
     handle_request(Path, Method, Arg).
 
 
