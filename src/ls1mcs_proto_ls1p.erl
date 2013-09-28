@@ -325,16 +325,18 @@ decode_tm(Telemetry) when is_binary(Telemetry) ->
 %%
 decode_tm_att(Telemetry) ->
     <<
-        Mag:7/binary,       %% HMC5883L
-        MPU:16/binary,      %% MPU-6000A
-        Gyro1:8/binary,     %% L3GD20
-        Gyro2:8/binary      %% L3GD20
+        HMC5883L:7/binary,
+        MPU6000A:16/binary,
+        MPU9150A:??/binary,
+        L3GD20:8/binary,
+        AK8975:8/binary
     >> = Telemetry,
     #tm_att{
-        mag = decode_tm_mag(Mag),
-        mpu = decode_tm_mpu(MPU),
-        gyro_1 = decode_tm_gyro(Gyro1),
-        gyro_2 = decode_tm_gyro(Gyro2)
+        sensor_HMC5883L = decode_tm_mag(HMC5883L),
+        sensor_MPU6000A = decode_tm_mpu(MPU6000A),
+        sensor_MPU9150A = decode_tm_mpu(MPU9150A),
+        sensor_L3GD20   = decode_tm_mag(L3GD20),
+        sensor_AK8975   = decode_tm_gyro(AK8975)
     }.
 
 %%
@@ -465,7 +467,7 @@ decode_tm_mag(Telemetry) ->
 %%  Decode MPU-6000A (gyroscope and accelerometer) data.
 %%  Total length: 16 bytes.
 %%
-decode_tm_mpu(Telemetry) ->
+decode_tm_MPU6000A(Telemetry) ->
     <<
         Gx:16/little-signed,
         Gy:16/little-signed,
@@ -489,6 +491,29 @@ decode_tm_mpu(Telemetry) ->
         temp = Temp
     }.
 
+%%
+%%  Decode MPU-9150A (
+%%
+%%
+decode_tm_MPU9150A(Telemetry) ->
+    <<
+        Gx:16/little-signed,
+        Gy:16/little-signed,
+        Gz:16/little-signed,
+        Gd:8,
+        Ax:16/little-signed,
+        Ay:16/little-signed,
+        Az:16/little-signed,
+        Ad:8,
+    >> = Telemetry,
+    #tm_MPU9150A{
+        gx = Gx * GGain,
+        gy = Gy * GGain,
+        gz = Gz * GGain,
+        ax = Ax * AGain,
+        ay = Ay * AGain,
+        az = Az * AGain,
+    }.
 
 %%
 %%  Decode L3GD20 (gyroscope) data.
