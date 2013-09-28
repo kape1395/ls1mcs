@@ -1,6 +1,7 @@
 
 function ls1mcs_init() {
     ls1mcs_immcmds_init();
+    ls1mcs_telemetry_init();
 }
 
 function api_url(resource) {
@@ -109,12 +110,6 @@ function ls1mcs_immcmds_init() {
     ls1mcs_immcmds_show();
 }
 
-
-// -----------------------------------------------------------------------------
-//  Model: list
-//
-
-
 function ls1mcs_immcmds_show() {
     ls1mcs_immcmds_load();
     ls1mcs_pages_show_main();
@@ -142,4 +137,26 @@ function ls1mcs_immcmds_render(commands) {
 }
 
 
+// =============================================================================
+//  Main tabs: "telemetry" tab
+// =============================================================================
 
+function ls1mcs_telemetry_init() {
+    $("html").on("click", "a[href='#telemetry-refresh']", function () {
+        ls1mcs_telemetry_load();
+    });
+}
+function ls1mcs_telemetry_show() {
+    ls1mcs_pages_show_main();
+    $("#main-tabs > ul > li > a[href = '#telemetry']").tab('show');
+}
+
+function ls1mcs_telemetry_load() {
+    $.getJSON(api_url("telemetry/gs/latest"), function (data, textStatus, jqXHR) {
+        ls1mcs_telemetry_render(data);
+    });
+}
+
+function ls1mcs_telemetry_render(telemetry) {
+    $("#telemetry-data-latest").html(JSON.stringify(telemetry, undefined, 4));
+}

@@ -183,6 +183,9 @@ encode(#ls1p_data_frame{
 %%  Telemetry
 %% -----------------------------------------------------------------------------
 
+encode(undefined) ->
+    null;
+
 encode({telemetry}) ->
     {[
         links([
