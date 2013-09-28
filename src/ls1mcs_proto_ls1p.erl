@@ -385,14 +385,14 @@ decode_tm_eps(Telemetry) ->
         Bootcount:16/little,
         SwErrors:16/little,
         PPTMode:8,
-        ChannelStatusQH:1,
-        ChannelStatusQS:1,
-        ChannelStatus33V3:1,
-        ChannelStatus33V2:1,
-        ChannelStatus33V1:1,
-        ChannelStatus50V3:1,
+        ChannelStatus50V1:1,
         ChannelStatus50V2:1,
-        ChannelStatus50V1:1
+        ChannelStatus50V3:1,
+        ChannelStatus33V1:1,
+        ChannelStatus33V2:1,
+        ChannelStatus33V3:1,
+        ChannelStatusQS:1,
+        ChannelStatusQH:1
     >> = Telemetry,
     #tm_eps{
         pv_1 = PV1,
