@@ -157,36 +157,34 @@
 }).
 
 %%
-%%  HMC5883L (magnetometer) data.
+%%  Magnetometer data.
 %%
 -record(tm_mag, {
-    bx      :: float(),
-    by      :: float(),
-    bz      :: float()
+    x       :: float(),
+    y       :: float(),
+    z       :: float()
+}).
+
+
+%%
+%%  Accelerometer data.
+%%
+-record(tm_accel, {
+    x       :: float(),
+    y       :: float(),
+    z       :: float()
 }).
 
 %%
-%%  MPU-6000A (gyroscope and accelerometer) data.
-%%
--record(tm_mpu, {
-    gx      :: float(),
-    gy      :: float(),
-    gz      :: float(),
-    ax      :: float(),
-    ay      :: float(),
-    az      :: float(),
-    temp    :: integer()
-}).
-
-%%
-%%  L3GD20 (gyroscope) data.
+%%  Gyroscope data.
 %%
 -record(tm_gyro, {
-    wx      :: float(),
-    wy      :: float(),
-    wz      :: float(),
-    temp    :: integer()
+    x       :: float(),
+    y       :: float(),
+    z       :: float(),
+    temp    :: float()
 }).
+
 
 %%
 %%  P31U (power unit) data.
@@ -228,10 +226,13 @@
 %%  Attitude data.
 %%
 -record(tm_att, {
-    mag     :: #tm_mag{},
-    mpu     :: #tm_mpu{},
-    gyro_1  :: #tm_gyro{},
-    gyro_2  :: #tm_gyro{}
+    s_HMC5883L_mag   :: #tm_mag{},
+    s_MPU6000A_accel :: #tm_accel{},
+    s_MPU6000A_gyro  :: #tm_gyro{},
+    s_MPU9150A_accel :: #tm_accel{},
+    s_MPU9150A_gyro  :: #tm_gyro{},
+    s_AK8975_mag     :: #tm_mag{},
+    s_L3GD20_gyro    :: #tm_gyro{}
 }).
 
 %%

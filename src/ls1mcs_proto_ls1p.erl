@@ -294,49 +294,58 @@ decode_bool(1) -> true.
 
 %%
 %%  Decode entire telemetry frame (without frame header byte).
-%%  Total length: 219 bytes
+%%  Total length: 228 bytes
 %%
-decode_tm(Telemetry) when is_binary(Telemetry) ->
+decode_tm(Telemetry) when is_binary(Telemetry), size(Telemetry) =:= 228 ->
     <<
-        Time:32/little,     %% 4 bytes, centi-seconds (1s / 100).
-        EPS:43/binary,      %% EPS
-        He:16/binary,       %% Helium-100
-        Att1:39/binary,     %% Attitude read-1
-        Att2:39/binary,     %% Attitude read-2
-        Att3:39/binary,     %% Attitude read-3
-        Att4:39/binary      %% Attitude read-4
+        Time:(4*8)/little,  %% 4 bytes, centi-seconds (1s / 100).
+        Hk:59/binary,       %% Housekeeping data
+        Att1:55/binary,     %% Attitude read-1
+        Att2:55/binary,     %% Attitude read-2
+        Att3:55/binary      %% Attitude read-3
     >> = Telemetry,
-    AttReads = [
-        decode_tm_att(Att1),
-        decode_tm_att(Att2),
-        decode_tm_att(Att3),
-        decode_tm_att(Att4)
-    ],
+    <<
+        EPS:43/binary,      %% EPS
+        He:16/binary        %% Helium-100
+    >> = Hk,
     #tm{
         time = Time / 100,
         eps = decode_tm_eps(EPS),
         he = decode_tm_he(He),
-        att = AttReads
-    }.
+        att = [
+            decode_tm_att(Att1),
+            decode_tm_att(Att2),
+            decode_tm_att(Att3)
+        ]
+    };
+
+decode_tm(Telemetry) ->
+    lager:warning("Unknown TM structure, bytes: ~p", [Telemetry]),
+    #tm{}.
+
 
 %%
 %%  Decode attitude data.
-%%  Total length: 39 bytes
+%%  Total length: 55 bytes
 %%
 decode_tm_att(Telemetry) ->
     <<
-        HMC5883L:7/binary,
-        MPU6000A:16/binary,
-        MPU9150A:??/binary,
-        L3GD20:8/binary,
-        AK8975:8/binary
+        HMC5883L_mag:7/binary,      %% inc/Sensors.h: mag_report
+        MPU6000A_accel:7/binary,    %% inc/Sensors.h: accel_report
+        MPU6000A_gyro:9/binary,     %% inc/Sensors.h: gyro_report
+        MPU9150A_accel:7/binary,    %% inc/Sensors.h: accel_report
+        MPU9150A_gyro:9/binary,     %% inc/Sensors.h: gyro_report
+        AK8975_mag:7/binary,        %% inc/Sensors.h: mag_report
+        L3GD20_gyro:9/binary        %% inc/Sensors.h: gyro_report
     >> = Telemetry,
     #tm_att{
-        sensor_HMC5883L = decode_tm_mag(HMC5883L),
-        sensor_MPU6000A = decode_tm_mpu(MPU6000A),
-        sensor_MPU9150A = decode_tm_mpu(MPU9150A),
-        sensor_L3GD20   = decode_tm_mag(L3GD20),
-        sensor_AK8975   = decode_tm_gyro(AK8975)
+        s_HMC5883L_mag   = decode_tm_mag  (HMC5883L_mag,   'HMC5883L'),
+        s_MPU6000A_accel = decode_tm_accel(MPU6000A_accel, 'MPU6000A'),
+        s_MPU6000A_gyro  = decode_tm_gyro (MPU6000A_gyro,  'MPU6000A'),
+        s_MPU9150A_accel = decode_tm_accel(MPU9150A_accel, 'MPU9150A'),
+        s_MPU9150A_gyro  = decode_tm_gyro (MPU9150A_gyro,  'MPU9150A'),
+        s_AK8975_mag     = decode_tm_mag  (AK8975_mag,     'AK8975'),
+        s_L3GD20_gyro    = decode_tm_gyro (L3GD20_gyro,    'L3GD20')
     }.
 
 %%
@@ -445,93 +454,69 @@ decode_tm_he(Telemetry) ->
     }.
 
 %%
-%%  Decode HMC5883L (magnetometer) data.
+%%  Decode magnetometer data.
 %%  Total length: 7 bytes.
 %%
-decode_tm_mag(Telemetry) ->
+decode_tm_mag(Telemetry, Sensor) ->
     <<
-        Bx:16/little-signed,
-        By:16/little-signed,
-        Bz:16/little-signed,
-        Bd:8
+        X:16/little-signed,
+        Y:16/little-signed,
+        Z:16/little-signed,
+        Gain:8
     >> = Telemetry,
-    BGain = erlang:element(Bd + 1, {0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35}),
+    Coef = case Sensor of
+        'HMC5883L' -> 1.0;
+        'AK8975'   -> 1.0
+    end,
     #tm_mag{
-        bx = Bx * BGain,
-        by = By * BGain,
-        bz = Bz * BGain
+        x = X * Coef,
+        y = Y * Coef,
+        z = Z * Coef
     }.
 
 
 %%
-%%  Decode MPU-6000A (gyroscope and accelerometer) data.
-%%  Total length: 16 bytes.
+%%  Decode accelerometer data.
+%%  Total length: 7 bytes.
 %%
-decode_tm_MPU6000A(Telemetry) ->
+decode_tm_accel(Telemetry, Sensor) ->
     <<
-        Gx:16/little-signed,
-        Gy:16/little-signed,
-        Gz:16/little-signed,
-        Gd:8,
-        Ax:16/little-signed,
-        Ay:16/little-signed,
-        Az:16/little-signed,
-        Ad:8,
-        Temp:16/little
+        X:16/little-signed,
+        Y:16/little-signed,
+        Z:16/little-signed,
+        Gain:8
     >> = Telemetry,
-    GGain = erlang:element(Gd + 1, {0.00763, 0.0153, 0.0305, 0.0610}),
-    AGain = erlang:element(Ad + 1, {0.00060, 0.0012, 0.0024, 0.0048}),
-    #tm_mpu{
-        gx = Gx * GGain,
-        gy = Gy * GGain,
-        gz = Gz * GGain,
-        ax = Ax * AGain,
-        ay = Ay * AGain,
-        az = Az * AGain,
-        temp = Temp
+    Coef = case Sensor of
+        'MPU6000A' -> 1.0;
+        'MPU9150A' -> 1.0
+    end,
+    #tm_accel{
+        x = X * Coef,
+        y = Y * Coef,
+        z = Z * Coef
     }.
 
 %%
-%%  Decode MPU-9150A (
+%%  Gyroscope and temperature data.
+%%  Total length: 9 bytes.
 %%
-%%
-decode_tm_MPU9150A(Telemetry) ->
+decode_tm_gyro(Telemetry, Sensor) ->
     <<
-        Gx:16/little-signed,
-        Gy:16/little-signed,
-        Gz:16/little-signed,
-        Gd:8,
-        Ax:16/little-signed,
-        Ay:16/little-signed,
-        Az:16/little-signed,
-        Ad:8,
+        X:16/little-signed,
+        Y:16/little-signed,
+        Z:16/little-signed,
+        Temp:16/little-signed,
+        Gain:8
     >> = Telemetry,
-    #tm_MPU9150A{
-        gx = Gx * GGain,
-        gy = Gy * GGain,
-        gz = Gz * GGain,
-        ax = Ax * AGain,
-        ay = Ay * AGain,
-        az = Az * AGain,
-    }.
-
-%%
-%%  Decode L3GD20 (gyroscope) data.
-%%  Total length: 8 bytes.
-%%
-decode_tm_gyro(Telemetry) ->
-    <<
-        Wx:16/little-signed,
-        Wy:16/little-signed,
-        Wz:16/little-signed,
-        Wd:8,
-        Temp:8
-    >> = Telemetry,
-    WGain = erlang:element(Wd + 1, {0.0061, 0.0153, 0.061}),
+    Coef = case Sensor of
+        'MPU6000A' -> 1.0;
+        'MPU9150A' -> 1.0;
+        'L3GD20'   -> 1.0
+    end,
     #tm_gyro{
-        wx = Wx * WGain,
-        wy = Wy * WGain,
-        wz = Wz * WGain,
+        x = X * Coef,
+        y = Y * Coef,
+        z = Z * Coef,
         temp = Temp
     }.
 

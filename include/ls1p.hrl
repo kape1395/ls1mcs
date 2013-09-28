@@ -1,7 +1,7 @@
 -ifndef(LS1P_HRL).
 -define(LS1P_HRL, 1).
 
--define(GROUND_ADDR, 2#111).
+-define(GROUND_ADDR,    2#111).   % 10#7
 -define(GROUND_PORT_ACK,  16#0).
 -define(GROUND_PORT_DATA, 16#1).
 -define(GROUND_PORT_TM,   16#2).

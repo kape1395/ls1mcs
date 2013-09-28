@@ -213,12 +213,23 @@ encode(#ls1p_tm_frame{id = Id, recv = Recv, data = Data}) ->
         }
     ]};
 
-encode(#tm_att{mag = Mag, mpu = MPU, gyro_1 = Gyro1, gyro_2 = Gyro2}) ->
+encode(#tm_att{
+        s_HMC5883L_mag   = HMC5883L_mag,
+        s_MPU6000A_accel = MPU6000A_accel,
+        s_MPU6000A_gyro  = MPU6000A_gyro,
+        s_MPU9150A_accel = MPU9150A_accel,
+        s_MPU9150A_gyro  = MPU9150A_gyro,
+        s_AK8975_mag     = AK8975_mag,
+        s_L3GD20_gyro    = L3GD20_gyro
+    }) ->
     {[
-        {mag, encode(Mag)},
-        {mpu, encode(MPU)},
-        {gyro_1, encode(Gyro1)},
-        {gyro_2, encode(Gyro2)}
+        {'HMC5883L_mag',    encode(HMC5883L_mag)},
+        {'MPU6000A_accel',  encode(MPU6000A_accel)},
+        {'MPU6000A_gyro',   encode(MPU6000A_gyro)},
+        {'MPU9150A_accel',  encode(MPU9150A_accel)},
+        {'MPU9150A_gyro',   encode(MPU9150A_gyro)},
+        {'AK8975_mag',      encode(AK8975_mag)},
+        {'L3GD20_gyro',     encode(L3GD20_gyro)}
     ]};
 
 encode(TmEps) when is_record(TmEps, tm_eps) ->
@@ -309,32 +320,27 @@ encode(TmHe) when is_record(TmHe, tm_he) ->
         {bytes_transmitted, BytesTransmitted}
     ]};
 
-encode(#tm_mag{bx = Bx, by = By, bz = Bz}) ->
+encode(#tm_mag{x = X, y = Y, z = Z}) ->
     {[
-        {bx, Bx},
-        {by, By},
-        {bz, Bz}
+        {x, X},
+        {y, Y},
+        {z, Z}
     ]};
 
-encode(#tm_mpu{gx = Gx, gy = Gy, gz = Gz, ax = Ax, ay = Ay, az = Az, temp = Temp}) ->
+encode(#tm_accel{x = X, y = Y, z = Z}) ->
     {[
-        {gx, Gx},
-        {gy, Gy},
-        {gz, Gz},
-        {ax, Ax},
-        {ay, Ay},
-        {az, Az},
-        {temp, Temp}
+        {x, X},
+        {y, Y},
+        {z, Z}
     ]};
 
-encode(#tm_gyro{wx = Wx, wy = Wy, wz = Wz, temp = Temp}) ->
+encode(#tm_gyro{x = X, y = Y, z = Z, temp = Temp}) ->
     {[
-        {wx, Wx},
-        {wy, Wy},
-        {wz, Wz},
+        {x, X},
+        {y, Y},
+        {z, Z},
         {temp, Temp}
     ]}.
-
 
 %%
 %%
