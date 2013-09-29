@@ -106,6 +106,12 @@ function ls1mcs_immcmds_init() {
             {spec: "dlnk_photo"}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_on']", function () {
+        ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 1}]});
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_off']", function () {
+        ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 0}]});
+    });
 
     ls1mcs_immcmds_show();
 }

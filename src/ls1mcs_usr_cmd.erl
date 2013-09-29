@@ -169,6 +169,12 @@ specs() ->
             impl = {ls1mcs_usr_cmd_photo, start_link, []},
             params = []
         },
+        #usr_cmd_spec{group = arduino, name = beacon_st, desc = <<"Beacon">>, impl = Simple, params = [
+            #usr_cmd_param{name = state, type = integer, desc = <<"New state">>, opts = [
+                #usr_cmd_opts{desc = <<"On">>, value = 1},
+                #usr_cmd_opts{desc = <<"Off">>, value = 0}
+            ]}
+        ]},
 
         %%
         %%  EPS-related commands

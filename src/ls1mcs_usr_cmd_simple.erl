@@ -210,6 +210,16 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                 },
                 exp_dfc = Till - From
             };
+        beacon_st ->
+            Status = arg_val(status, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arduino,
+                    port = beacon_st,
+                    ack = true,
+                    data = <<Status:8>>
+                }
+            };
         eps_ch_status ->
             Channel = arg_val(channel, Args),
             Status = arg_val(status, Args),
