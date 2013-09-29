@@ -112,6 +112,10 @@ function ls1mcs_immcmds_init() {
     $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_off']", function () {
         ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 0}]});
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__rttm_get']", function () {
+        ls1mcs_send_immediate_command({spec: "runtime_tm"});
+    });
+
 
     ls1mcs_immcmds_show();
 }
