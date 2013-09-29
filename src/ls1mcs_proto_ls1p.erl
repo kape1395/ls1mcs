@@ -295,24 +295,19 @@ decode_bool(1) -> true.
 
 %%
 %%  Decode entire telemetry frame (without frame header byte).
-%%  Total length: 228 bytes
+%%  Total length: 229 bytes
 %%
-decode_tm(Telemetry) when is_binary(Telemetry), size(Telemetry) =:= 228 ->
+decode_tm(Telemetry) when is_binary(Telemetry), size(Telemetry) =:= 229 ->
     <<
         Time:(4*8)/little,  %% 4 bytes, centi-seconds (1s / 100).
-        Hk:59/binary,       %% Housekeeping data
+        Hk:60/binary,       %% Housekeeping data
         Att1:55/binary,     %% Attitude read-1
         Att2:55/binary,     %% Attitude read-2
         Att3:55/binary      %% Attitude read-3
     >> = Telemetry,
-    <<
-        EPS:43/binary,      %% EPS
-        He:16/binary        %% Helium-100
-    >> = Hk,
     #tm{
         time = Time / 100,
-        eps = decode_tm_eps(EPS),
-        he = decode_tm_he(He),
+        hk = decode_tm_hk(Hk),
         att = [
             decode_tm_att(Att1),
             decode_tm_att(Att2),
@@ -323,6 +318,36 @@ decode_tm(Telemetry) when is_binary(Telemetry), size(Telemetry) =:= 228 ->
 decode_tm(Telemetry) ->
     lager:warning("Unknown TM structure, bytes: ~p", [Telemetry]),
     #tm{}.
+
+
+%%
+%%  Decode housekeeping data.
+%%  Total length: 60 bytes
+%%
+decode_tm_hk(Telemetry) ->
+    <<
+        PwrMode:4,          %% Power management mode
+        SatMode:4,          %% Sat mode
+        EPS:43/binary,      %% EPS
+        He:16/binary        %% Helium-100
+    >> = Telemetry,
+    PwrModeFun = fun
+        (0) -> safe;
+        (1) -> nominal;
+        (_) -> unknown
+    end,
+    SatModeFun = fun
+        (0) -> idle;
+        (1) -> nominal;
+        (2) -> science;
+        (_) -> unknown
+    end,
+    #tm_hk{
+        pwr_mode = PwrModeFun(PwrMode),
+        sat_mode = SatModeFun(SatMode),
+        eps = decode_tm_eps(EPS),
+        he = decode_tm_he(He)
+    }.
 
 
 %%

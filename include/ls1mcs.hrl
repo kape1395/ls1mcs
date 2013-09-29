@@ -222,6 +222,17 @@
     channel_status_33V3 :: boolean()
 }).
 
+
+%%
+%%  Housekeeping data.
+%%
+-record(tm_hk, {
+    pwr_mode    :: integer(),
+    sat_mode    :: integer(),
+    eps         :: #tm_eps{},
+    he          :: #tm_he{}
+}).
+
 %%
 %%  Attitude data.
 %%
@@ -240,8 +251,7 @@
 %%
 -record(tm, {
     time    :: float(),     %% SAT time.
-    eps     :: #tm_eps{},
-    he      :: #tm_he{},
+    hk      :: #tm_hk{},
     att     :: [#tm_att{}]
 }).
 

@@ -198,7 +198,7 @@ encode({telemetry}) ->
     ]};
 
 encode(#ls1p_tm_frame{id = Id, recv = Recv, data = Data}) ->
-    #tm{time = Time, eps = EPS, he = He, att = Att} = ls1mcs_proto_ls1p:decode_tm(Data),
+    #tm{time = Time, hk = Hk, att = Att} = ls1mcs_proto_ls1p:decode_tm(Data),
     {[
         links([
             link(self, url(["telemetry", Id]))
@@ -206,14 +206,26 @@ encode(#ls1p_tm_frame{id = Id, recv = Recv, data = Data}) ->
         {id, Id},
         {recv, encode_tstamp(Recv)},
         {time, Time},
-        {eps, encode(EPS)},
-        {he, encode(He)},
+        {hk, encode(Hk)},
         {att,
             case is_list(Att) of
                 true -> encode_list(Att);
                 false -> encode(Att)
             end
         }
+    ]};
+
+encode(#tm_hk{
+        pwr_mode = PwrMode,
+        sat_mode = SatMode,
+        eps = EPS,
+        he = He
+    }) ->
+    {[
+        {pwr_mode, PwrMode},
+        {sat_mode, SatMode},
+        {eps, encode(EPS)},
+        {he, encode(He)}
     ]};
 
 encode(#tm_att{

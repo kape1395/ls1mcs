@@ -124,11 +124,8 @@ specs() ->
         #usr_cmd_spec{group = arm, name = downlink, desc = <<"Downlink buffer fragment">>, impl = Simple, params = [
             #usr_cmd_param{name = bufid, type = integer, desc = <<"Buffer">>, opts = [
                 #usr_cmd_opts{desc = <<"Command Log">>,       value = 0},
-                #usr_cmd_opts{desc = <<"Telemetry Archive">>, value = 1},
-                #usr_cmd_opts{desc = <<"EPS Log">>,           value = 2},
-                #usr_cmd_opts{desc = <<"GPS Binary Log">>,    value = 3},
-                #usr_cmd_opts{desc = <<"GPS NMEA Log">>,      value = 4},
-                #usr_cmd_opts{desc = <<"Helium Log">>,        value = 5}
+                #usr_cmd_opts{desc = <<"Hk. data archive">>,  value = 1},
+                #usr_cmd_opts{desc = <<"Att. data archive">>, value = 2}
             ]},
             #usr_cmd_param{name = blksz, type = integer, desc = <<"Block size">>},
             #usr_cmd_param{name = from, type = integer, desc = <<"Block from (inclusive)">>},
