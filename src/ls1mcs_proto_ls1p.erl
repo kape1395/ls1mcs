@@ -19,12 +19,14 @@
     {ground,    ?GROUND_ADDR}
 ]).
 -define(PORT_MAP, [
-    {arm,       ping,       16#0},
-    {arm,       kill,       16#1},
-    {arm,       downlink,   16#2},
-    {arm,       runtime_tm, 16#3},
-    {arm,       job_period, 16#4},
-    {arm,       multi,      16#F},
+    {arm,   ping,           16#0},
+    {arm,   kill,           16#1},
+    {arm,   downlink,       16#2},
+    {arm,   runtime_tm,     16#3},
+    {arm,   job_period,     16#4},
+    {arm,   pwr_allow_nm,   16#5},
+    {arm,   pwr_state,      16#6},
+    {arm,   multi,          16#F},
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},
     {arduino,   photo_data, 16#2},

@@ -16,8 +16,8 @@
 %%
 %%  Port, 4 bits.
 %%
--type ls1p_port_arm()       :: ping | kill | downlink | runtime_tm | job_period | multi.
--type ls1p_port_arduino()   :: take_photo | photo_meta | photo_data.
+-type ls1p_port_arm()       :: ping | kill | downlink | runtime_tm | job_period | pwr_allow_nom | pwr_state | multi.
+-type ls1p_port_arduino()   :: take_photo | photo_meta | photo_data | beacon_st.
 -type ls1p_port_eps()       :: ch_status.
 -type ls1p_port_gps()       :: nmea | binary.
 -type ls1p_port_helium()    :: command.

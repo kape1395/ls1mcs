@@ -142,6 +142,12 @@ specs() ->
             ]},
             #usr_cmd_param{name = interval, type = integer, desc = <<"Interval (secs)">>}
         ]},
+        #usr_cmd_spec{group = arm, name = pwr_allow_nm, desc = <<"Allow PWR nominal">>, impl = Simple, params = [
+            #usr_cmd_param{name = allow, type = integer, desc = <<"Job">>, opts = [
+                #usr_cmd_opts{desc = <<"Allow">>,       value = 1},
+                #usr_cmd_opts{desc = <<"Disallow">>,    value = 0}
+            ]}
+        ]},
         %% Multi-command should not be visible to the end user.
 
         %%

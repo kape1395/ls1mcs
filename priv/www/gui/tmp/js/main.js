@@ -59,6 +59,12 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__pwrnm_allow']", function () {
+        ls1mcs_send_immediate_command({spec: "pwr_allow_nm", args: [{name: "allow", value: 1}]});
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__pwrnm_dis']", function () {
+        ls1mcs_send_immediate_command({spec: "pwr_allow_nm", args: [{name: "allow", value: 0}]});
+    });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__epsch_on']", function () {
         var channel = parseInt($("#immcmd__epsch_channel").val());
         ls1mcs_send_immediate_command(

@@ -175,6 +175,16 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<JobId:8, Interval:16/little>>
                 }
             };
+        pwr_allow_nm ->
+            Allow = arg_val(allow, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = pwr_allow_nm,
+                    ack = true,
+                    data = <<Allow:8>>
+                }
+            };
         take_photo ->
             ResId = arg_val(resid, Args),
             Delay = arg_val(delay, Args),
