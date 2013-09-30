@@ -148,6 +148,13 @@ specs() ->
                 #usr_cmd_opts{desc = <<"Disallow">>,    value = 0}
             ]}
         ]},
+        #usr_cmd_spec{group = arm, name = start_fmrep, desc = <<"Start FM Repeater">>, impl = Simple, params = [
+            #usr_cmd_param{name = delay,    type = integer, desc = <<"Delay">>},
+            #usr_cmd_param{name = duration, type = integer, desc = <<"Duration">>}
+        ]},
+        #usr_cmd_spec{group = arm, name = term_sci_mode, desc = <<"Terminate SCI mode">>, impl = Simple, params = [
+        ]},
+
         %% Multi-command should not be visible to the end user.
 
         %%

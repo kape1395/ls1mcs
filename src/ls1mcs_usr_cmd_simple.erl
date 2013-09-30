@@ -185,6 +185,28 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<Allow:8>>
                 }
             };
+        start_fmrep ->
+            Delay = arg_val(delay, Args),
+            Duration = arg_val(duration, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = start_fmrep,
+                    ack = true,
+                    delay = Delay,
+                    data = <<Duration:32/unsigned-little>>
+                }
+            };
+        term_sci_mode ->
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = term_sci_mode,
+                    ack = true,
+                    delay = 0,
+                    data = <<>>
+                }
+            };
         take_photo ->
             ResId = arg_val(resid, Args),
             Delay = arg_val(delay, Args),

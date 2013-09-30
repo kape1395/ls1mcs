@@ -83,17 +83,22 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
-    $("#immcmd-send-table").on("click", "a[href='#immcmd__fmrep_onoff']", function () {
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__fmrep_on']", function () {
         var delay = parseInt($("#immcmd__fmrep_delay").val());
         var duration = parseInt($("#immcmd__fmrep_duration").val());
         ls1mcs_send_immediate_command(
-            {spec: "eps_ch_onoff", args: [
-                {name: "channel",   value: 2},
+            {spec: "start_fmrep", args: [
                 {name: "delay",     value: delay},
                 {name: "duration",  value: duration}
             ]}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__scimode_term']", function () {
+        ls1mcs_send_immediate_command(
+            {spec: "term_sci_mode"}
+        );
+    });
+
 
     $("#immcmd-send-table").on("click", "a[href='#immcmd__photo_take']", function () {
         var resid = parseInt($("#immcmd__photo_resid").val());

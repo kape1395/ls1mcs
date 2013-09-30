@@ -26,6 +26,8 @@
     {arm,   job_period,     16#4},
     {arm,   pwr_allow_nm,   16#5},
     {arm,   pwr_state,      16#6},
+    {arm,   term_sci_mode,  16#7},
+    {arm,   start_fmrep,    16#8},
     {arm,   multi,          16#F},
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},
