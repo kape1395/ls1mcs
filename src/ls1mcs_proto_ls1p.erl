@@ -495,8 +495,8 @@ decode_tm_mag(Telemetry, Sensor) ->
         Gain:8
     >> = Telemetry,
     Coef = case Sensor of
-        'HMC5883L' -> 1.0;
-        'AK8975'   -> 1.0
+        'HMC5883L' -> lists:nth(Gain + 1, [0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35]);
+        'AK8975'   -> lists:nth(Gain + 1, [0.3])
     end,
     #tm_mag{
         x = X * Coef,
@@ -517,8 +517,8 @@ decode_tm_accel(Telemetry, Sensor) ->
         Gain:8
     >> = Telemetry,
     Coef = case Sensor of
-        'MPU6000A' -> 1.0;
-        'MPU9150A' -> 1.0
+        'MPU6000A' -> lists:nth(Gain + 1, [0.00006103515625, 0.0001220703125, 0.000244140625, 0.00048828125]);
+        'MPU9150A' -> lists:nth(Gain + 1, [0.00006103515625, 0.0001220703125, 0.000244140625, 0.00048828125])
     end,
     #tm_accel{
         x = X * Coef,
@@ -539,9 +539,9 @@ decode_tm_gyro(Telemetry, Sensor) ->
         Gain:8
     >> = Telemetry,
     Coef = case Sensor of
-        'MPU6000A' -> 1.0;
-        'MPU9150A' -> 1.0;
-        'L3GD20'   -> 1.0
+        'MPU6000A' -> lists:nth(Gain + 1, [0.00762939453125, 0.0152587890625, 0.030517578125, 0.06103515625]);
+        'MPU9150A' -> lists:nth(Gain + 1, [0.00762939453125, 0.0152587890625, 0.030517578125, 0.06103515625]);
+        'L3GD20'   -> lists:nth(Gain + 1, [0.01525878906250, 0.0305175781250, 0.061035156250, 0.12207031250])
     end,
     #tm_gyro{
         x = X * Coef,
