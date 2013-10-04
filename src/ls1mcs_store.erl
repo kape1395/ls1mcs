@@ -12,7 +12,7 @@
     add_unknown_frame/2,
     get_tm/1,
     load_predicted_passes/1,
-    get_usr_cmds/1, add_usr_cmd/1,
+    get_usr_cmds/1, add_usr_cmd/1, set_usr_cmd_status/2,
     get_sat_cmds/1, add_sat_cmd/1,
     next_photo_cref/0
 ]).
@@ -361,6 +361,16 @@ add_usr_cmd(UserCmd = #usr_cmd{id = SuppliedId}) ->
     end,
     mnesia:activity(transaction, Activity).
 
+
+%%
+%%  Update user command status.
+%%
+set_usr_cmd_status(UsrCmdId, Status) ->
+    Activity = fun () ->
+        [Rec = #ls1mcs_store_usr_cmd{cmd = UsrCmd}] = mnesia:read(ls1mcs_store_usr_cmd, UsrCmdId),
+        ok = mnesia:write(Rec#ls1mcs_store_usr_cmd{cmd = UsrCmd#usr_cmd{status = Status}})
+    end,
+    mnesia:activity(transaction, Activity).
 
 
 %%

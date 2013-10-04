@@ -37,6 +37,10 @@ function ls1mcs_immcmds_init() {
     $("html").on("click", "a[href='#immediate-commands']", function () {
         ls1mcs_immcmds_show();
     });
+    $("#immediate-commands").on("click", "a[href='#immcmd__list_refresh']", function () {
+        ls1mcs_immcmds_show();
+    });
+
     $("#immcmd-send-table").on("click", "a[href='#immcmd__ping']", function () {
         ls1mcs_send_immediate_command(
             {spec: "ping"}

@@ -5,7 +5,7 @@
 -module(ls1mcs_usr_cmd).
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/1, issue/1, groups/0, specs/0]).
--export([send_sat_cmd/3]).
+-export([send_sat_cmd/3, set_status/2]).
 -export([sat_cmd_failed/2, sat_cmd_completed/2]).
 -include("ls1mcs.hrl").
 
@@ -33,6 +33,13 @@ send_sat_cmd(UsrCmdMod, UsrCmdId, SatCmd) ->
         SatCmd#sat_cmd{usr_cmd_id = UsrCmdId},
         {usr_cmd_ref, UsrCmdMod, UsrCmdId}
     ).
+
+
+%%
+%%  Updates user command status.
+%%
+set_status(UsrCmdId, UsrCmdStatus) ->
+    ok = ls1mcs_store:set_usr_cmd_status(UsrCmdId, UsrCmdStatus).
 
 
 

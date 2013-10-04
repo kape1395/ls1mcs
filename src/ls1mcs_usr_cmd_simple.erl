@@ -87,10 +87,14 @@ starting(start, StateData = #state{usr_cmd = #usr_cmd{id = UsrCmdId}, sat_cmd = 
 %%
 executing({sat_cmd_status, _SatCmdId, failed}, StateData = #state{usr_cmd = UsrCmd, sat_cmd = SatCmd}) ->
     lager:debug("User command failed, usr_cmd=~p, sat_cmd=~p", [UsrCmd, SatCmd]),
+    #usr_cmd{id = UsrCmdId} = UsrCmd,
+    ls1mcs_usr_cmd:set_status(UsrCmdId, failed),
     {stop, normal, StateData};
 
 executing({sat_cmd_status, _SatCmdId, completed}, StateData = #state{usr_cmd = UsrCmd, sat_cmd = SatCmd}) ->
     lager:debug("User command completed, usr_cmd=~p, sat_cmd=~p", [UsrCmd, SatCmd]),
+    #usr_cmd{id = UsrCmdId} = UsrCmd,
+    ls1mcs_usr_cmd:set_status(UsrCmdId, completed),
     {stop, normal, StateData}.
 
 
