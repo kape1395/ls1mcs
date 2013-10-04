@@ -76,7 +76,7 @@
                                         <td><a href="#immcmd__scimode_term">Terminate</a></td>
                                     </tr>
                                     <tr>
-                                        <td>Allow PWR nominal</td>
+                                        <td>Allow PWR nom.</td>
                                         <td>&nbsp;</td>
                                         <td><a href="#immcmd__pwrnm_allow">Allow</a> | <a href="#immcmd__pwrnm_dis">Dis.</a></td>
                                     </tr>
@@ -104,18 +104,20 @@
                                         </td>
                                         <td><a href="#immcmd__photo_take">Take</a> | <a href="#immcmd__photo_dlnk">Get</a></td>
                                     </tr>
-                                    <!--tr>
+                                    <tr>
                                         <td>Get archive</td>
                                         <td>
-                                            <select id="immcmd__dlnk_bufid" style="width:150px" value="0">
-                                                <option value="0">0 - Resolution A</option>
-                                                <option value="1">1 - Resolution B</option>
-                                                <option value="2">2 - Resolution C</option>
+                                            <select id="immcmd__dlnk_bufid" style="width:50px" value="0">
+                                                <option value="0">0 - Command Log</option>
+                                                <option value="1">1 - Hk. archive</option>
+                                                <option value="2">2 - Att. archive</option>
                                             </select>
-                                            after <input id="immcmd__dlnk_delay" type="text" style="width:30px" value="10">s
+                                            sz <input id="immcmd__dlnk_blksz" type="text" style="width:25px" value="100">
+                                            [<input id="immcmd__dlnk_from" type="text" style="width:35px" value="0">,
+                                            <input id="immcmd__dlnk_till" type="text" style="width:35px" value="314">)
                                         </td>
-                                        <td><a href="#immcmd__photo_take">Take</a> | <a href="#immcmd__photo_dlnk">Get</a></td>
-                                    </tr-->
+                                        <td><a href="#immcmd__dlnk">Get</a></td>
+                                    </tr>
                                 </tbody>
                             </table>
                             <table id="immcmd-list-table" class="table table-hover table-condensed span6 pull-right">

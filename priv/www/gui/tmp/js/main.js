@@ -111,12 +111,25 @@ function ls1mcs_immcmds_init() {
         );
     });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__photo_dlnk']", function () {
-        var delay = parseInt($("#immcmd__fmrep_delay").val());
-        var duration = parseInt($("#immcmd__fmrep_duration").val());
         ls1mcs_send_immediate_command(
             {spec: "dlnk_photo"}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__dlnk']", function () {
+        var bufid = parseInt($("#immcmd__dlnk_bufid").val());
+        var blksz = parseInt($("#immcmd__dlnk_blksz").val());
+        var from  = parseInt($("#immcmd__dlnk_from").val());
+        var till  = parseInt($("#immcmd__dlnk_till").val());
+        ls1mcs_send_immediate_command(
+            {spec: "downlink", args: [
+                {name: "bufid", value: bufid},
+                {name: "blksz", value: blksz},
+                {name: "from",  value: from},
+                {name: "till",  value: till}
+            ]}
+        );
+    });
+
     $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_on']", function () {
         ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 1}]});
     });
