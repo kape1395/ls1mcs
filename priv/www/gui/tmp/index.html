@@ -53,9 +53,14 @@
                                         <td><a href="#immcmd__rttm_get">Get</a></td>
                                     </tr>
                                     <tr>
-                                        <td>TM broadcast</td>
-                                        <td>every <input id="immcmd__tmattbr_int" type="text" style="width:50px" value="10">s</td>
-                                        <td><a href="#immcmd__tmattbr_set">Set</a> | <a href="#immcmd__tmattbr_off">Off</a></td>
+                                        <td>Job</td>
+                                        <td><select id="immcmd__job_jobid" style="width:120px">
+                                            <option value="0">0 - TM broadcast</option>
+                                            <option value="1">1 - Hk. collection</option>
+                                            <option value="2">2 - Att. collection</option>
+                                        </select>
+                                        every <input id="immcmd__job_int" type="text" style="width:50px" value="10">s</td>
+                                        <td><a href="#immcmd__job_set">Set</a> | <a href="#immcmd__job_off">Off</a></td>
                                     </tr>
                                     <tr>
                                         <td>Beacon</td>
@@ -103,6 +108,15 @@
                                             after <input id="immcmd__photo_delay" type="text" style="width:30px" value="10">s
                                         </td>
                                         <td><a href="#immcmd__photo_take">Take</a> | <a href="#immcmd__photo_dlnk">Get</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Photo fragment</td>
+                                        <td>
+                                            sz <input id="immcmd__phfrag_blksz" type="text" style="width:25px" value="100">
+                                            [<input id="immcmd__phfrag_from" type="text" style="width:35px" value="0">,
+                                            <input id="immcmd__phfrag_till" type="text" style="width:35px" value="314">)
+                                        </td>
+                                        <td><a href="#immcmd__phfrag">Get</a></td>
                                     </tr>
                                     <tr>
                                         <td>Get archive</td>

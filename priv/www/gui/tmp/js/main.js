@@ -46,19 +46,21 @@ function ls1mcs_immcmds_init() {
             {spec: "ping"}
         );
     });
-    $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_off']", function () {
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__job_off']", function () {
+        var jobid = parseInt($("#immcmd__job_jobid").val());
         ls1mcs_send_immediate_command(
             {spec: "job_period", args: [
-                {name: "jobid",    value: 0},
+                {name: "jobid",    value: jobid},
                 {name: "interval", value: 0}
             ]}
         );
     });
-    $("#immcmd-send-table").on("click", "a[href='#immcmd__tmattbr_set']", function () {
-        var interval = parseInt($("#immcmd__tmattbr_int").val());
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__job_set']", function () {
+        var jobid = parseInt($("#immcmd__job_jobid").val());
+        var interval = parseInt($("#immcmd__job_int").val());
         ls1mcs_send_immediate_command(
             {spec: "job_period", args: [
-                {name: "jobid",    value: 0},
+                {name: "jobid",    value: jobid},
                 {name: "interval", value: interval}
             ]}
         );
@@ -117,6 +119,18 @@ function ls1mcs_immcmds_init() {
     $("#immcmd-send-table").on("click", "a[href='#immcmd__photo_dlnk']", function () {
         ls1mcs_send_immediate_command(
             {spec: "dlnk_photo"}
+        );
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__phfrag']", function () {
+        var blksz = parseInt($("#immcmd__phfrag_blksz").val());
+        var from  = parseInt($("#immcmd__phfrag_from").val());
+        var till  = parseInt($("#immcmd__phfrag_till").val());
+        ls1mcs_send_immediate_command(
+            {spec: "photo_data", args: [
+                {name: "blksz", value: blksz},
+                {name: "from",  value: from},
+                {name: "till",  value: till}
+            ]}
         );
     });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__dlnk']", function () {

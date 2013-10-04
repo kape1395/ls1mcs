@@ -142,10 +142,9 @@ specs() ->
         ]},
         #usr_cmd_spec{group = arm, name = job_period, desc = <<"Set job period">>, impl = Simple, params = [
             #usr_cmd_param{name = jobid, type = integer, desc = <<"Job">>, opts = [
-                #usr_cmd_opts{desc = <<"Telemetry broadcast update">>,     value = 0},
+                #usr_cmd_opts{desc = <<"Telemetry broadcast">>,            value = 0},
                 #usr_cmd_opts{desc = <<"Housekeeping tm collection">>,     value = 1},
-                #usr_cmd_opts{desc = <<"Attitude telemetry collection">>,  value = 2},
-                #usr_cmd_opts{desc = <<"GPS telemetry collection">>,       value = 3}
+                #usr_cmd_opts{desc = <<"Attitude telemetry collection">>,  value = 2}
             ]},
             #usr_cmd_param{name = interval, type = integer, desc = <<"Interval (secs)">>}
         ]},
