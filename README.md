@@ -134,6 +134,16 @@ REST API
     {
       "spec": "dlnk_photo"
     }
+    {
+      "spec": "downlink",
+      "args": [
+        {"name": "bufid", "value": 0},
+        {"name": "blksz", "value": 120},
+        {"name": "from", "value": 13},
+        {"name": "till", "value": 73}
+      ]
+    }
+
 
 
 Communication options
