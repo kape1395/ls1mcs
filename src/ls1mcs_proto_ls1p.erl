@@ -562,10 +562,9 @@ decode_tm_gyro(Telemetry, Sensor) ->
 %%
 decode_photo_meta(Binary) ->
     <<
-        PhotoCRef:16/little,
         PhotoSize:16/little
     >> = Binary,
-    {PhotoCRef, PhotoSize}.
+    {PhotoSize}.
 
 
 
