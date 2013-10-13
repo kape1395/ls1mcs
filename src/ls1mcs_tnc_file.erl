@@ -189,13 +189,8 @@ recv_from_file(Filename, Upper) ->
 %%  the checksums.
 %%
 checksum(Data) ->
-    {A, B} = lists:foldl(fun checksum_fold/2, {0, 0}, erlang:binary_to_list(Data)),
-    <<A:8, B:8>>.
-
-checksum_fold(Byte, {A, B}) ->
-    NewA = 16#FF band (A + Byte),
-    NewB = 16#FF band (B + NewA),
-    {NewA, NewB}.
+    {ok, Cksum} = ls1mcs_utl_cksum:checksum(Data, fletcher8bit),
+    Cksum.
 
 
 %%

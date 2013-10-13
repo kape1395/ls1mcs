@@ -4,7 +4,7 @@
 -behaviour(ls1mcs_protocol).
 -export([start_link/3, decode_tm/1, decode_photo_meta/1, merged_response_fragments/1, merged_response/1, merged_response/2]).
 -export([send/2, received/2]).
--export([encode/1, decode/1]). % For tests.
+-export([encode/2, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 -include("ls1p.hrl").
@@ -76,7 +76,8 @@ received(Ref, Data) when is_binary(Data) ->
 
 -record(state, {
     lower,      %% Lower protocol ref.
-    upper       %% Upper protocol ref.
+    upper,      %% Upper protocol ref.
+    pass
 }).
 
 
@@ -90,7 +91,8 @@ received(Ref, Data) when is_binary(Data) ->
 %%
 init({Lower, Upper}) ->
     self() ! {initialize},
-    {ok, #state{lower = Lower, upper = Upper}}.
+    Password = application:get_env(ls1mcs, password, undefined),
+    {ok, #state{lower = Lower, upper = Upper, pass = Password}}.
 
 
 %%
@@ -103,8 +105,8 @@ handle_call(_Message, _From, State) ->
 %%
 %%
 %%
-handle_cast({send, Frame}, State = #state{lower = Lower}) ->
-    {ok, DataBin} = encode(Frame),
+handle_cast({send, Frame}, State = #state{lower = Lower, pass = Password}) ->
+    {ok, DataBin} = encode(Frame, Password),
     {ok, _FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
@@ -161,7 +163,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 
 %%  Acknowledgement frame.
-encode(Frame) when is_record(Frame, ls1p_ack_frame) ->
+encode(Frame, _Password) when is_record(Frame, ls1p_ack_frame) ->
     #ls1p_ack_frame{
         status = Status,
         cref = {_Epoch, CRef},
@@ -172,7 +174,7 @@ encode(Frame) when is_record(Frame, ls1p_ack_frame) ->
     {ok, FrameBin};
 
 %%  Data frame.
-encode(Frame) when is_record(Frame, ls1p_data_frame) ->
+encode(Frame, _Password) when is_record(Frame, ls1p_data_frame) ->
     #ls1p_data_frame{
         eof = Eof,
         cref = {_Epoch, CRef},
@@ -184,7 +186,7 @@ encode(Frame) when is_record(Frame, ls1p_data_frame) ->
     {ok, FrameBin};
 
 %%  Telemetry frame.
-encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
+encode(Frame, _Password) when is_record(Frame, ls1p_tm_frame) ->
     #ls1p_tm_frame{
         data = Telemetry
     } = Frame,
@@ -192,7 +194,7 @@ encode(Frame) when is_record(Frame, ls1p_tm_frame) ->
     {ok, FrameBin};
 
 %%  Command frame.
-encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
+encode(Frame, Password) when is_record(Frame, ls1p_cmd_frame) ->
     #ls1p_cmd_frame{
         addr = Addr, port = Port, ack = Ack,
         cref = {_Epoch, CRef}, delay = Delay, data = Data
@@ -201,8 +203,36 @@ encode(Frame) when is_record(Frame, ls1p_cmd_frame) ->
     PortBin = encode_port(Addr, Port),
     AckBin  = encode_bool(Ack),
     FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, CRef:16/little, Delay:16/little, Data/binary>>,
-    {ok, FrameBin}.
+    sign_cmd(FrameBin, Password).
 
+
+%%
+%%
+%%
+sign_cmd(CommandFrameBin, undefined) ->
+    {ok, CommandFrameBin};
+
+sign_cmd(CommandFrameBin, Password) ->
+    {ok, <<CkA, CkB>>} = ls1mcs_utl_cksum:checksum(CommandFrameBin, fletcher8bit),
+    <<PwA, PwB>> = Password,
+    Signature = <<(CkA bxor PwA):8, (CkB bxor PwB):8>>,
+    <<
+        S00:1, S01:1, S02:1, S03:1, S04:1, S05:1, S06:1, S07:1,
+        S08:1, S09:1, S10:1, S11:1, S12:1, S13:1, S14:1, S15:1
+    >> = Signature,
+    <<
+        F00:1, F01:1, F02:1, F03:1, F04:1, F05:1, F06:1, F07:1,
+        F08:1, F09:1, F10:1, F11:1, F12:1, F13:1, F14:1, F15:1,
+        FrameTail/binary
+    >> = CommandFrameBin,
+    FrameWithSig = <<
+        S00:1, F00:1, S01:1, F01:1, S02:1, F02:1, S03:1, F03:1,
+        S04:1, F04:1, S05:1, F05:1, S06:1, F06:1, S07:1, F07:1,
+        S08:1, F08:1, S09:1, F09:1, S10:1, F10:1, S11:1, F11:1,
+        S12:1, F12:1, S13:1, F13:1, S14:1, F14:1, S15:1, F15:1,
+        FrameTail/binary
+    >>,
+    {ok, FrameWithSig}.
 
 
 
