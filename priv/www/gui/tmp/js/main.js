@@ -183,7 +183,7 @@ function ls1mcs_immcmds_render(commands) {
         rows += "<td>" + c.id + "</td>";
         rows += "<td>" + c.spec;
         if (c._links.photo != undefined) {
-            rows += " (<a href='" + c._links.photo.href + "'>photo</a>)"
+            rows += " (<a href='" + c._links.photo.href + "' target='_blank'>photo</a>)"
         }
         rows += "</td>";
         rows += "<td>" + c.status + "</td>";
