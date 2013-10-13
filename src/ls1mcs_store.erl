@@ -12,7 +12,7 @@
     add_unknown_frame/2,
     get_tm/1,
     load_predicted_passes/1,
-    get_usr_cmds/1, add_usr_cmd/1, set_usr_cmd_status/2,
+    get_usr_cmds/1, get_usr_cmd/2, add_usr_cmd/1, set_usr_cmd_status/2,
     get_sat_cmds/1, add_sat_cmd/1,
     next_photo_cref/0
 ]).
@@ -182,6 +182,7 @@ create_tables(Nodes) ->
     OK = mnesia:create_table(ls1mcs_store_usr_cmd,   [{type, set}, ?ATTRS(ls1mcs_store_usr_cmd),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_sat_cmd,   [{type, set}, ?ATTRS(ls1mcs_store_sat_cmd),   DefOptDC]),
     OK = mnesia:create_table(ls1mcs_store_counter,   [{type, set}, ?ATTRS(ls1mcs_store_counter),   DefOptDC]),
+    OK = mnesia:add_table_index(ls1mcs_store_sat_cmd, usr_cmd_id),
     ok.
 
 
@@ -335,12 +336,46 @@ get_usr_cmds(all) ->
     Cmds = [ C || #ls1mcs_store_usr_cmd{cmd = C} <- Records ],
     {ok, Cmds};
 
-get_usr_cmds({id, Id}) ->
+get_usr_cmds({id, Id}) ->   % TODO: Remove (use get_usr_cmd).
     case mnesia:dirty_read(ls1mcs_store_usr_cmd, Id) of
         [] ->
             {ok, []};
         [#ls1mcs_store_usr_cmd{cmd = C}] ->
             {ok, [C]}
+    end.
+
+
+%%
+%%
+%%
+-spec get_usr_cmd(
+            Id :: integer(),
+            Query :: term()
+        ) ->
+        {ok, #usr_cmd{}, [{#sat_cmd{}, #ls1p_cmd_frame{}, #ls1p_ack_frame{}, [#ls1p_data_frame{}]}]} |
+        {error, not_found}.
+
+get_usr_cmd(UsrCmdId, all) ->
+    case mnesia:dirty_read(ls1mcs_store_usr_cmd, UsrCmdId) of
+        [] ->
+            {error, not_found};
+        [#ls1mcs_store_usr_cmd{cmd = UsrCmd}] ->
+            SatCmdRecs = mnesia:dirty_index_read(ls1mcs_store_sat_cmd, UsrCmdId, #ls1mcs_store_sat_cmd.usr_cmd_id),
+            LoadSatCmdFramesFun = fun(#ls1mcs_store_sat_cmd{id = SatCmdId, cmd = SatCmd}) ->
+                CRef = cref_from_sat_cmd_id(SatCmdId),
+                case get_ls1p_frame({cmd, CRef}) of
+                    {ok, CmdFrame} -> CmdFrame;
+                    {error, not_found} -> CmdFrame = undefined
+                end,
+                case get_ls1p_frame({ack, CRef}) of
+                    {ok, [AckFrame]} -> AckFrame;
+                    {ok, []} -> AckFrame = undefined
+                end,
+                {ok, DataFrames} = get_ls1p_frame({data, CRef}),
+                {SatCmd, CmdFrame, AckFrame, DataFrames}
+            end,
+            SatCmds = lists:map(LoadSatCmdFramesFun, SatCmdRecs),
+            {ok, UsrCmd, SatCmds}
     end.
 
 

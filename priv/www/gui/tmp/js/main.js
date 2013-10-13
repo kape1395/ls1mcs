@@ -181,7 +181,11 @@ function ls1mcs_immcmds_render(commands) {
         var c = commands[i];
         rows += "<tr>";
         rows += "<td>" + c.id + "</td>";
-        rows += "<td>" + c.spec + "</td>";
+        rows += "<td>" + c.spec;
+        if (c._links.photo != undefined) {
+            rows += " (<a href='" + c._links.photo.href + "'>photo</a>)"
+        }
+        rows += "</td>";
         rows += "<td>" + c.status + "</td>";
         rows += "</tr>";
     }

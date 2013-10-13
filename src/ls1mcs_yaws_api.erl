@@ -10,6 +10,8 @@
 
 -define(MEDIATYPE_JSON, "application/vnd.ls1mcs-v1+json; level=0").
 -define(MEDIATYPE_TERM, "application/x-erlang-term").
+-define(MEDIATYPE_JPEG, "image/jpeg").
+-define(MEDIATYPE_BIN,  "application/octet-stream").
 
 
 %% =============================================================================
@@ -69,8 +71,22 @@ handle_request(["command", "usr", Id], 'GET', _Arg) ->
         {ok, []} -> respond_error(404, <<"Command not found by id.">>)
     end;
 
-handle_request(["command", "usr", Id, "response"], 'GET', _Arg) ->
-    respond(200, json_list([]));    % TODO
+handle_request(["command", "usr", Id, "photo"], 'GET', _Arg) ->
+    case ls1mcs_store:get_usr_cmd(ls1mcs_yaws_json:decode_integer(Id), all) of
+        {ok, #usr_cmd{spec = Spec}, SatCmds} when Spec =:= photo_data; Spec =:= dlnk_photo ->
+            Frames = [ {CmdFrame, DataFrames} ||
+                {
+                    _SatCmd,
+                    CmdFrame = #ls1p_cmd_frame{addr = arduino, port = photo_data},
+                    _AckFrame,
+                    DataFrames
+                } <- SatCmds
+            ],
+            {ok, PhotoContent} = ls1mcs_proto_ls1p:merged_response(Frames),
+            respond(200, ?MEDIATYPE_JPEG, PhotoContent);
+        {error, not_found} ->
+            respond_error(404, <<"Command not found by id.">>)
+    end;
 
 %%
 %%  SAT commands (RO).
@@ -308,9 +324,9 @@ respond_error(Status, ReasonMsg) ->
 media_type_for_response(CmdFrame) ->
     case CmdFrame of
         #ls1p_cmd_frame{addr = arduino, port = photo_data} ->
-            "image/jpeg";
+            ?MEDIATYPE_JPEG;
         _ ->
-            "application/octet-stream"
+            ?MEDIATYPE_BIN
     end.
 
 

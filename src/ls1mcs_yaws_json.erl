@@ -87,6 +87,14 @@ encode(#usr_cmd{
         status = Status
     }) ->
     {[
+        links(
+            [link(self, url([command, usr, Id]))] ++
+            case Spec of
+                photo_data -> [link(photo, url([command, usr, Id, photo]))];
+                dlnk_photo -> [link(photo, url([command, usr, Id, photo]))];
+                _ -> []
+            end
+        ),
         {id, Id},
         {spec, Spec},
         {args, encode_list(Args)},
