@@ -524,8 +524,9 @@ decode_tm_mag(Telemetry, Sensor) ->
         Z:16/little-signed,
         Gain:8
     >> = Telemetry,
+    Coef_mG_to_uT = 0.1,   % Converts mili Gauses to micro Teslas.
     Coef = case Sensor of
-        'HMC5883L' -> lists:nth(Gain + 1, [0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35]);
+        'HMC5883L' -> lists:nth(Gain + 1, [0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35] * Coef_mG_to_uT);
         'AK8975'   -> lists:nth(Gain + 1, [0.3])
     end,
     #tm_mag{
@@ -546,15 +547,18 @@ decode_tm_accel(Telemetry, Sensor) ->
         Z:16/little-signed,
         Gain:8
     >> = Telemetry,
+    MPUCoefs = [6.1035156E-05, 1.2207031E-04, 2.4414063E-04, 4.8828125E-04],
     Coef = case Sensor of
-        'MPU6000A' -> lists:nth(Gain + 1, [0.00006103515625, 0.0001220703125, 0.000244140625, 0.00048828125]);
-        'MPU9150A' -> lists:nth(Gain + 1, [0.00006103515625, 0.0001220703125, 0.000244140625, 0.00048828125])
+        'MPU6000A' -> lists:nth(Gain + 1, MPUCoefs);
+        'MPU9150A' -> lists:nth(Gain + 1, MPUCoefs)
     end,
     #tm_accel{
         x = X * Coef,
         y = Y * Coef,
         z = Z * Coef
     }.
+
+
 
 %%
 %%  Gyroscope and temperature data.
@@ -568,10 +572,12 @@ decode_tm_gyro(Telemetry, Sensor) ->
         Temp:16/little-signed,
         Gain:8
     >> = Telemetry,
+    MPUCoefs = [7.6335878E-03, 1.5267176E-02, 3.0487805E-02, 6.0975610E-02],
+    L3GCoefs = [1.5258789E-02, 3.0517578E-02, 6.1035156E-02, 6.1035156E-02],
     Coef = case Sensor of
-        'MPU6000A' -> lists:nth(Gain + 1, [0.00762939453125, 0.0152587890625, 0.030517578125, 0.061035156250]);
-        'MPU9150A' -> lists:nth(Gain + 1, [0.00762939453125, 0.0152587890625, 0.030517578125, 0.061035156250]);
-        'L3GD20'   -> lists:nth(Gain + 1, [0.01525878906250, 0.0305175781250, 0.061035156250, 0.061035156250])
+        'MPU6000A' -> lists:nth(Gain + 1, MPUCoefs);
+        'MPU9150A' -> lists:nth(Gain + 1, MPUCoefs);
+        'L3GD20'   -> lists:nth(Gain + 1, L3GCoefs)
     end,
     #tm_gyro{
         x = X * Coef,
