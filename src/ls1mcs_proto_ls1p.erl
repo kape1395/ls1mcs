@@ -577,7 +577,11 @@ decode_tm_gyro(Telemetry, Sensor) ->
         x = X * Coef,
         y = Y * Coef,
         z = Z * Coef,
-        temp = Temp
+        temp = case Sensor of
+            'MPU6000A' -> Temp / 340 + 35;
+            'MPU9150A' -> Temp / 340 + 35;
+            'L3GD20'   -> Temp * 1.0
+        end
     }.
 
 
