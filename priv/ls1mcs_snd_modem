@@ -34,10 +34,11 @@ function do_start()
     pid=$(check_status)
     if [[ -z $pid ]] ; then
         assert_root
-        soundmodem -v 990 >> $LOG_FILE 2>&1 &
+        soundmodem -v 99 >> $LOG_FILE 2>&1 &  # 999
         pid=$!
         echo $pid > $PID_FILE
         sleep 1
+        chmod g+rw /dev/soundmodem*
         chgrp dialout /dev/soundmodem*
         echo "Started, pid=$pid"
     else
