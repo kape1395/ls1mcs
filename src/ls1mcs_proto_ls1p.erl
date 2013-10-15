@@ -114,21 +114,28 @@ handle_cast({send, Frame}, State = #state{lower = Lower, pass = Password}) ->
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
-handle_cast({received, DataBin}, State = #state{upper = Upper}) ->
-    try decode(DataBin) of
-        {ok, Frame} when is_record(Frame, ls1p_cmd_frame) ->
+handle_cast({received, DataBin}, State = #state{upper = Upper, pass = Password}) ->
+    case check_signature(DataBin, Password) of
+        {ok, Frame} when Password =/= undefined ->
+            % Handles echoed command in the case when password is specified.
             lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
-        {ok, Frame} ->
-            lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
-            {ok, FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
-            ok = ls1mcs_protocol:received(Upper, FrameWithCRef)
-    catch
-        ErrType:ErrCode ->
-            lager:debug(
-                "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
-                [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
-            ),
-            ok = ls1mcs_store:add_unknown_frame(DataBin, erlang:now())
+        {error, _Reason} ->
+            try decode(DataBin) of
+                {ok, Frame} when is_record(Frame, ls1p_cmd_frame) ->
+                    % Handles echoed command in the case when password is not specified.
+                    lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
+                {ok, Frame} ->
+                    lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
+                    {ok, FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
+                    ok = ls1mcs_protocol:received(Upper, FrameWithCRef)
+            catch
+                ErrType:ErrCode ->
+                    lager:debug(
+                        "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
+                        [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
+                    ),
+                    ok = ls1mcs_store:add_unknown_frame(DataBin, erlang:now())
+            end
     end,
     {noreply, State}.
 
@@ -206,37 +213,7 @@ encode(Frame, Password) when is_record(Frame, ls1p_cmd_frame) ->
     PortBin = encode_port(Addr, Port),
     AckBin  = encode_bool(Ack),
     FrameBin = <<AddrBin:3, PortBin:4, AckBin:1, CRef:16/little, Delay:16/little, Data/binary>>,
-    sign_cmd(FrameBin, Password).
-
-
-%%
-%%
-%%
-sign_cmd(CommandFrameBin, undefined) ->
-    {ok, CommandFrameBin};
-
-sign_cmd(CommandFrameBin, Password) ->
-    {ok, <<CkA, CkB>>} = ls1mcs_utl_cksum:checksum(CommandFrameBin, fletcher8bit),
-    <<PwA, PwB>> = Password,
-    Signature = <<(CkA bxor PwA):8, (CkB bxor PwB):8>>,
-    <<
-        S00:1, S01:1, S02:1, S03:1, S04:1, S05:1, S06:1, S07:1,
-        S08:1, S09:1, S10:1, S11:1, S12:1, S13:1, S14:1, S15:1
-    >> = Signature,
-    <<
-        F00:1, F01:1, F02:1, F03:1, F04:1, F05:1, F06:1, F07:1,
-        F08:1, F09:1, F10:1, F11:1, F12:1, F13:1, F14:1, F15:1,
-        FrameTail/binary
-    >> = CommandFrameBin,
-    FrameWithSig = <<
-        S00:1, F00:1, S01:1, F01:1, S02:1, F02:1, S03:1, F03:1,
-        S04:1, F04:1, S05:1, F05:1, S06:1, F06:1, S07:1, F07:1,
-        S08:1, F08:1, S09:1, F09:1, S10:1, F10:1, S11:1, F11:1,
-        S12:1, F12:1, S13:1, F13:1, S14:1, F14:1, S15:1, F15:1,
-        FrameTail/binary
-    >>,
-    {ok, FrameWithSig}.
-
+    sign_command(FrameBin, Password).
 
 
 %%
@@ -322,6 +299,74 @@ encode_bool(true) -> 1.
 
 decode_bool(0) -> false;
 decode_bool(1) -> true.
+
+
+%%
+%%  Signs a command.
+%%
+sign_command(CommandFrame, undefined) ->
+    {ok, CommandFrame};
+
+sign_command(CommandFrame, Password) ->
+    {ok, <<CkA, CkB>>} = ls1mcs_utl_cksum:checksum(CommandFrame, fletcher8bit),
+    <<PwA, PwB>> = Password,
+    Signature = <<(CkA bxor PwA):8, (CkB bxor PwB):8>>,
+    <<
+        S00:1, S01:1, S02:1, S03:1, S04:1, S05:1, S06:1, S07:1,
+        S08:1, S09:1, S10:1, S11:1, S12:1, S13:1, S14:1, S15:1
+    >> = Signature,
+    <<
+        F00:1, F01:1, F02:1, F03:1, F04:1, F05:1, F06:1, F07:1,
+        F08:1, F09:1, F10:1, F11:1, F12:1, F13:1, F14:1, F15:1,
+        FrameTail/binary
+    >> = CommandFrame,
+    FrameWithSignature = <<
+        S00:1, F00:1, S01:1, F01:1, S02:1, F02:1, S03:1, F03:1,
+        S04:1, F04:1, S05:1, F05:1, S06:1, F06:1, S07:1, F07:1,
+        S08:1, F08:1, S09:1, F09:1, S10:1, F10:1, S11:1, F11:1,
+        S12:1, F12:1, S13:1, F13:1, S14:1, F14:1, S15:1, F15:1,
+        FrameTail/binary
+    >>,
+    {ok, FrameWithSignature}.
+
+
+%%
+%%  Checks a command signature.
+%%  This function is needed here to recognize echoed commands properly.
+%%
+check_signature(FrameWithSignature, undefined) ->
+    {ok, FrameWithSignature};
+
+check_signature(FrameWithSignature, _Password) when size(FrameWithSignature) < 4 ->
+    {error, badframe};
+
+check_signature(FrameWithSignature, Password) ->
+    <<
+        S00:1, F00:1, S01:1, F01:1, S02:1, F02:1, S03:1, F03:1,
+        S04:1, F04:1, S05:1, F05:1, S06:1, F06:1, S07:1, F07:1,
+        S08:1, F08:1, S09:1, F09:1, S10:1, F10:1, S11:1, F11:1,
+        S12:1, F12:1, S13:1, F13:1, S14:1, F14:1, S15:1, F15:1,
+        FrameTail/binary
+    >> = FrameWithSignature,
+    SuppliedSignature = <<
+        S00:1, S01:1, S02:1, S03:1, S04:1, S05:1, S06:1, S07:1,
+        S08:1, S09:1, S10:1, S11:1, S12:1, S13:1, S14:1, S15:1
+    >>,
+    CommandFrame = <<
+        F00:1, F01:1, F02:1, F03:1, F04:1, F05:1, F06:1, F07:1,
+        F08:1, F09:1, F10:1, F11:1, F12:1, F13:1, F14:1, F15:1,
+        FrameTail/binary
+    >>,
+    {ok, <<CkA, CkB>>} = ls1mcs_utl_cksum:checksum(CommandFrame, fletcher8bit),
+    <<PwA, PwB>> = Password,
+    CalculatedSignature = <<(CkA bxor PwA):8, (CkB bxor PwB):8>>,
+    case SuppliedSignature =:= CalculatedSignature of
+        true ->
+            {ok, CommandFrame};
+        false ->
+            {error, badsign}
+    end.
+
 
 
 %% =============================================================================
