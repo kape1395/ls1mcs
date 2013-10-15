@@ -289,11 +289,14 @@ The `/etc/ax25/soundmodem.conf` contents are as follows (formatted here):
 
 To start the soundmodem, run the following as a root:
 
-    sudo soundmodem -v 999 2>&1 | grep -v rx
+    # sudo soundmodem -v 999 2>&1 | grep -v rx
+    sudo priv/ls1mcs_snd_modem start
+    sudo priv/ls1mcs_snd_modem stop
+    sudo priv/ls1mcs_snd_modem status
 
 To test the soundmodem, run the following:
 
-    sudo chmod og+rw /dev/soundmodem0
+    sudo chmod og+rw /dev/soundmodem0  # Not needed if started using priv/ls1mcs_snd_modem
     cat /root/aaa >> /dev/soundmodem0
 
 Where the `aaa` file has one KISS frame:

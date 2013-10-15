@@ -1,0 +1,82 @@
+#!/bin/bash
+CMD=$1
+PID_FILE=soundmodem.pid
+LOG_FILE=soundmodem.log
+
+function assert_root()
+{
+    if [[ $EUID -ne 0 ]]; then
+        echo "This script must be run as root" 1>&2
+        exit 1
+    fi
+}
+
+function check_status()
+{
+    local pid
+    if [[ ! -f $PID_FILE ]] ; then
+        echo "Not running (PID file missing)" >&2
+        return 0
+    fi
+    pid=$(cat $PID_FILE)
+    if [[ $(ps $pid | grep soundmodem) == "" ]] ; then
+        echo "Not running (process not found for pid $pid)" >&2
+        return 0
+    fi
+    echo "Running (pid=$pid)" >&2
+    echo $pid
+    return 1
+}
+
+function do_start()
+{
+    local pid
+    pid=$(check_status)
+    if [[ -z $pid ]] ; then
+        assert_root
+        soundmodem -v 990 >> $LOG_FILE 2>&1 &
+        pid=$!
+        echo $pid > $PID_FILE
+        sleep 1
+        chgrp dialout /dev/soundmodem*
+        echo "Started, pid=$pid"
+    else
+        echo "Already running, pid=$pid"
+    fi
+}
+
+function do_stop()
+{
+    local pid
+    pid=$(check_status)
+    if [[ -z $pid ]] ; then
+        echo "Already stopped"
+    else
+        assert_root
+        kill $pid
+        rm $PID_FILE
+        echo "Stopped, was pid=$pid"
+    fi
+}
+
+function do_status()
+{
+    check_status 2>&1
+}
+
+case $CMD in
+    (start)
+        do_start
+        ;;
+    (stop)
+        do_stop
+        ;;
+    (status)
+        do_status
+        ;;
+    (*)
+        echo "Usage: $0 (start|stop|status)"
+        ;;
+esac
+
+
