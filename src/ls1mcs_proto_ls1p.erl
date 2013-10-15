@@ -25,21 +25,21 @@
     {arm,   runtime_tm,     16#3},
     {arm,   job_period,     16#4},
     {arm,   pwr_allow_nm,   16#5},
-    {arm,   pwr_state,      16#6},  % TODO: GUI
+    {arm,   pwr_state,      16#6},  % TODO: Add to GUI
     {arm,   term_sci_mode,  16#7},
     {arm,   start_fmrep,    16#8},
-    {arm,   sd_format,      16#9},  % TODO: Docs
+    {arm,   sd_format,      16#9},
     {arm,   multi,          16#F},
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},
     {arduino,   photo_data, 16#2},
     {arduino,   beacon_st,  16#3},
     {eps,       ch_status,  16#0},
-    {eps,       hrd_reset,  16#1},  % TODO: Docs
+    {eps,       hrd_reset,  16#1},
     {gps,       nmea,       16#0},
     {gps,       binary,     16#1},
-    {helium,    restore,    16#0},  % TODO: Docs
-    {helium,    tx_pwr,     16#1},  % TODO: Docs
+    {helium,    restore,    16#0},
+    {helium,    tx_pwr,     16#1},
     {ground,    ack,        ?GROUND_PORT_ACK},
     {ground,    data,       ?GROUND_PORT_DATA},
     {ground,    telemetry,  ?GROUND_PORT_TM}
