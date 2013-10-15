@@ -126,7 +126,7 @@ getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
         id = UsrCmdId,
         photo_size = PhotoSize
     } = StateData,
-    lager:warning("ls1mcs_usr_cmd_photo: Got photo_data response."),
+    lager:debug("ls1mcs_usr_cmd_photo: Got photo_data response."),
     %
     %   Get collected data fragments.
     %

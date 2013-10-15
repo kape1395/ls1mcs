@@ -4,7 +4,7 @@
 %%
 -module(ls1mcs_usr_cmd).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1, issue/1, groups/0, specs/0]).
+-export([start_link/1, issue/1, groups/0, specs/0, arg_val/2]).
 -export([send_sat_cmd/3, set_status/2]).
 -export([sat_cmd_failed/2, sat_cmd_completed/2]).
 -include("ls1mcs.hrl").
@@ -154,11 +154,13 @@ specs() ->
                 #usr_cmd_opts{desc = <<"Disallow">>,    value = 0}
             ]}
         ]},
+        #usr_cmd_spec{group = arm, name = term_sci_mode, desc = <<"Terminate SCI mode">>, impl = Simple, params = [
+        ]},
         #usr_cmd_spec{group = arm, name = start_fmrep, desc = <<"Start FM Repeater">>, impl = Simple, params = [
             #usr_cmd_param{name = delay,    type = integer, desc = <<"Delay">>},
             #usr_cmd_param{name = duration, type = integer, desc = <<"Duration">>}
         ]},
-        #usr_cmd_spec{group = arm, name = term_sci_mode, desc = <<"Terminate SCI mode">>, impl = Simple, params = [
+        #usr_cmd_spec{group = arm, name = sd_format, desc = <<"Format ARM SD Card">>, impl = Simple, params = [
         ]},
 
         %% Multi-command should not be visible to the end user.
@@ -207,6 +209,9 @@ specs() ->
             #usr_cmd_param{name = delay,    type = integer, desc = <<"Start delay">>},
             #usr_cmd_param{name = duration, type = integer, desc = <<"Duration">>}
         ]},
+        #usr_cmd_spec{group = eps, name = hrd_reset, desc = <<"SAT Hard Reset">>, impl = Simple, params = [
+        ]},
+
 
         %%
         %%  GPS Commands
@@ -221,8 +226,18 @@ specs() ->
         %%
         %%  Helium-100 Commands
         %%
-        #usr_cmd_spec{group = helium, name = he_command, desc = <<"Generic Helium Command">>, params = [
-            #usr_cmd_param{name = payload, type = string, desc = <<"Command in hex">>}
+        #usr_cmd_spec{group = helium, name = he_restore, desc = <<"Restore Helium Config">>, impl = Simple, params = [
+        ]},
+        #usr_cmd_spec{group = helium, name = he_tx_prw, desc = <<"Set Helium TX Power Level">>, impl = Simple, params = [
+            #usr_cmd_param{name = level, type = integer, desc = <<"Amplification level (00-FF)">>}
         ]}
     ].
+
+
+%%
+%%  Returns user command argument as an integer.
+%%
+arg_val(Name, Args) ->
+    #usr_cmd_arg{name = Name, value = Value} = lists:keyfind(Name, #usr_cmd_arg.name, Args),
+    erlang:binary_to_integer(Value).
 

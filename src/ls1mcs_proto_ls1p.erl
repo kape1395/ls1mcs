@@ -25,18 +25,21 @@
     {arm,   runtime_tm,     16#3},
     {arm,   job_period,     16#4},
     {arm,   pwr_allow_nm,   16#5},
-    {arm,   pwr_state,      16#6},
+    {arm,   pwr_state,      16#6},  % TODO: GUI
     {arm,   term_sci_mode,  16#7},
     {arm,   start_fmrep,    16#8},
+    {arm,   sd_format,      16#9},  % TODO: Docs
     {arm,   multi,          16#F},
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},
     {arduino,   photo_data, 16#2},
     {arduino,   beacon_st,  16#3},
     {eps,       ch_status,  16#0},
+    {eps,       hrd_reset,  16#1},  % TODO: Docs
     {gps,       nmea,       16#0},
     {gps,       binary,     16#1},
-    {helium,    command,    16#0},
+    {helium,    restore,    16#0},  % TODO: Docs
+    {helium,    tx_pwr,     16#1},  % TODO: Docs
     {ground,    ack,        ?GROUND_PORT_ACK},
     {ground,    data,       ?GROUND_PORT_DATA},
     {ground,    telemetry,  ?GROUND_PORT_TM}
@@ -526,7 +529,7 @@ decode_tm_mag(Telemetry, Sensor) ->
     >> = Telemetry,
     Coef_mG_to_uT = 0.1,   % Converts mili Gauses to micro Teslas.
     Coef = case Sensor of
-        'HMC5883L' -> lists:nth(Gain + 1, [0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35] * Coef_mG_to_uT);
+        'HMC5883L' -> lists:nth(Gain + 1, [0.73, 0.92, 1.22, 1.52, 2.27, 2.56, 3.03, 4.35]) * Coef_mG_to_uT;
         'AK8975'   -> lists:nth(Gain + 1, [0.3])
     end,
     #tm_mag{

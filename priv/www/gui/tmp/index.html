@@ -95,7 +95,10 @@
                                             <option value="4">4 - 3.3V2 - ARM</option>
                                             <option value="5">5 - 3.3V3 - Helium-100 RX</option>
                                         </select></td>
-                                        <td><a href="#immcmd__epsch_on">On</a> | <a href="#immcmd__epsch_off">Off</a></td>
+                                        <td><a href="#immcmd__epsch_on">On</a> |
+                                            <a href="#immcmd__epsch_off">Off</a> |
+                                            <a href="#immcmd__eps_reset">SAT&nbsp;Reset</a>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td>Photo</td>
@@ -131,6 +134,20 @@
                                             <input id="immcmd__dlnk_till" type="text" style="width:35px" value="314">)
                                         </td>
                                         <td><a href="#immcmd__dlnk">Get</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>ARM SD Card</td>
+                                        <td>&nbsp;</td>
+                                        <td><a href="#immcmd__arm_sd_format">Format</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Helium</td>
+                                        <td>
+                                            TX Ampl. level [0, 255]: <input id="immcmd__he_tx_pwr_level" type="text" style="width:50px" value="73">
+                                        </td>
+                                        <td><a href="#immcmd__he_tx_pwr">Set</a> |
+                                            <a href="#immcmd__he_restore">Restore&nbsp;Cfg</a>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>

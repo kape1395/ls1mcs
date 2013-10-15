@@ -16,12 +16,36 @@
 %%
 %%  Port, 4 bits.
 %%
--type ls1p_port_arm()       :: ping | kill | downlink | runtime_tm | job_period | pwr_allow_nm | pwr_state | term_sci_mode | start_fmrep | multi.
--type ls1p_port_arduino()   :: take_photo | photo_meta | photo_data | beacon_st.
--type ls1p_port_eps()       :: ch_status.
--type ls1p_port_gps()       :: nmea | binary.
--type ls1p_port_helium()    :: command.
--type ls1p_port_ground()    :: ack | data | telemetry.
+-type ls1p_port_arm() ::
+    ping |
+    kill |
+    downlink |
+    runtime_tm |
+    job_period |
+    pwr_allow_nm |
+    pwr_state |
+    term_sci_mode |
+    start_fmrep |
+    sd_format |
+    multi.
+-type ls1p_port_arduino() ::
+    take_photo |
+    photo_meta |
+    photo_data |
+    beacon_st.
+-type ls1p_port_eps() ::
+    ch_status |
+    hrd_reset.
+-type ls1p_port_gps() ::
+    nmea |
+    binary.
+-type ls1p_port_helium() ::
+    restore |
+    tx_pwr.
+-type ls1p_port_ground() ::
+    ack |
+    data |
+    telemetry.
 -type ls1p_port() ::
     ls1p_port_arm() |
     ls1p_port_arduino() |

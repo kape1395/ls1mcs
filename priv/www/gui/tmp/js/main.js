@@ -89,6 +89,12 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
+
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__eps_reset']", function () {
+        ls1mcs_send_immediate_command(
+            {spec: "hrd_reset"}
+        );
+    });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__fmrep_on']", function () {
         var delay = parseInt($("#immcmd__fmrep_delay").val());
         var duration = parseInt($("#immcmd__fmrep_duration").val());
@@ -147,6 +153,11 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__arm_sd_format']", function () {
+        ls1mcs_send_immediate_command(
+            {spec: "sd_format"}
+        );
+    });
 
     $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_on']", function () {
         ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 1}]});
@@ -158,6 +169,19 @@ function ls1mcs_immcmds_init() {
         ls1mcs_send_immediate_command({spec: "runtime_tm"});
     });
 
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__he_restore']", function () {
+        ls1mcs_send_immediate_command(
+            {spec: "he_restore"}
+        );
+    });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__he_tx_pwr']", function () {
+        var level  = parseInt($("#immcmd__he_tx_pwr_level").val());
+        ls1mcs_send_immediate_command(
+            {spec: "he_tx_prw", args: [
+                {name: "level",  value: level}
+            ]}
+        );
+    });
 
     ls1mcs_immcmds_show();
 }

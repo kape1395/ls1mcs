@@ -211,6 +211,16 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<>>
                 }
             };
+        sd_format ->
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = sd_format,
+                    ack = true,
+                    delay = 0,
+                    data = <<>>
+                }
+            };
         take_photo ->
             ResId = arg_val(resid, Args),
             Delay = arg_val(delay, Args),
@@ -266,6 +276,34 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     ack = true,
                     data = <<Channel:8, Status:8>>
                 }
+            };
+        hrd_reset ->
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = eps,
+                    port = hrd_reset,
+                    ack = true,
+                    data = <<>>
+                }
+            };
+        he_restore ->
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = helium,
+                    port = restore,
+                    ack = true,
+                    data = <<>>
+                }
+            };
+        he_tx_prw ->
+            Level = arg_val(level, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = helium,
+                    port = tx_pwr,
+                    ack = true,
+                    data = <<Level:8>>
+                }
             }
     end.
 
@@ -274,6 +312,5 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
 %%  Returns user command argument as an integer.
 %%
 arg_val(Name, Args) ->
-    #usr_cmd_arg{name = Name, value = Value} = lists:keyfind(Name, #usr_cmd_arg.name, Args),
-    erlang:binary_to_integer(Value).
+    ls1mcs_usr_cmd:arg_val(Name, Args).
 
