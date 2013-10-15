@@ -646,13 +646,15 @@ decode_tm_gyro(Telemetry, Sensor) ->
 
 
 %%
+%%  Decodes photo metadata, returns its fields.
 %%
-%%
+-spec decode_photo_meta(binary()) -> {ok, Size :: integer()}.
+
 decode_photo_meta(Binary) ->
     <<
         PhotoSize:16/little
     >> = Binary,
-    {PhotoSize}.
+    {ok, PhotoSize}.
 
 
 

@@ -103,7 +103,7 @@ getting_meta({sat_cmd_status, SatCmdId, failed}, StateData = #state{last_cmd_id 
 getting_meta({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_id = SatCmdId}) ->
     CRef = ls1mcs_store:cref_from_sat_cmd_id(SatCmdId),
     {ok, [#ls1p_data_frame{data = Metadata}]} = ls1mcs_store:get_ls1p_frame({data, CRef}),
-    {PhotoSize} = ls1mcs_proto_ls1p:decode_photo_meta(Metadata),
+    {ok, PhotoSize} = ls1mcs_proto_ls1p:decode_photo_meta(Metadata),
     download(StateData#state{data_gaps = [{0, PhotoSize}], photo_size = PhotoSize});
 
 getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
