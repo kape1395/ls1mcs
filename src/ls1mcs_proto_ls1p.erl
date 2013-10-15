@@ -2,7 +2,11 @@
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/3, decode_tm/1, decode_photo_meta/1, merged_response_fragments/1, merged_response/1, merged_response/2]).
+-export([
+    start_link/3, decode_tm/1, decode_photo_meta/1,
+    merged_response_fragments/1, merged_archive_fragments/1,
+    merged_response/1, merged_response/2
+]).
 -export([send/2, received/2]).
 -export([encode/2, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -657,7 +661,9 @@ decode_photo_meta(Binary) ->
     {ok, PhotoSize}.
 
 
-
+%%
+%%
+%%
 -spec merged_response_fragments(
         [{#ls1p_cmd_frame{}, [#ls1p_data_frame{}]}]
         ) ->
@@ -758,7 +764,7 @@ overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OTill >= BTill ->
 %%  that are response to a single command frame.
 %%
 %%  Reverse with usort is needed here to drop old duplicated data.
-%%  TODO: Sort by time desc explicitly.
+%%  TODO: Sort by time desc explicitly. WTF?
 %%
 merge_to_blocks(_CmdFrame, []) ->
     [];
@@ -791,5 +797,27 @@ merge_to_blocks(CmdFrame, DataFrames) ->
 %%  Extracts meta-info from the specified frame.
 %%
 fragment_metainfo(#ls1p_cmd_frame{addr = arduino, port = photo_data, data = Data}) ->
-    <<BlockSize:8, From:16, Till:16>> = Data,
-    {ok, BlockSize, From, Till}.
+    <<BlkSz:8, From:16/little, Till:16/little>> = Data,
+    {ok, BlkSz, From, Till};
+
+fragment_metainfo(#ls1p_cmd_frame{addr = arm, port = downlink, data = Data}) ->
+    <<_BufId:8, BlkSz:8, From:16/little, Till:16/little>> = Data,
+    {ok, BlkSz, From, Till}.
+
+
+
+%%
+%%
+%%
+-spec merged_archive_fragments(
+        [{#ls1p_cmd_frame{}, [#ls1p_data_frame{}]}]
+        ) ->
+        {ok, [{From :: integer(), Till :: integer(), Data :: binary()}]}.
+
+merged_archive_fragments(CommandsWithData) ->
+    BlockSets = [ merge_to_blocks(C, D) || {C, D} <- CommandsWithData ],
+
+    % TODO: Implement overlay in a different way.
+
+    MergedBlocks = lists:foldl(fun overlay_block_sets/2, [], BlockSets),
+    {ok, MergedBlocks}.
