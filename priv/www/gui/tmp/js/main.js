@@ -65,6 +65,10 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__pwr_set']", function () {
+        var mode = parseInt($("#immcmd__pwr_mode").val());
+        ls1mcs_send_immediate_command({spec: "pwr_state", args: [{name: "mode", value: mode}]});
+    });
     $("#immcmd-send-table").on("click", "a[href='#immcmd__pwrnm_allow']", function () {
         ls1mcs_send_immediate_command({spec: "pwr_allow_nm", args: [{name: "allow", value: 1}]});
     });

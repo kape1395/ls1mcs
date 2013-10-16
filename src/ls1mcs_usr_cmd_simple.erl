@@ -189,6 +189,16 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<Allow:8>>
                 }
             };
+        pwr_state ->
+            Mode = arg_val(mode, Args),
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = pwr_state,
+                    ack = true,
+                    data = <<Mode:8>>
+                }
+            };
         start_fmrep ->
             Delay = arg_val(delay, Args),
             Duration = arg_val(duration, Args),

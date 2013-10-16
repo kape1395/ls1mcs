@@ -29,7 +29,7 @@
     {arm,   runtime_tm,     16#3},
     {arm,   job_period,     16#4},
     {arm,   pwr_allow_nm,   16#5},
-    {arm,   pwr_state,      16#6},  % TODO: Add to GUI
+    {arm,   pwr_state,      16#6},
     {arm,   term_sci_mode,  16#7},
     {arm,   start_fmrep,    16#8},
     {arm,   sd_format,      16#9},
@@ -122,7 +122,7 @@ handle_cast({received, DataBin}, State = #state{upper = Upper, pass = Password})
     case check_signature(DataBin, Password) of
         {ok, Frame} when Password =/= undefined ->
             % Handles echoed command in the case when password is specified.
-            lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
+            lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) signed command frame: ~p", [Frame]);
         {error, _Reason} ->
             try decode(DataBin) of
                 {ok, Frame} when is_record(Frame, ls1p_cmd_frame) ->

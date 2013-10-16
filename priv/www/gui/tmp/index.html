@@ -81,9 +81,16 @@
                                         <td><a href="#immcmd__scimode_term">Terminate</a></td>
                                     </tr>
                                     <tr>
-                                        <td>Allow PWR nom.</td>
-                                        <td>&nbsp;</td>
-                                        <td><a href="#immcmd__pwrnm_allow">Allow</a> | <a href="#immcmd__pwrnm_dis">Dis.</a></td>
+                                        <td>PWR management</td>
+                                        <td><select id="immcmd__pwr_mode">
+                                            <option value="0">0 - auto</option>
+                                            <option value="1">1 - safe</option>
+                                            <option value="2">2 - nominal</option>
+                                        </select></td>
+                                        <td><a href="#immcmd__pwr_set">Set&nbsp;mode</a> |
+                                            <a href="#immcmd__pwrnm_allow">Allow&nbsp;nom.</a> |
+                                            <a href="#immcmd__pwrnm_dis">Disallow&nbsp;nom.</a>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td>EPS channel</td>

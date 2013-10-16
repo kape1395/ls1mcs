@@ -154,6 +154,13 @@ specs() ->
                 #usr_cmd_opts{desc = <<"Disallow">>,    value = 0}
             ]}
         ]},
+        #usr_cmd_spec{group = arm, name = pwr_state, desc = <<"Set PWR state">>, impl = Simple, params = [
+            #usr_cmd_param{name = mode, type = integer, desc = <<"Mode">>, opts = [
+                #usr_cmd_opts{desc = <<"Auto">>,       value = 0},
+                #usr_cmd_opts{desc = <<"Safe">>,       value = 1},
+                #usr_cmd_opts{desc = <<"Nominal">>,    value = 2}
+            ]}
+        ]},
         #usr_cmd_spec{group = arm, name = term_sci_mode, desc = <<"Terminate SCI mode">>, impl = Simple, params = [
         ]},
         #usr_cmd_spec{group = arm, name = start_fmrep, desc = <<"Start FM Repeater">>, impl = Simple, params = [
