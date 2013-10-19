@@ -354,7 +354,8 @@ query_all_input(Port, Upper) ->
         {ok, ?HM_CODE_MHDR_MSG} ->
             {ok, Msg} = read_zstr(Port),
             lager:debug("G responded with monitored header ~p, info follows", [Msg]),
-            query_info(Port, Upper)
+            ok = query_info(Port, Upper),
+            query_all_input(Port, Upper)
     end.
 
 query_info(Port, Upper) ->
