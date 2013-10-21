@@ -11,6 +11,7 @@
 -define(MEDIATYPE_JSON, "application/vnd.ls1mcs-v1+json; level=0").
 -define(MEDIATYPE_TERM, "application/x-erlang-term").
 -define(MEDIATYPE_JPEG, "image/jpeg").
+-define(MEDIATYPE_TXT,  "text/plain").
 -define(MEDIATYPE_BIN,  "application/octet-stream").
 
 
@@ -175,9 +176,14 @@ handle_request(["telemetry"], 'GET', _Arg) ->
 %%
 %%  Telemetry collected by ground station.
 %%
-handle_request(["telemetry", "gs"], 'GET', _Arg) ->
+handle_request(["telemetry", "gs"], 'GET', Arg) ->
     {ok, TMFrames} = ls1mcs_store:get_tm(all),
-    respond(200, json_list(TMFrames));
+    case yaws_api:queryvar(Arg, "t") of
+        {ok, "txt"} ->
+            respond(200, ?MEDIATYPE_TXT, erlang:iolist_to_binary(ls1mcs_yaws_txt:encode_list(TMFrames)));
+        _ ->
+            respond(200, json_list(TMFrames))
+    end;
 
 handle_request(["telemetry", "gs", "latest"], 'GET', _Arg) ->
     case ls1mcs_store:get_tm(latest) of
