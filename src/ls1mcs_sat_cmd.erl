@@ -15,9 +15,9 @@
 -include("ls1p.hrl").
 
 -define(REF(CmdFrameId), {via, gproc, {n, l, {?MODULE, CmdFrameId}}}).
--define(ACK_TIMEOUT, 10000).    % 10s   - time to wait for ack.
--define(DATA_SI_DURA, 5000).    % 2s    - time to initialize sending on the SAT side.
--define(DATA_FS_DURA,  500).    % 0.5s  - time to send 1 data frame.
+-define(ACK_TIMEOUT,  2000).    % 2s   - time to wait for ack.
+-define(DATA_SI_DURA, 2000).    % 2s    - time to initialize sending on the SAT side.
+-define(DATA_FS_DURA,  300).    % 0.5s  - time to send 1 data frame.
 
 
 
@@ -96,9 +96,13 @@ sending(start, StateData = #state{sat_cmd = SatCmd, ls1p_ref = Ls1pRef, need_dat
     CmdFrameWithCRef = CmdFrame#ls1p_cmd_frame{cref = cref(SatCmdId)},
     lager:info("ls1mcs_sat_cmd: sending cmd frame: ~p", [CmdFrameWithCRef]),
     ok = ls1mcs_protocol:send(Ls1pRef, CmdFrameWithCRef),
+    AckTimeout = case NeedAck of
+        true -> ?ACK_TIMEOUT;
+        false -> 100
+    end,
     Timeout = case NeedData of
-        true -> ?ACK_TIMEOUT + (Delay * 1000) + ?DATA_SI_DURA + (ExpectedDFCount * ?DATA_FS_DURA);
-        false -> ?ACK_TIMEOUT
+        true -> AckTimeout + (Delay * 1000) + ?DATA_SI_DURA + (ExpectedDFCount * ?DATA_FS_DURA);
+        false -> AckTimeout
     end,
     _TRef = gen_fsm:send_event_after(Timeout, timeout),
     case {NeedAck, NeedData} of

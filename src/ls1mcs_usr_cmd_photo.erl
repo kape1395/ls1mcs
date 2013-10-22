@@ -72,9 +72,9 @@ init({UsrCmd = #usr_cmd{id = UsrCmdId}}) ->
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
-        block_size = 195,
-        retry_meta = 3,
-        retry_data = 10
+        block_size = 76,
+        retry_meta = 5,
+        retry_data = 200
     },
     {ok, starting, StateData}.
 
@@ -96,7 +96,7 @@ getting_meta({sat_cmd_status, SatCmdId, failed}, StateData = #state{last_cmd_id 
             NewStateData = send_photo_meta(StateData),
             {next_state, getting_meta, NewStateData};
         true ->
-            lager:warning("ls1mcs_usr_cmd_photo: Unable to get metadata."),
+            lager:warning("Unable to get metadata."),
             {stop, normal, StateData}
     end;
 
@@ -108,7 +108,7 @@ getting_meta({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
 
 getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
     lager:warning(
-        "ls1mcs_usr_cmd_photo: Ingoring unexpected sat_cmd_status, sat_cmd_id=~p, status=~p.",
+        "Ingoring unexpected sat_cmd_status, sat_cmd_id=~p, status=~p.",
         [SatCmdId, Status]
     ),
     {next_state, getting_meta, StateData}.
@@ -118,7 +118,7 @@ getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
 %%  FSM State: getting_data.
 %%
 getting_data({sat_cmd_status, SatCmdId, failed}, StateData = #state{last_cmd_id = SatCmdId}) ->
-    lager:warning("ls1mcs_usr_cmd_photo: Got photo_data failure."),
+    lager:warning("Got photo_data failure."),
     download(StateData);
 
 getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_id = SatCmdId}) ->
@@ -126,7 +126,7 @@ getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
         id = UsrCmdId,
         photo_size = PhotoSize
     } = StateData,
-    lager:debug("ls1mcs_usr_cmd_photo: Got photo_data response."),
+    lager:debug("Got photo_data response."),
     %
     %   Get collected data fragments.
     %
@@ -162,7 +162,7 @@ getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
 
 getting_data({sat_cmd_status, SatCmdId, Status}, StateData) ->
     lager:warning(
-        "ls1mcs_usr_cmd_photo: Ingoring unexpected sat_cmd_status, sat_cmd_id=~p, status=~p.",
+        "Ingoring unexpected sat_cmd_status, sat_cmd_id=~p, status=~p.",
         [SatCmdId, Status]
     ),
     {next_state, getting_data, StateData}.
@@ -196,18 +196,28 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%  Download first pending block of data.
 %%
 download(StateData = #state{data_gaps = []}) ->
-    lager:info("ls1mcs_usr_cmd_photo: Photo downloaded."),
+    lager:info("Photo downloaded."),
     {stop, normal, StateData};
 
 download(StateData = #state{retry_data = Retry}) when Retry =< 0 ->
-    lager:info("ls1mcs_usr_cmd_photo: Photo download failed (data retry count exceeded)."),
+    lager:info("Photo download failed (data retry count exceeded)."),
     {stop, normal, StateData};
 
-download(StateData = #state{data_gaps = [FirstGap | _], retry_data = Retry, block_size = BlockSize}) ->
+download(StateData = #state{data_gaps = AllGaps = [FirstGap | _], retry_data = Retry, block_size = BlockSize}) ->
     {From, Length} = FirstGap,
     BlockFrom = in_block(From, BlockSize),
     BlockTill = in_block(From + Length, BlockSize) + 1,
-    NewStateData = send_photo_data(BlockSize, BlockFrom, BlockTill, StateData#state{retry_data = Retry - 1}),
+    lager:debug("Have gaps in data {From, Length}: ~p", [AllGaps]),
+    lager:info(
+        "Downloading data for gap from_byte=~p, length=~p using block_size=~p, block_from=~p, block_till=~p",
+        [From, Length, BlockSize, BlockFrom, BlockTill]
+    ),
+    NewStateData = send_photo_data(
+        BlockSize,
+        max(BlockFrom - 3, 0),
+        BlockTill + 3,
+        StateData#state{retry_data = Retry - 1}
+    ),
     {next_state, getting_data, NewStateData}.
 
 

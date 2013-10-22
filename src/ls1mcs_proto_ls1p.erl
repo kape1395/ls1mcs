@@ -742,15 +742,15 @@ overlay({OFrom, OTill, OData}, {BFrom, BTill, _BData}) when OFrom =< BFrom, OTil
 
 % Overlay block is in the middle of the base block.
 overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OFrom > BFrom, OTill < BTill ->
-    PrefixSize = BFrom - OFrom,
+    PrefixSize = OFrom - BFrom,
     OverlappedSize = OTill - OFrom,
     <<Prefix:PrefixSize/binary, _:OverlappedSize/binary, Suffix/binary>> = BData,
     {BFrom, BTill, <<Prefix/binary, OData/binary, Suffix/binary>>};
 
 % Overlay block covers front of the base block (or touches it).
 overlay({OFrom, OTill, OData}, {BFrom, BTill, BData}) when OFrom =< BFrom ->
-    OverlappedSize = BFrom - OTill,
-    <<_:OverlappedSize/binary, Suffix>> = BData,
+    OverlappedSize = OTill - BFrom,
+    <<_:OverlappedSize/binary, Suffix/binary>> = BData,
     {OFrom, BTill, <<OData/binary, Suffix/binary>>};
 
 % Overlay block covers tail of the base block (or touches it).
