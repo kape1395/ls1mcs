@@ -95,6 +95,38 @@ init({ConnRef, tnc_tapr_kiss, LinkOptions}) ->
         {ls1p, {Ls1pMod, start_link, Ls1pArgs}, permanent, 5000, worker, [Ls1pMod]}
     ]}};
 
+init({ConnRef, tnc_mfj1270c_kiss, LinkOptions}) ->
+    Device     = proplists:get_value(device,      LinkOptions),
+    LocalCall  = proplists:get_value(local_call,  LinkOptions),
+    RemoteCall = proplists:get_value(remote_call, LinkOptions),
+
+    Tnc2Mod  = ls1mcs_tnc_mfj1270c,
+    KissMod = ls1mcs_proto_kiss,
+    Ax25Mod = ls1mcs_proto_ax25,
+    Ls1pMod = ?LS1P_MOD,
+
+    Tnc2Name = {n, l, Tnc2Mod},
+    KissName = {n, l, KissMod},
+    Ax25Name = {n, l, Ax25Mod},
+    Ls1pName = ?LS1P_NAME,
+
+    TaprRef = ls1mcs_protocol:make_ref(Tnc2Mod, Tnc2Name),
+    KissRef = ls1mcs_protocol:make_ref(KissMod, KissName),
+    Ax25Ref = ls1mcs_protocol:make_ref(Ax25Mod, Ax25Name),
+    Ls1pRef = ls1mcs_protocol:make_ref(Ls1pMod, Ls1pName),
+
+    Tnc2Args = [Tnc2Name, KissRef, Device],
+    KissArgs = [KissName, TaprRef, Ax25Ref],
+    Ax25Args = [Ax25Name, KissRef, Ls1pRef, LocalCall, RemoteCall, tnc],
+    Ls1pArgs = [Ls1pName, Ax25Ref, ConnRef],
+
+    {ok, {{one_for_all, 100, 10}, [
+        {sndm, {Tnc2Mod, start_link, Tnc2Args}, permanent, 5000, worker, [Tnc2Mod]},
+        {kiss, {KissMod, start_link, KissArgs}, permanent, 5000, worker, [KissMod]},
+        {ax25, {Ax25Mod, start_link, Ax25Args}, permanent, 5000, worker, [Ax25Mod]},
+        {ls1p, {Ls1pMod, start_link, Ls1pArgs}, permanent, 5000, worker, [Ls1pMod]}
+    ]}};
+
 init({ConnRef, soundmodem, LinkOptions}) ->
     Device     = proplists:get_value(device,      LinkOptions),
     LocalCall  = proplists:get_value(local_call,  LinkOptions),

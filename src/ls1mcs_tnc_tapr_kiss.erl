@@ -135,7 +135,6 @@ handle_info({initialize, Device}, State = #state{upper = Upper}) ->
 handle_info({recv}, State = #state{port = Port, upper = Upper}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
         {ok, RecvIoList} ->
-            lager:debug("Received: ~p", [RecvIoList]),
             RecvBinary = iolist_to_binary(RecvIoList),
             ok = ls1mcs_protocol:received(Upper, RecvBinary),
             self() ! {recv};

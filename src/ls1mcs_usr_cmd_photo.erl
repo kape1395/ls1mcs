@@ -72,7 +72,7 @@ init({UsrCmd = #usr_cmd{id = UsrCmdId}}) ->
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
-        block_size = 76,
+        block_size = 237,
         retry_meta = 5,
         retry_data = 200
     },
@@ -158,7 +158,7 @@ getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_
     %
     %   Download missing fragments (gaps).
     %
-    download(StateData#state{data_gaps = NewGaps});
+    download(StateData#state{data_gaps = lists:sort(NewGaps)});
 
 getting_data({sat_cmd_status, SatCmdId, Status}, StateData) ->
     lager:warning(
