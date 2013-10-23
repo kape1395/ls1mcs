@@ -6,11 +6,9 @@ base255_encode(Data) ->
     %InitialSize = size(Data),
     %<<Number:InitialSize/unsigned-unit:8>> = Data,
     %{ok, Encoded} = {ok, InitialData},
-
     Base256 = lists:reverse(erlang:binary_to_list(Data)),
     Base255 = lists:reverse(to_base(256, 255, Base256)),
-    Encoded = Data,
-    Encoded.
+    {ok, Base255}.
 
 
 %%
@@ -47,4 +45,6 @@ to_base(SrcBase, DstBase, Mult, Rem, [First | Other]) ->
 %
 %to_base(_SrcBase, Mult, _DstBase, _Rem, [Lowest]) ->
 %    [Lowest].
+
+
 
