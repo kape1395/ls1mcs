@@ -115,10 +115,12 @@ handle_call(_Message, _From, State) ->
 handle_cast({send, Frame}, State = #state{lower = Lower, pass = Password}) ->
     {ok, DataBin} = encode(Frame, Password),
     {ok, _FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
+    %ok = ls1mcs_protocol:send(Lower, ls1mcs_utl_enc:escaping_encode(DataBin)),
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
-handle_cast({received, DataBin}, State = #state{upper = Upper, pass = Password}) ->
+handle_cast({received, DataBinEncoded}, State = #state{upper = Upper, pass = Password}) ->
+    DataBin = ls1mcs_utl_enc:escaping_decode(DataBinEncoded),
     case check_signature(DataBin, Password) of
         {ok, Frame} when Password =/= undefined ->
             % Handles echoed command in the case when password is specified.

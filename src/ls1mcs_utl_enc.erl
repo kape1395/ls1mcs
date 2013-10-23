@@ -1,7 +1,44 @@
 -module(ls1mcs_utl_enc).
--export([base255_encode/1, to_base/3]).
+-export([escaping_encode/1, escaping_decode/1, base255_encode/1, to_base/3]).
 
 
+%%
+%%
+%%
+escaping_encode(<<>>) ->
+    <<>>;
+
+escaping_encode(<<10, Tail/binary>>) ->
+    Encoded = escaping_encode(Tail),
+    <<10, 0, Encoded/binary>>;
+
+escaping_encode(<<13, Tail/binary>>) ->
+    Encoded = escaping_encode(Tail),
+    <<10, 3, Encoded/binary>>;
+
+escaping_encode(<<Any, Tail/binary>>) ->
+    Encoded = escaping_encode(Tail),
+    <<Any, Encoded/binary>>.
+
+
+%%
+%%
+%%
+escaping_decode(<<>>) ->
+    <<>>;
+
+escaping_decode(<<10, Add, Tail/binary>>) ->
+    Decoded = escaping_decode(Tail),
+    <<(10 + Add), Decoded/binary>>;
+
+escaping_decode(<<Any, Tail/binary>>) ->
+    Decoded = escaping_decode(Tail),
+    <<Any, Decoded/binary>>.
+
+
+%%
+%%
+%%
 base255_encode(Data) ->
     %InitialSize = size(Data),
     %<<Number:InitialSize/unsigned-unit:8>> = Data,
