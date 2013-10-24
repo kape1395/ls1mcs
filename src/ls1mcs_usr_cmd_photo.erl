@@ -72,7 +72,7 @@ init({UsrCmd = #usr_cmd{id = UsrCmdId}}) ->
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
-        block_size = 237,
+        block_size = 173,
         retry_meta = 5,
         retry_data = 200
     },

@@ -119,8 +119,8 @@ handle_cast({send, Frame}, State = #state{lower = Lower, pass = Password}) ->
     ok = ls1mcs_protocol:send(Lower, DataBin),
     {noreply, State};
 
-handle_cast({received, DataBinEncoded}, State = #state{upper = Upper, pass = Password}) ->
-    DataBin = ls1mcs_utl_enc:escaping_decode(DataBinEncoded),
+handle_cast({received, DataBin}, State = #state{upper = Upper, pass = Password}) ->
+    %DataBin = ls1mcs_utl_enc:escaping_decode(DataBinEncoded),
     case check_signature(DataBin, Password) of
         {ok, Frame} when Password =/= undefined ->
             % Handles echoed command in the case when password is specified.
