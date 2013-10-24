@@ -1,5 +1,10 @@
 -module(ls1mcs_utl_enc).
--export([escaping_encode/1, escaping_decode/1, base255_encode/1, to_base/3]).
+-export([
+    escaping_encode/1,
+    escaping_decode/1,
+    base255wo13_encode/1,
+    base255wo13_decode/1
+]).
 
 
 %%
@@ -39,49 +44,39 @@ escaping_decode(<<Any, Tail/binary>>) ->
 %%
 %%
 %%
-base255_encode(Data) ->
-    %InitialSize = size(Data),
-    %<<Number:InitialSize/unsigned-unit:8>> = Data,
-    %{ok, Encoded} = {ok, InitialData},
-    Base256 = lists:reverse(erlang:binary_to_list(Data)),
-    Base255 = lists:reverse(to_base(256, 255, Base256)),
-    {ok, Base255}.
+base255wo13_encode(Data) ->
+    PrefixedData = <<1, Data/binary>>,
+    PrefixedSize = size(PrefixedData),
+    <<Number:PrefixedSize/unsigned-unit:8>> = PrefixedData,
+    Base255 = lists:reverse(to_base(255, Number)),
+    Base255wo13 = [ shift_13(X) || X <- Base255],
+    erlang:list_to_binary(Base255wo13).
+
+base255wo13_decode(Data) ->
+    Unshifted = [ unshift_13(X) || X <- binary_to_list(Data) ],
+    Number = from_base(255, lists:reverse(Unshifted)),
+    [1 | Base256] = lists:reverse(to_base(256, Number)),
+    erlang:list_to_binary(Base256).
 
 
-%%
-%%
-%%
-to_base(SrcBase, DstBase, Data) ->
-    lists:reverse(to_base(SrcBase, DstBase, 1, 0, lists:reverse(Data))).
+%% Uses reversed input list.
+from_base(_Base, []) ->
+    0;
+from_base(Base, [First | Other]) ->
+    First + Base * from_base(Base, Other).
 
-to_base(_SrcBase, _DstBase, _Mult, _Rem, []) ->
+
+%% Returns reversed list.
+to_base(_Base, 0) ->
     [];
-
-to_base(SrcBase, DstBase, Mult, Rem, Other) when Mult + Rem >= DstBase ->
-    [
-        (Mult + Rem) rem DstBase |
-        to_base(SrcBase, DstBase, 1, (Rem) div DstBase, Other)
-    ];
-
-to_base(SrcBase, DstBase, Mult, Rem, [0 | Other]) ->
-    to_base(SrcBase, DstBase, Mult * SrcBase, Rem, Other);
-
-to_base(SrcBase, DstBase, Mult, Rem, [First | Other]) ->
-    to_base(SrcBase, DstBase, 1, First * Mult + Rem, Other).
+to_base(Base, Number) ->
+    [Number rem Base | to_base(Base, Number div Base)].
 
 
+shift_13(X) when X < 13 -> X;
+shift_13(X) -> X + 1.
 
-%to_base(SrcBase, DstBase, Mult, Rem, [Lowest | Other]) when (Lowest * Mult + Rem) >= DstBase ->
-%    [
-%        (Lowest * Mult + Rem) rem DstBase |
-%        to_base(SrcBase, DstBase, Mult, Rem, [Lowest div DstBase | Other])
-%    ];
-%
-%to_base(SrcBase, DstBase, Mult, Rem, [Lowest, Next | Other]) ->
-%    to_base(SrcBase, DstBase, Mult, Rem, [Lowest + SrcBase * Next | Other]);
-%
-%to_base(_SrcBase, Mult, _DstBase, _Rem, [Lowest]) ->
-%    [Lowest].
-
+unshift_13(X) when X < 13 -> X;
+unshift_13(X) -> X - 1.
 
 
