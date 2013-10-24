@@ -170,6 +170,8 @@ specs() ->
         ]},
         #usr_cmd_spec{group = arm, name = sd_format, desc = <<"Format ARM SD Card">>, impl = Simple, params = [
         ]},
+        #usr_cmd_spec{group = arm, name = set_started, desc = <<"Set SAT started">>, impl = Simple, params = [
+        ]},
 
         %% Multi-command should not be visible to the end user.
 

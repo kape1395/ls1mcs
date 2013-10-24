@@ -162,6 +162,11 @@ function ls1mcs_immcmds_init() {
             {spec: "sd_format"}
         );
     });
+    $("#immcmd-send-table").on("click", "a[href='#immcmd__arm_set_started']", function () {
+        ls1mcs_send_immediate_command(
+            {spec: "set_started"}
+        );
+    });
 
     $("#immcmd-send-table").on("click", "a[href='#immcmd__beacon_on']", function () {
         ls1mcs_send_immediate_command({spec: "beacon_st", args: [{name: "status", value: 1}]});

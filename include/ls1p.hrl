@@ -27,6 +27,7 @@
     term_sci_mode |
     start_fmrep |
     sd_format |
+    set_started |
     multi.
 -type ls1p_port_arduino() ::
     take_photo |

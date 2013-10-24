@@ -33,6 +33,7 @@
     {arm,   term_sci_mode,  16#7},
     {arm,   start_fmrep,    16#8},
     {arm,   sd_format,      16#9},
+    {arm,   set_started,    16#A},
     {arm,   multi,          16#F},
     {arduino,   take_photo, 16#0},
     {arduino,   photo_meta, 16#1},

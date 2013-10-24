@@ -231,6 +231,15 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
                     data = <<>>
                 }
             };
+        set_started ->
+            #sat_cmd{
+                cmd_frame = #ls1p_cmd_frame{
+                    addr = arm,
+                    port = set_started,
+                    ack = true,
+                    data = <<>>
+                }
+            };
         take_photo ->
             ResId = arg_val(resid, Args),
             Delay = arg_val(delay, Args),
