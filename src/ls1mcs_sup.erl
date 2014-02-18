@@ -33,7 +33,7 @@ init({LinkCfg, GPredictCfg}) ->
     SCmdMod = ls1mcs_sat_cmd_sup,
     UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
-    ReplMod = ls1mcs_store_repl,
+    %ReplMod = ls1mcs_store_repl,
 
     LinkRef = LSupMod:top_ref(),
     SLnkName = {n, l, SLnkMod},
@@ -47,8 +47,8 @@ init({LinkCfg, GPredictCfg}) ->
         {link,  {LSupMod,  start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
         {scmd,  {SCmdMod,  start_link, []},       permanent, 5000, supervisor, [SCmdMod]},
         {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]},
-        {slnk,  {SLnkMod,  start_link, SLnkArgs}, permanent, 5000, worker,     [SLnkMod]},
-        {repl,  {ReplMod,  start_link, []},       permanent, 5000, worker,     [ReplMod]}
+        {slnk,  {SLnkMod,  start_link, SLnkArgs}, permanent, 5000, worker,     [SLnkMod]}%,
+        %{repl,  {ReplMod,  start_link, []},       permanent, 5000, worker,     [ReplMod]}
     ],
 
     GPredictSpec = case GPredictCfg of
