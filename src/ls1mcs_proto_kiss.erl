@@ -77,7 +77,8 @@ idle({received, ?FEND}, StateData = #state{data = Data}) ->
     lager:debug("Received FEND: clearing buffer=~p", [lists:reverse(Data)]),
     {next_state, frame_start, StateData#state{data = []}};
 
-idle({received, _Byte}, StateData) ->
+idle({received, Byte}, StateData) ->
+    lager:debug("Received ~p", [Byte]),
     {next_state, idle, StateData}.
 
 
@@ -85,9 +86,15 @@ idle({received, _Byte}, StateData) ->
 %%  State: frame_start
 %%
 frame_start({received, ?FT_DATA}, StateData) ->
+    lager:debug("Received FT_DATA"),
     {next_state, frame_data, StateData};
 
-frame_start({received, _Byte}, StateData) ->
+frame_start({received, ?FEND}, StateData = #state{data = Data}) ->
+    lager:debug("Received FEND: clearing buffer=~p", [lists:reverse(Data)]),
+    {next_state, frame_start, StateData#state{data = []}};
+
+frame_start({received, Byte}, StateData) ->
+    lager:debug("Received ~p, assuming its trash, going to idle.", [Byte]),
     {next_state, idle, StateData}.
 
 
@@ -99,9 +106,9 @@ frame_data({received, ?FESC}, StateData) ->
 
 frame_data({received, ?FEND}, StateData = #state{upper = Upper, data = Data}) ->
     AccumulatedData = list_to_binary(lists:reverse(Data)),
-    lager:debug("Received FEND: frame buffer=~p", [AccumulatedData]),
+    lager:debug("Received FEND: sending accumulated data to the upper layer: ~p", [AccumulatedData]),
     ok = ls1mcs_protocol:received(Upper, AccumulatedData),
-    {next_state, idle, StateData};
+    {next_state, idle, StateData#state{data = []}};
 
 frame_data({received, Byte}, StateData = #state{data = Data}) ->
     NewStateData = StateData#state{data = [Byte | Data]},
