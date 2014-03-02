@@ -10,7 +10,7 @@
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/5, start_link/6, send/2, received/2]).
+-export([start_link/5, start_link/6, send/2, received/2, preview/1]).
 -export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/2, decode/2, split_frames/1, parse_call/1]). % For tests
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
@@ -21,6 +21,16 @@
 -define(ADDR_RR_UNUSED, 2#11).  %% Address, RR bits, when unused.
 -define(CTRL_FRAME_U, 2#11).    %% Last 2 bits in the control field, indicating U frame.
 
+
+-record(addr, {
+    call    :: list(),
+    ssid    :: integer()
+}).
+-record(frame, {
+    dst     :: #addr{},
+    src     :: #addr{},
+    data    :: binary()
+}).
 
 
 %% =============================================================================
@@ -65,6 +75,26 @@ received(Ref, Data) when is_binary(Data) ->
 
 
 
+%%
+%%  Used for TM preview.
+%%
+preview(Frame) when is_binary(Frame) ->
+    {ok, [Decoded]} = preview([Frame]),
+    {ok, Decoded};
+
+preview(Frames) when is_list(Frames) ->
+    DecodeFun = fun (F) ->
+        case catch decode(F, tnc) of
+            {ok, #frame{data = Payload}} ->
+                Payload;
+            _Error ->
+                undefined
+        end
+    end,
+    {ok, lists:map(DecodeFun, Frames)}.
+
+
+
 %% =============================================================================
 %%  Internal data structures.
 %% =============================================================================
@@ -77,17 +107,6 @@ received(Ref, Data) when is_binary(Data) ->
     remote,     %% Remote call
     mode        %% Operation mode: std | tnc
 }).
-
--record(addr, {
-    call    :: list(),
-    ssid    :: integer()
-}).
--record(frame, {
-    dst     :: #addr{},
-    src     :: #addr{},
-    data    :: binary()
-}).
-
 
 
 %% =============================================================================

@@ -7,7 +7,7 @@
     merged_response_fragments/1, merged_archive_fragments/1,
     merged_response/1, merged_response/2
 ]).
--export([send/2, received/2]).
+-export([send/2, received/2, preview/1]).
 -export([encode/2, decode/1]). % For tests.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
@@ -75,6 +75,28 @@ send(Ref, Data) when is_record(Data, ls1p_cmd_frame) ->
 %%
 received(Ref, Data) when is_binary(Data) ->
     gen_server:cast({via, gproc, Ref}, {received, Data}).
+
+
+%%
+%%
+%%
+preview(Frame) when is_binary(Frame) ->
+    {ok, [Decoded]} = preview([Frame]),
+    {ok, Decoded};
+
+preview(Frames) when is_list(Frames) ->
+    DecodeFun = fun
+        (undefined) ->
+            undefined;
+        (Frame) ->
+            case catch decode(Frame) of
+                {ok, Decoded} ->
+                    Decoded;
+                _Error ->
+                    undefined
+            end
+    end,
+    {ok, lists:map(DecodeFun, Frames)}.
 
 
 
