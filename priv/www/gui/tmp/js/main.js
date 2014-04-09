@@ -40,6 +40,9 @@ function ls1mcs_immcmds_init() {
     $("#immediate-commands").on("click", "a[href='#immcmd__list_refresh']", function () {
         ls1mcs_immcmds_show();
     });
+    $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
+        ls1mcs_cmdlog_show();
+    });
 
     $("#immcmd-send-table").on("click", "a[href='#immcmd__ping']", function () {
         ls1mcs_send_immediate_command(
@@ -225,6 +228,43 @@ function ls1mcs_immcmds_render(commands) {
     $("#immcmd-list-table > tbody").html(rows);
 }
 
+
+function ls1mcs_cmdlog_show() {
+    ls1mcs_cmdlog_load();
+    ls1mcs_pages_show_main();
+    $("#main-tabs > ul > li > a[href = '#command-log']").tab('show');
+}
+
+function ls1mcs_cmdlog_load() {
+    $.getJSON(api_url("command/usr"), function (data, textStatus, jqXHR) {
+        ls1mcs_cmdlog_render(data);
+    });
+}
+
+function ls1mcs_cmdlog_render(commands) {
+    commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
+    var rows = "";
+    for (var i = 0; i < commands.length && i < 10000; i++) {
+        var c = commands[i];
+        rows += "<tr>";
+        rows += "<td>" + c.id + "</td>";
+        rows += "<td>" + c.spec + "</td>";
+        if (c.args == null) {
+            rows += "<td>&nbsp;</td>";
+        } else {
+            rows += "<td>";
+            for (var a = 0; a < c.args.length; a++) {
+                if (a > 0) rows += " ";
+                rows += c.args[a].name + "=" + c.args[a].value;
+            }
+            rows += "</td>";
+        }
+        rows += "<td>" + c.issued + "</td>";
+        rows += "<td>" + c.status + "</td>";
+        rows += "</tr>";
+    }
+    $("#command-log_table > tbody").html(rows);
+}
 
 // =============================================================================
 //  Main tabs: "telemetry" tab

@@ -11,7 +11,7 @@
 -define(MEDIATYPE_JSON, "application/vnd.ls1mcs-v1+json; level=0").
 -define(MEDIATYPE_TERM, "application/x-erlang-term").
 -define(MEDIATYPE_JPEG, "image/jpeg").
--define(MEDIATYPE_TXT,  "text/plain").
+-define(MEDIATYPE_TXT,  "text/plain; charset=utf8").
 -define(MEDIATYPE_BIN,  "application/octet-stream").
 
 
@@ -62,9 +62,15 @@ handle_request(["command", "spec", Group], 'GET', _Arg) ->
 %%
 %%  User commands (RO).
 %%
-handle_request(["command", "usr"], 'GET', _Arg) ->
+handle_request(["command", "usr"], 'GET', Arg) ->
     {ok, UsrCmds} = ls1mcs_store:get_usr_cmds(all),
-    respond(200, json_list(UsrCmds));
+    case yaws_api:queryvar(Arg, "t") of
+        {ok, "txt"} ->
+            Headers = [{header, {"Content-Disposition", "attachment; filename=\"ls1mcs_usr_cmd_log.txt\""}}],
+            respond(200, ?MEDIATYPE_TXT, Headers, erlang:iolist_to_binary(ls1mcs_yaws_txt:encode_list(UsrCmds)));
+        _ ->
+            respond(200, json_list(UsrCmds))
+    end;
 
 handle_request(["command", "usr", Id], 'GET', _Arg) ->
     case ls1mcs_store:get_usr_cmds({id, ls1mcs_yaws_json:decode_integer(Id)}) of
@@ -308,6 +314,16 @@ respond(Status, Response) ->
 %%
 respond(Status, MediaType, Response) ->
     [
+        {status, Status},
+        {content, MediaType, Response}
+    ].
+
+
+%%
+%%
+%%
+respond(Status, MediaType, Other, Response) ->
+    Other ++ [
         {status, Status},
         {content, MediaType, Response}
     ].

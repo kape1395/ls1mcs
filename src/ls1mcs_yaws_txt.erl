@@ -175,7 +175,26 @@ encode(#tm_gyro{x = X, y = Y, z = Z, temp = T}) ->
         encode_number(Y), $\t,
         encode_number(Z), $\t,
         encode_number(T)
+    ];
+
+encode(#usr_cmd{id = Id, spec = Spec, args = Args, issued = Issued, status = Status}) ->
+    EncodeArg = fun (#usr_cmd_arg{name = Name, value = Value}) ->
+        [
+            encode_string(Name), <<"=">>,
+            encode_string(Value), <<" ">>
+        ]
+    end,
+    [
+        encode_number(Id), $\t,
+        encode_string(Spec), $\t,
+        case Args of
+            undefined -> <<>>;
+            _ -> lists:map(EncodeArg, Args)
+        end, $\t,
+        encode_tstamp(Issued), $\t,
+        encode_string(Status), $\t
     ].
+
 
 %%
 %%  Encode list of entities.
@@ -292,7 +311,21 @@ encode_list([First | Others]) when is_record(First, ls1p_tm_frame) ->
     [
         Header |
         [ iolist_to_binary([encode(E), $\n]) || E <- Others ]
+    ];
+
+encode_list([First | Others]) when is_record(First, usr_cmd) ->
+    Header = erlang:iolist_to_binary([
+        <<"# id\t">>,
+        <<"spec\t">>,
+        <<"args\t">>,
+        <<"issued\t">>,
+        <<"status\n">>
+    ]),
+    [
+        Header |
+        [ iolist_to_binary([encode(E), $\n]) || E <- [First | Others] ]
     ].
+
 
 
 %%
@@ -330,5 +363,22 @@ encode_number(Number) when is_integer(Number) ->
 
 encode_number(Number) when is_float(Number) ->
     erlang:float_to_binary(Number, [{decimals, 6}, compact]).
+
+
+%%
+%%
+%%
+encode_string(undefined) ->
+    <<>>;
+
+encode_string(String) when is_binary(String) ->
+    String;
+
+encode_string(String) when is_atom(String) ->
+    erlang:atom_to_binary(String, utf8);
+
+encode_string(String) when is_list(String) ->
+    erlang:list_to_binary(String).
+
 
 

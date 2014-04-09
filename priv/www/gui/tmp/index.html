@@ -31,6 +31,7 @@
                         <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
                         <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
+                        <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
                     </ul>
                     <div class="tab-content">
                         <div id="immediate-commands" class="tab-pane">
@@ -229,7 +230,6 @@
                             -->
                         </div>
 
-
                         <div id="telemetry-ham" class="tab-pane">
                             <form method="POST" target="_blank" enctype="multipart/form-data" action="/ls1mcs/api/telemetry/ham?mode=preview">
                                 <input type="file" name="file">
@@ -237,6 +237,19 @@
                             </form>
                         </div>
 
+                        <div id="command-log" class="tab-pane">
+                            <table id="command-log_table" class="table table-hover table-condensed">
+                                <caption>Issued SAT Commands (<a href="#command-log_refresh">Refresh</a>, <a href="/ls1mcs/api/command/usr?t=txt">Export</a>)</caption>
+                                <thead>
+                                    <th>Id</th>
+                                    <th>Name</th>
+                                    <th>Args</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
 
                     </div>
                 </div>
