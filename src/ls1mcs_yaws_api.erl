@@ -95,6 +95,19 @@ handle_request(["command", "usr", Id, "photo"], 'GET', _Arg) ->
             respond_error(404, <<"Command not found by id.">>)
     end;
 
+handle_request(["command", "usr", Id], 'PUT', Arg) ->
+    Json = jiffy:decode(Arg#arg.clidata),
+    case Json of
+        {[{<<"status">>, <<"confirmed">>}]} ->
+            UsrCmdId = ls1mcs_yaws_json:decode_integer(Id),
+            lager:notice("Confirming user command id=~p", [Id]),
+            ls1mcs_store:set_usr_cmd_status(UsrCmdId, confirmed),
+            respond(200, <<"">>);
+        _ ->
+            lager:notice("Unrecognized update action ~p for user command id=~p", [Json, Id]),
+            respond_error(400, <<"Unrecognized update action.">>)
+    end;
+
 %%
 %%  SAT commands (RO).
 %%

@@ -74,6 +74,7 @@
     immediate   :: boolean(),
     approved    :: timestamp(),
     issued      :: timestamp(),
+   %confirmed   :: {User :: binary(), Time :: timestamp()},  % TODO: User confirmed the success of the command manually.
     status      :: atom()               % TODO: List of values?
 }).
 

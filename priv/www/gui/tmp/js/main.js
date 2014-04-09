@@ -2,6 +2,7 @@
 function ls1mcs_init() {
     ls1mcs_immcmds_init();
     ls1mcs_telemetry_init();
+    ls1mcs_cmdlog_init();
 }
 
 function api_url(resource) {
@@ -39,9 +40,6 @@ function ls1mcs_immcmds_init() {
     });
     $("#immediate-commands").on("click", "a[href='#immcmd__list_refresh']", function () {
         ls1mcs_immcmds_show();
-    });
-    $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
-        ls1mcs_cmdlog_show();
     });
 
     $("#immcmd-send-table").on("click", "a[href='#immcmd__ping']", function () {
@@ -228,6 +226,26 @@ function ls1mcs_immcmds_render(commands) {
     $("#immcmd-list-table > tbody").html(rows);
 }
 
+/**
+ *  Command log.
+ */
+function ls1mcs_cmdlog_init() {
+    $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
+        ls1mcs_cmdlog_show();
+    });
+    $("#command-log").on("click", "a[href='#command-log_confirm']", function () {
+        if (window.confirm("Confirm, that command was executed successfully?")) {
+            var cmdId = $(this).closest("tr").data("id");
+            $.ajax({
+                type: "PUT",
+                url: api_url("command/usr/" + cmdId),
+                data: JSON.stringify({status: "confirmed"}),
+                success: function () {ls1mcs_cmdlog_show();},
+                dataType: "json"
+            });
+        }
+    });
+}
 
 function ls1mcs_cmdlog_show() {
     ls1mcs_cmdlog_load();
@@ -246,7 +264,7 @@ function ls1mcs_cmdlog_render(commands) {
     var rows = "";
     for (var i = 0; i < commands.length && i < 10000; i++) {
         var c = commands[i];
-        rows += "<tr>";
+        rows += "<tr data-id='" + c.id + "'>";
         rows += "<td>" + c.id + "</td>";
         rows += "<td>" + c.spec + "</td>";
         if (c.args == null) {
@@ -261,6 +279,11 @@ function ls1mcs_cmdlog_render(commands) {
         }
         rows += "<td>" + c.issued + "</td>";
         rows += "<td>" + c.status + "</td>";
+        rows += "<td>";
+        if (c.status != "confirmed") {
+            rows += "<a href='#command-log_confirm'>Confirm</a>";
+        }
+        rows += "&nbsp;</td>";
         rows += "</tr>";
     }
     $("#command-log_table > tbody").html(rows);
