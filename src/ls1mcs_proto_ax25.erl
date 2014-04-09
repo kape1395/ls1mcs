@@ -9,17 +9,28 @@
 -module(ls1mcs_proto_ax25).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/5, start_link/6, send/2, received/2]).
+-compile([{parse_transform, lager_transform}]).
+-export([start_link/5, start_link/6, send/2, received/2, preview/1]).
 -export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/2, decode/2, split_frames/1, parse_call/1]). % For tests
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
 -define(MAX_FRAME_LEN, 1024).   %% Maximal frame length (before forced drop).
--define(AX25_FLAG, 2#01111110). %% Denotes start and end of an AX.25 frame.
+-define(AX25_FLAG, 2#01111110). %% Denotes start and end of an AX.25 frame (0x7E).
 -define(AX25_PID_NOL3, 16#F0).  %% No Layer 3 Protocol
 -define(ADDR_RR_UNUSED, 2#11).  %% Address, RR bits, when unused.
 -define(CTRL_FRAME_U, 2#11).    %% Last 2 bits in the control field, indicating U frame.
 
+
+-record(addr, {
+    call    :: list(),
+    ssid    :: integer()
+}).
+-record(frame, {
+    dst     :: #addr{},
+    src     :: #addr{},
+    data    :: binary()
+}).
 
 
 %% =============================================================================
@@ -64,6 +75,26 @@ received(Ref, Data) when is_binary(Data) ->
 
 
 
+%%
+%%  Used for TM preview.
+%%
+preview(Frame) when is_binary(Frame) ->
+    {ok, [Decoded]} = preview([Frame]),
+    {ok, Decoded};
+
+preview(Frames) when is_list(Frames) ->
+    DecodeFun = fun (F) ->
+        case catch decode(F, tnc) of
+            {ok, #frame{data = Payload}} ->
+                Payload;
+            _Error ->
+                undefined
+        end
+    end,
+    {ok, lists:map(DecodeFun, Frames)}.
+
+
+
 %% =============================================================================
 %%  Internal data structures.
 %% =============================================================================
@@ -76,17 +107,6 @@ received(Ref, Data) when is_binary(Data) ->
     remote,     %% Remote call
     mode        %% Operation mode: std | tnc
 }).
-
--record(addr, {
-    call    :: list(),
-    ssid    :: integer()
-}).
--record(frame, {
-    dst     :: #addr{},
-    src     :: #addr{},
-    data    :: binary()
-}).
-
 
 
 %% =============================================================================
@@ -141,7 +161,7 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
             {ok, #frame{data = FrameInfo}} ->
                 ok = ls1mcs_protocol:received(Upper, FrameInfo);
             Error ->
-                io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, FrameBinary])
+                lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, FrameBinary])
         end
     end,
     lists:foreach(ReceivedFrameFun, Frames),
@@ -152,7 +172,7 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
             State#state{data = Reminder};
         true ->
             <<StrippedReminder:?MAX_FRAME_LEN/binary, NewReminder/binary>> = Reminder,
-            io:format("WARN: AX25: Buffer to big, several bytes dropped: input=~p~n", [StrippedReminder]),
+            lager:warning("WARN: AX25: Buffer to big, several bytes dropped: input=~p", [StrippedReminder]),
             State#state{data = NewReminder}
     end,
     {noreply, NewState};
@@ -162,7 +182,7 @@ handle_cast({received, Received}, State = #state{upper = Upper, mode = tnc = Mod
         {ok, #frame{data = FrameInfo}} ->
             ok = ls1mcs_protocol:received(Upper, FrameInfo);
         Error ->
-            io:format("WARN: AX25: Ignoring bad frame: error = ~p, input=~p~n", [Error, Received])
+            lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, Received])
     end,
     {noreply, State}.
 

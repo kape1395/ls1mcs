@@ -30,6 +30,7 @@
                     <ul class="nav nav-tabs">
                         <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
+                        <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
                     </ul>
                     <div class="tab-content">
                         <div id="immediate-commands" class="tab-pane">
@@ -227,6 +228,16 @@
                             </table>
                             -->
                         </div>
+
+
+                        <div id="telemetry-ham" class="tab-pane">
+                            <form method="POST" target="_blank" enctype="multipart/form-data" action="/ls1mcs/api/telemetry/ham?mode=preview">
+                                <input type="file" name="file">
+                                <input type="submit" value="Submit">
+                            </form>
+                        </div>
+
+
                     </div>
                 </div>
             </div>

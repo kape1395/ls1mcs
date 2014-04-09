@@ -6,7 +6,7 @@
 -behaviour(gen_fsm).
 -behaviour(ls1mcs_protocol).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/3, send/2, received/2]). % Public API
+-export([start_link/3, send/2, received/2, preview/1]). % Public API
 -export([idle/2, frame_start/2, frame_data/2, frame_esc/2]). %% FSM States
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
@@ -54,6 +54,19 @@ received(Ref, <<Byte:8, Rest/binary>>) ->
 
 
 
+%%
+%%
+%%  Returns decoded frames.
+%%  Used for TM preview.
+%%
+preview(Data) when is_binary(Data) ->
+    preview(binary_to_list(Data));
+
+preview(Data) when is_list(Data) ->
+    {ok, Frames, _State} = decode(Data, undefined),
+    {ok, Frames}.
+
+
 %% =============================================================================
 %%  Internal data structures.
 %% =============================================================================
@@ -77,7 +90,8 @@ idle({received, ?FEND}, StateData = #state{data = Data}) ->
     lager:debug("Received FEND: clearing buffer=~p", [lists:reverse(Data)]),
     {next_state, frame_start, StateData#state{data = []}};
 
-idle({received, _Byte}, StateData) ->
+idle({received, Byte}, StateData) ->
+    lager:debug("Received ~p", [Byte]),
     {next_state, idle, StateData}.
 
 
@@ -85,9 +99,15 @@ idle({received, _Byte}, StateData) ->
 %%  State: frame_start
 %%
 frame_start({received, ?FT_DATA}, StateData) ->
+    lager:debug("Received FT_DATA"),
     {next_state, frame_data, StateData};
 
-frame_start({received, _Byte}, StateData) ->
+frame_start({received, ?FEND}, StateData = #state{data = Data}) ->
+    lager:debug("Received FEND: clearing buffer=~p", [lists:reverse(Data)]),
+    {next_state, frame_start, StateData#state{data = []}};
+
+frame_start({received, Byte}, StateData) ->
+    lager:debug("Received ~p, assuming its trash, going to idle.", [Byte]),
     {next_state, idle, StateData}.
 
 
@@ -99,9 +119,9 @@ frame_data({received, ?FESC}, StateData) ->
 
 frame_data({received, ?FEND}, StateData = #state{upper = Upper, data = Data}) ->
     AccumulatedData = list_to_binary(lists:reverse(Data)),
-    lager:debug("Received FEND: frame buffer=~p", [AccumulatedData]),
+    lager:debug("Received FEND: sending accumulated data to the upper layer: ~p", [AccumulatedData]),
     ok = ls1mcs_protocol:received(Upper, AccumulatedData),
-    {next_state, idle, StateData};
+    {next_state, frame_start, StateData#state{data = []}};
 
 frame_data({received, Byte}, StateData = #state{data = Data}) ->
     NewStateData = StateData#state{data = [Byte | Data]},
@@ -168,4 +188,30 @@ encode(Data) ->
 escape_byte(?FEND) -> [?FESC, ?TFEND];
 escape_byte(?FESC) -> [?FESC, ?TFESC];
 escape_byte(Byte) -> Byte.
+
+
+
+%%
+%%  TODO: Use this function instead of FSM state transitions.
+%%
+decode(Data, undefined) ->
+    decode(Data, {idle, []});
+
+decode(Data, {InitState, InitPartial}) ->
+    {State, Decoded, Partial} = lists:foldl(fun decode_fun/2, {InitState, [], InitPartial}, Data),
+    Frames = lists:reverse([ list_to_binary(lists:reverse(D)) || D <- Decoded]),
+    {ok, Frames, {State, Partial}}.
+
+decode_fun(?FEND,    {idle,        Decoded, _Partial}) -> {frame_start, Decoded,              []};
+decode_fun(_Byte,    {idle,        Decoded, _Partial}) -> {idle,        Decoded,              []};
+decode_fun(?FT_DATA, {frame_start, Decoded, _Partial}) -> {frame_data,  Decoded,              []};
+decode_fun(?FEND,    {frame_start, Decoded, _Partial}) -> {frame_start, Decoded,              []};
+decode_fun(_Byte,    {frame_start, Decoded, _Partial}) -> {idle,        Decoded,              []};
+decode_fun(?FESC,    {frame_data,  Decoded, Partial})  -> {frame_esc,   Decoded,              Partial};
+decode_fun(?FEND,    {frame_data,  Decoded, Partial})  -> {frame_start, [ Partial | Decoded], []};
+decode_fun(Byte,     {frame_data,  Decoded, Partial})  -> {frame_data,  Decoded,              [Byte  | Partial]};
+decode_fun(?TFESC,   {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [?FESC | Partial]};
+decode_fun(?TFEND,   {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [?FEND | Partial]};
+decode_fun(Byte,     {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [Byte  | Partial]}.
+
 

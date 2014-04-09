@@ -214,17 +214,19 @@ handle_request(["telemetry", "ham"], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO
 
 handle_request(["telemetry", "ham"], 'POST', Arg) ->
-    % TODO
-    lager:debug("Got file, written to test-telemetry.dat"),
-    file:write_file("test-telemetry.dat", Arg#arg.clidata),
-    [
-        {status, 200}%,
-        %{content, ?MEDIATYPE_JSON, jiffy:encode({[
-        %    {'_links', {[
-        %        {self, {[{self, url(["telemetry", "5646"])}]}}
-        %    ]}}
-        %]})}
-    ];
+    FileHandler = fun (RawBytes) ->
+        {ok, KissPayloads} = ls1mcs_proto_kiss:preview(RawBytes),
+        {ok, Ax25Payloads} = ls1mcs_proto_ax25:preview(KissPayloads),
+        {ok, Ls1pFrames}   = ls1mcs_proto_ls1p:preview(Ax25Payloads),
+        {ehtml, [
+            {body, [], [
+                {pre, [], [{code, [{id, "tm-data"}], jiffy:encode(json_list([F || F = #ls1p_tm_frame{} <- Ls1pFrames]))}]},
+                {script, [{src, "/ls1mcs/gui/tmp/js/vendor/jquery-1.8.3.min.js"}], []},
+                {script, [{type, "text/javascript"}], <<"$('#tm-data').html(JSON.stringify(JSON.parse($('#tm-data').html()), undefined, 4));">>}
+            ]}
+        ]}
+    end,
+    process_single_file(FileHandler, Arg);
 
 %%
 %%  Telemetry archive.
@@ -333,6 +335,33 @@ media_type_for_response(CmdFrame) ->
             ?MEDIATYPE_JPEG;
         _ ->
             ?MEDIATYPE_BIN
+    end.
+
+
+%%
+%%  Single file upload.
+%%
+process_single_file(HandlerFun, Arg = #arg{state = ArgState}) ->
+    State = case ArgState of
+        undefined -> [];
+        _ -> ArgState
+    end,
+    ProcessPartFun = fun
+        ({head, {_Name, _Hdrs}}, [])    -> [];
+        ({part_body, Part},      Parts) -> [Part | Parts];
+        ({body,      Part},      Parts) -> [Part | Parts]
+    end,
+    case yaws_api:parse_multipart_post(Arg) of
+        {cont, Cont, Res} ->
+            NewState = lists:foldl(ProcessPartFun, State, Res),
+            {get_more, Cont, NewState};
+        {result, Res} ->
+            NewState = lists:foldl(ProcessPartFun, State, Res),
+            FileContents = erlang:iolist_to_binary(lists:reverse(NewState)),
+            HandlerFun(FileContents);
+        {error, Reason} ->
+            lager:error("Unable to parse multipart POST, error=~p", [Reason]),
+            respond_error(12321, <<"Failed to parse multipart POST.">>)
     end.
 
 
