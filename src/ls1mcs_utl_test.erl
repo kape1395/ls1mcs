@@ -154,6 +154,7 @@ load_photo_frames_received(FrameBin, LSRef) ->
 start_lager() ->
     ok = start_missing_app(compiler),
     ok = start_missing_app(syntax_tools),
+    ok = start_missing_app(goldrush),
     ok = start_missing_app(lager).
 
 
