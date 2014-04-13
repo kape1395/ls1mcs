@@ -2,7 +2,7 @@
 %%  Void TNC, does nothing apart from logging.
 %%
 -module(ls1mcs_tnc_void).
--behaviour(ls1mcs_protocol).
+-behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/1, send/2, received/2]).

@@ -1,15 +1,32 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
+%%
+%%  Implementation of the LS1P protocol.
+%%
 -module(ls1mcs_proto_ls1p).
+-behaviour(ls1mcs_proto).
 -compile([{parse_transform, lager_transform}]).
--behaviour(gen_server).
--behaviour(ls1mcs_protocol).
+-export([make_ref/2, preview/1]).
+-export([init/1, send/2, recv/2]).
 -export([
-    start_link/3, decode_tm/1, decode_photo_meta/1,
+    decode_tm/1, decode_photo_meta/1,
     merged_response_fragments/1, merged_archive_fragments/1,
     merged_response/1, merged_response/2
 ]).
--export([send/2, received/2, preview/1]).
--export([encode/2, decode/1]). % For tests.
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 -include("ls1p.hrl").
 
@@ -55,26 +72,11 @@
 %%  Public API
 %% =============================================================================
 
-
 %%
 %%
 %%
-start_link(Name, Lower, Upper) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper}, []).
-
-
-%%
-%%
-%%
-send(Ref, Data) when is_record(Data, ls1p_cmd_frame) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
-
-
-%%
-%%  Not used here.
-%%
-received(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {received, Data}).
+make_ref(Password, LogFrames) ->
+    ls1mcs_proto:make_ref(?MODULE, {Password, LogFrames}).
 
 
 %%
@@ -105,97 +107,91 @@ preview(Frames) when is_list(Frames) ->
 %% =============================================================================
 
 -record(state, {
-    lower,      %% Lower protocol ref.
-    upper,      %% Upper protocol ref.
-    pass
+    pass,
+    log
 }).
+
 
 
 %% =============================================================================
 %%  Callbacks for gen_server.
 %% =============================================================================
 
-
 %%
 %%
 %%
-init({Lower, Upper}) ->
-    self() ! {initialize},
-    Password = application:get_env(ls1mcs, password, undefined),
-    {ok, #state{lower = Lower, upper = Upper, pass = Password}}.
+init({Password, LogFrames}) ->
+    {ok, #state{pass = Password, log = LogFrames}}.
 
 
 %%
 %%
 %%
-handle_call(_Message, _From, State) ->
-    {stop, not_implemented, State}.
-
-
-%%
-%%
-%%
-handle_cast({send, Frame}, State = #state{lower = Lower, pass = Password}) ->
+send(Frame, State = #state{pass = Password, log = LogFrames}) when is_record(Frame, ls1p_cmd_frame) ->
     {ok, DataBin} = encode(Frame, Password),
-    {ok, _FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
-    %ok = ls1mcs_protocol:send(Lower, ls1mcs_utl_enc:escaping_encode(DataBin)),
-    ok = ls1mcs_protocol:send(Lower, DataBin),
-    {noreply, State};
+    {ok, _FrameWithCRef} = log_ls1p_frame(Frame, DataBin, LogFrames),
+    {ok, [DataBin], State}.
 
-handle_cast({received, DataBin}, State = #state{upper = Upper, pass = Password}) ->
-    %DataBin = ls1mcs_utl_enc:escaping_decode(DataBinEncoded),
+
+%%
+%%
+%%
+recv(DataBin, State = #state{pass = Password, log = LogFrames}) when is_binary(DataBin) ->
     case check_signature(DataBin, Password) of
         {ok, Frame} when Password =/= undefined ->
             % Handles echoed command in the case when password is specified.
-            lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) signed command frame: ~p", [Frame]);
+            lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) signed command frame: ~p", [Frame]),
+            {ok, [], State};
         {error, _Reason} ->
             try decode(DataBin) of
                 {ok, Frame} when is_record(Frame, ls1p_cmd_frame) ->
                     % Handles echoed command in the case when password is not specified.
-                    lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]);
+                    lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]),
+                    {ok, [], State};
                 {ok, Frame} ->
                     lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
-                    {ok, FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, DataBin, erlang:now()),
-                    ok = ls1mcs_protocol:received(Upper, FrameWithCRef)
+                    {ok, FrameWithCRef} = log_ls1p_frame(Frame, DataBin, LogFrames),
+                    {ok, [FrameWithCRef], State}
             catch
                 ErrType:ErrCode ->
                     lager:debug(
                         "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
                         [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
                     ),
-                    ok = ls1mcs_store:add_unknown_frame(DataBin, erlang:now())
+                    ok = log_unkn_frame(DataBin, LogFrames),
+                    {ok, [], State}
             end
-    end,
-    {noreply, State}.
-
-
-%%
-%%  Deffered initialization.
-%%
-handle_info({initialize}, State = #state{lower = Lower, upper = Upper}) ->
-    ls1mcs_protocol:await(Lower),
-    ls1mcs_protocol:await(Upper),
-    {noreply, State}.
-
-
-%%
-%%
-%%
-terminate(_Reason, _State) ->
-    ok.
-
-
-%%
-%%
-%%
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+    end.
 
 
 
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+%%
+%%  Logs LS1P frames if needed.
+%%  NOTE: The logging is implemented in this module, because we have
+%%  here both the frame and its binary representation in all cases.
+%%
+log_ls1p_frame(Frame, Binary, true) ->
+    {ok, _FrameWithCRef} = ls1mcs_store:add_ls1p_frame(Frame, Binary, erlang:now());
+
+log_ls1p_frame(Frame, _Binary, false) ->
+    {ok, Frame}.
+
+
+%%
+%%  Logs unknown frames if needed.
+%%  NOTE: The logging is implemented in this module, because we have
+%%  here both the frame and its binary representation in all cases.
+%%
+log_unkn_frame(Binary, true) ->
+    ok = ls1mcs_store:add_unknown_frame(Binary, erlang:now());
+
+log_unkn_frame(_Binary, false) ->
+    ok.
+
 
 %%
 %%  LS1P encoder.

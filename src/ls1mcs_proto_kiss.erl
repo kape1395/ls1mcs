@@ -88,7 +88,7 @@ init({}) ->
 %%
 send(Frame, State) when is_binary(Frame) ->
     EncodedFrame = encode(Frame),
-    {ok, State, [EncodedFrame]}.
+    {ok, [EncodedFrame], State}.
 
 
 %%
@@ -96,7 +96,7 @@ send(Frame, State) when is_binary(Frame) ->
 %%
 recv(Frame, State = #state{name = Name, buff = Buff}) when is_binary(Frame) ->
     {ok, DecodedFrames, {NewName, NewBuff}} = decode(binary_to_list(Frame), {Name, Buff}),
-    {ok, State#state{name = NewName, buff = NewBuff}, DecodedFrames}.
+    {ok, DecodedFrames, State#state{name = NewName, buff = NewBuff}}.
 
 
 

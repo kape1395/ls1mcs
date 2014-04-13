@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 %%
 %%  Implementation of a subset of the AX.25 protocol.
 %%  See [1:Specification](http://www.ax25.net/AX25.2.2-Jul%2098-2.pdf),
@@ -7,12 +23,10 @@
 %%  Only UI frames are supported.
 %%
 -module(ls1mcs_proto_ax25).
--behaviour(gen_server).
--behaviour(ls1mcs_protocol).
+-behaviour(ls1mcs_proto).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/5, start_link/6, send/2, received/2, preview/1]).
--export([bitstuff/1, bitdestuff/1, calculate_fcs/1, encode/2, decode/2, split_frames/1, parse_call/1]). % For tests
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([make_ref/3, preview/1]).
+-export([init/1, send/2, recv/2]).
 -include("ls1mcs.hrl").
 
 -define(MAX_FRAME_LEN, 1024).   %% Maximal frame length (before forced drop).
@@ -39,9 +53,6 @@
 
 
 %%
-%%  Name - .
-%%  Lower - .
-%%  Upper - .
 %%  Mode:
 %%      std -- Standard AX25, as described in the spec.
 %%      tnc -- AX.25 frame, as returned by the TNC2H in the TAPR KISS mode.
@@ -49,30 +60,8 @@
 %%        - Have no bitstuffing.
 %%        - Bits are not reversed.
 %%
-start_link(Name, Lower, Upper, Local, Remote, Mode) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote, Mode}, []).
-
-
-%%
-%%  See start_link/4.
-%%
-start_link(Name, Lower, Upper, Local, Remote) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Lower, Upper, Local, Remote, std}, []).
-
-
-%%
-%%
-%%
-send(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
-
-
-%%
-%%
-%%
-received(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {received, Data}).
-
+make_ref(Local, Remote, Mode) ->
+    ls1mcs_proto:make_ref(?MODULE, {Local, Remote, Mode}).
 
 
 %%
@@ -100,8 +89,6 @@ preview(Frames) when is_list(Frames) ->
 %% =============================================================================
 
 -record(state, {
-    lower,      %% Lower protocol ref.
-    upper,      %% Upper protocol ref.
     data,       %% Buffer for an input from the lower level.
     local,      %% Local call
     remote,     %% Remote call
@@ -109,19 +96,17 @@ preview(Frames) when is_list(Frames) ->
 }).
 
 
+
 %% =============================================================================
-%%  Callbacks for gen_server.
+%%  Callbacks for `ls1mcs_proto`.
 %% =============================================================================
 
 
 %%
 %%
 %%
-init({Lower, Upper, Local, Remote, Mode}) ->
-    self() ! {initialize},
+init({Local, Remote, Mode}) ->
     {ok, #state{
-        lower = Lower,
-        upper = Upper,
         data = <<>>,
         local = parse_call(Local),
         remote = parse_call(Remote),
@@ -132,39 +117,33 @@ init({Lower, Upper, Local, Remote, Mode}) ->
 %%
 %%
 %%
-handle_call(_Message, _From, State) ->
-    {stop, not_implemented, State}.
-
-
-%%
-%%  Encode frame and send it to the lower protocol.
-%%
-handle_cast({send, Data}, State = #state{local = Local, remote = Remote, lower = Lower, mode = Mode}) ->
+send(Data, State = #state{local = Local, remote = Remote, mode = Mode}) when is_binary(Data) ->
     Frame = #frame{
         dst = Remote,
         src = Local,
         data = Data
     },
     {ok, FrameBinary} = encode(Frame, Mode),
-    ok = ls1mcs_protocol:send(Lower, FrameBinary),
-    {noreply, State};
+    {ok, [FrameBinary], State}.
+
 
 %%
-%%  Decode frame and send its payload to the upper protocol.
 %%
-handle_cast({received, Received}, State = #state{upper = Upper, data = Collected, mode = std = Mode}) ->
+%%
+recv(Received, State = #state{data = Collected, mode = std = Mode}) when is_binary(Received) ->
     {Reminder, Frames} = split_frames(<<Collected/binary, Received/binary>>),
 
     %%  Decode all frames and sent them to the upper level.
-    ReceivedFrameFun = fun (FrameBinary) ->
+    ReceivedFrameFun = fun (FrameBinary, Out) ->
         case catch decode(FrameBinary, Mode) of
             {ok, #frame{data = FrameInfo}} ->
-                ok = ls1mcs_protocol:received(Upper, FrameInfo);
+                [FrameInfo | Out];
             Error ->
-                lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, FrameBinary])
+                lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, FrameBinary]),
+                Out
         end
     end,
-    lists:foreach(ReceivedFrameFun, Frames),
+    FrameInfos = lists:reverse(lists:foldl(ReceivedFrameFun, [], Frames)),
 
     %%  Ckeck if buffer is not accumulating to much of data.
     NewState = case size(Reminder) > ?MAX_FRAME_LEN of
@@ -175,38 +154,16 @@ handle_cast({received, Received}, State = #state{upper = Upper, data = Collected
             lager:warning("WARN: AX25: Buffer to big, several bytes dropped: input=~p", [StrippedReminder]),
             State#state{data = NewReminder}
     end,
-    {noreply, NewState};
+    {ok, FrameInfos, NewState};
 
-handle_cast({received, Received}, State = #state{upper = Upper, mode = tnc = Mode}) ->
+recv(Received, State = #state{mode = tnc = Mode}) ->
     case catch decode(Received, Mode) of
         {ok, #frame{data = FrameInfo}} ->
-            ok = ls1mcs_protocol:received(Upper, FrameInfo);
+            {ok, [FrameInfo], State};
         Error ->
-            lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, Received])
-    end,
-    {noreply, State}.
-
-%%
-%%
-%%
-handle_info({initialize}, State = #state{lower = Lower, upper = Upper}) ->
-    ls1mcs_protocol:await(Upper),
-    ls1mcs_protocol:await(Lower),
-    {noreply, State}.
-
-
-%%
-%%
-%%
-terminate(_Reason, _State) ->
-    ok.
-
-
-%%
-%%
-%%
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+            lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, Received]),
+            {ok, [], State}
+    end.
 
 
 

@@ -32,6 +32,8 @@
 
 %%
 %%  Send command to the SAT.
+%%  NOTE: The frames are not logged to the store here, because we have no
+%%  bytes here. The logging is therefore implemented in the `ls1mcs_proto_ls1p`.
 %%
 -spec send(#ls1p_cmd_frame{}) -> ok.
 
@@ -42,6 +44,8 @@ send(Ls1pCmdFrame) when is_record(Ls1pCmdFrame, ls1p_cmd_frame) ->
 
 %%
 %%  Receives incoming messages from the TNC.
+%%  NOTE: The frames are not logged to the store here, because we have no
+%%  bytes here. The logging is therefore implemented in the `ls1mcs_proto_ls1p`.
 %%
 -spec recv(#ls1p_ack_frame{} | #ls1p_data_frame{} | #ls1p_tm_frame{}) -> ok.
 
