@@ -1,3 +1,6 @@
+%%
+%%  Base behaviour for ptotocol implementations.
+%%
 -module(ls1mcs_protocol).
 -export([make_ref/2, await/1, send/2, received/2]).
 
@@ -12,7 +15,7 @@
 %%
 %%  Invoked when a packet is received (from the lower protocol).
 %%
--callback received(Ref :: term(), Data :: term()) -> ok.
+-callback recv(Ref :: term(), Data :: term()) -> ok.
 
 
 

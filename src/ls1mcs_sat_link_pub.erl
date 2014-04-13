@@ -15,15 +15,13 @@
 %\--------------------------------------------------------------------
 
 %%
-%%  Entry point to SAT Link.
+%%  Event manager for sent and received LS1P frames.
 %%
--module(ls1mcs_sat_link).
+-module(ls1mcs_sat_link_pub).
 -compile([{parse_transform, lager_transform}]).
--export([send/1, recv/1, add_handler/2, reg_sender/0]).
+-export([start_link/0, add_handler/2, sent/1, recv/1]).
 -include("ls1p.hrl").
 -include("ls1mcs.hrl").
-
--define(LINK_TNC_NAME, ls1mcs_sat_link_tnc).
 
 
 %% =============================================================================
@@ -31,22 +29,12 @@
 %% =============================================================================
 
 %%
-%%  Send command to the SAT.
+%%  Start the link.
 %%
--spec send(#ls1p_cmd_frame{}) -> ok.
+-spec start_link() -> {ok, pid()}.
 
-send(Ls1pCmdFrame) when is_record(Ls1pCmdFrame, ls1p_cmd_frame) ->
-    ok = ls1mcs_tnc:send(?LINK_TNC_NAME, Ls1pCmdFrame),
-    ok = ls1mcs_sat_link_pub:sent(Ls1pCmdFrame).
-
-
-%%
-%%  Receives incoming messages from the TNC.
-%%
--spec recv(#ls1p_ack_frame{} | #ls1p_data_frame{} | #ls1p_tm_frame{}) -> ok.
-
-recv(Ls1pFrame) ->
-    ok = ls1mcs_sat_link_pub:recv(Ls1pFrame).
+start_link() ->
+    gen_event:start_link({local, ?MODULE}).
 
 
 %%
@@ -55,17 +43,20 @@ recv(Ls1pFrame) ->
 -spec add_handler(module() | {module(), term()}, term()) -> ok.
 
 add_handler(Handler, Args) ->
-    ok = ls1mcs_sat_link_pub:add_handler(Handler, Args).
+    ok = gen_event:add_sup_handler(?MODULE, Handler, Args).
 
 
 %%
-%%  Register a TNC to this SAT Link.
+%%  Notify handlers about sent frame.
 %%
--spec reg_sender() -> ok.
+sent(Ls1pFrame) ->
+    ok = gen_event:notify(?MODULE, {sent, Ls1pFrame}).
 
-reg_sender() ->
-    true = register(?LINK_TNC_NAME, self()),
-    ok.
+%%
+%%  Notify handlers about received frame.
+%%
+recv(Ls1pFrame) ->
+    ok = gen_event:notify(?MODULE, {recv, Ls1pFrame}).
 
 
 

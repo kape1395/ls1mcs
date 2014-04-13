@@ -1,4 +1,23 @@
--module(ls1mcs_link_sup).
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
+%%
+%%  Supervises SAT Link related processes.
+%%
+-module(ls1mcs_sat_link_sup).
 -behaviour(supervisor).
 -export([start_link/3, top_ref/0]). % API
 -export([init/1]). % CB
@@ -157,6 +176,35 @@ init({ConnRef, soundmodem, LinkOptions}) ->
         {kiss, {KissMod, start_link, KissArgs}, permanent, 5000, worker, [KissMod]},
         {ax25, {Ax25Mod, start_link, Ax25Args}, permanent, 5000, worker, [Ax25Mod]},
         {ls1p, {Ls1pMod, start_link, Ls1pArgs}, permanent, 5000, worker, [Ls1pMod]}
+    ]}};
+
+init({ConnRef, soundmodem_agwpe, LinkOptions}) ->
+    ConnHost  = proplists:get_value(conn_host,  LinkOptions),
+    ConnPort  = proplists:get_value(conn_port,  LinkOptions),
+    AgwpeUser = proplists:get_value(agwpe_user, LinkOptions),
+    AgwpePass = proplists:get_value(agwpe_pass, LinkOptions),
+    AgwpePort = proplists:get_value(agwpe_port, LinkOptions, 0),
+    AX25Call  = proplists:get_value(ax25_call,  LinkOptions, <<"NOCALL">>),
+    AX25Peer  = proplists:get_value(ax25_peer,  LinkOptions, <<"NOCALL">>),
+
+    {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_send(),
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_recv(),
+
+    {ok, Send} = ls1mcs_protocol:make_send([Ls1pSend]),
+    {ok, Recv} = ls1mcs_protocol:make_recv([Ls1pRecv]),
+
+    TncMod = ls1mcs_tnc_agwpe,
+    TncName = {n, l, TncMod},
+    TncArgs = [TncName, ConnHost, ConnPort, Send, Recv, #{
+        user => AgwpeUser,
+        pass => AgwpePass,
+        port => AgwpePort,
+        call => AX25Call,
+        peer => AX25Peer
+    }],
+
+    {ok, {{one_for_all, 100, 10}, [
+        {tnc, {TncMod, start_link, TncArgs}, permanent, 5000, worker, [TncMod]}
     ]}};
 
 init({ConnRef, void, _LinkOptions}) ->

@@ -1,20 +1,22 @@
 %%
-%%  [Čia](http://www.pe0sat.vgnet.nl/decoding/satellite-telemetry/sound-card-modem/) rašo,
-%%  kad reikia jungtis prie tcp 127.0.0.1 port 8000. Pats soundmodemas ir jo aprašymas yra
-%%  [čia](http://uz7.ho.ua/packetradio.htm). Kaip suprantu Soundmodemas naudoja AGW programos
-%%  api, tad detaliau pats sąsajos aprašymas yra čia: http://uz7.ho.ua/includes/agwpeapi.htm
+%%  Interface with soundmodem via TCP/IP using AGWPE protocol.
 %%
-%%  Turime susintaliavę ir tą AGW programą ir išbandžiau, bet soundmodemas pasirodė
-%%  paprastesnis ir jautresnis.
-%%
-%%  Geriausi linkėjimai / Best Regards,
-%%  Laurynas M
+%%  > [Čia](http://www.pe0sat.vgnet.nl/decoding/satellite-telemetry/sound-card-modem/) rašo,
+%%  > kad reikia jungtis prie tcp 127.0.0.1 port 8000. Pats soundmodemas ir jo aprašymas yra
+%%  > [čia](http://uz7.ho.ua/packetradio.htm). Kaip suprantu Soundmodemas naudoja AGW programos
+%%  > api, tad detaliau pats sąsajos aprašymas yra čia: http://uz7.ho.ua/includes/agwpeapi.htm
+%%  >
+%%  > Turime susintaliavę ir tą AGW programą ir išbandžiau, bet soundmodemas pasirodė
+%%  > paprastesnis ir jautresnis.
+%%  >
+%%  > Geriausi linkėjimai / Best Regards,
+%%  > Laurynas M
 %%
 -module(ls1mcs_tnc_agwpe).
 -compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 -behaviour(ls1mcs_protocol).
--export([start_link/5, send/2, received/2]).
+-export([start_link/5, send/2, recv/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -41,7 +43,7 @@ start_link(Name, ConnHost, ConnPort, Recv, Opts) ->
 
 
 %%
-%%
+%%  Send data via a soundmodem.
 %%
 send(Ref, Data) when is_binary(Data) ->
     gen_server:cast({via, gproc, Ref}, {send, Data}).
@@ -50,7 +52,7 @@ send(Ref, Data) when is_binary(Data) ->
 %%
 %%  Not used here.
 %%
-received(_Ref, _Data) ->
+recv(_Ref, _Data) ->
     ok.
 
 
@@ -217,7 +219,7 @@ handle_frame(#agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = Re
         "AGWPE raw unproto (processed): pid=~p, src=~p, dst=~p, ctl=~p, pid=~p, payload=~p",
         [Pid, AX25SrcAddr, AX25DstAddr, AX25Control, AX25PID, AX25Payload]
     ),
-    {ok, NewRecv} = ls1mcs_protocol:process(Recv, AX25Payload),
+    {ok, NewRecv} = ls1mcs_protocol:recv(Recv, AX25Payload),
     {ok, State#state{recv = NewRecv}};
 
 handle_frame(#agwpe_frame{data_kind = $U, data = Data}, State) ->

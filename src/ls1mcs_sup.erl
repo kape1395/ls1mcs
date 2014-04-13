@@ -29,7 +29,7 @@ init({LinkCfg, GPredictCfg}) ->
     {LinkType, LinkOptions} = LinkCfg,
 
     SLnkMod = ls1mcs_sat_link,
-    LSupMod = ls1mcs_link_sup,  % Proto sup.
+    LSupMod = ls1mcs_sat_link_sup,  % Proto sup.
     SCmdMod = ls1mcs_sat_cmd_sup,
     UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
