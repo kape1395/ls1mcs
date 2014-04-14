@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 %%
 %%  Uses TNC with WA8DED EPROM (The Firmware 2.6) in a host mode to
 %%  send and receive data. Designed to work with TNC2H-DK9JS.
@@ -6,10 +22,10 @@
 %%  See `http://www.ir3ip.net/iw3fqg/doc/wa8ded.htm` for more details.
 %%
 -module(ls1mcs_tnc_wa8ded_hm).
--behavour(gen_server).
--behaviour(ls1mcs_protocol).
+-behaviour(ls1mcs_tnc).
+-behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/4, send/2, received/2, invoke/2]). % Public API
+-export([start_link/4, send/2, invoke/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
@@ -56,23 +72,15 @@
 %%  ls1mcs_tnc_wa8ded_hm:start_link({n, l, test}, {ls1mcs_tnc_wa8ded_hm, {n, l, test}}, "/dev/ttyUSB0", "LY2EN").
 %%  ls1mcs_tnc_wa8ded_hm:send({n, l, test}, <<"Hello world!">>).
 %%
-start_link(Name, Upper, Device, LocalCall) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Upper, Device, LocalCall}, []).
+start_link(Name, Device, Password, Call) ->
+    gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call}, []).
 
 
 %%
 %%  Sends data packet via TNC.
 %%
-send(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
-
-
-%%
-%%  Not used.
-%%
-received(_Ref, Data) ->
-    lager:error("received/2 is not supported in this module, but ~p received.", [Data]),
-    undefined.
+send(Name, Frame) ->
+    gen_server:cast({via, gproc, Name}, {send, Frame}).
 
 
 %%
@@ -94,7 +102,8 @@ invoke(Ref, Command) when is_binary(Command) ->
 %% =============================================================================
 
 -record(state, {
-    upper,      %% Upper protocol layer.
+    send,       %% Sending protocol chain.
+    recv,       %% Receiving protocol chain.
     device,     %% Device we are working with (/dev/ttyUSB0)
     local_call, %% Local call (HAM)
     port        %% UART port.
@@ -109,9 +118,13 @@ invoke(Ref, Command) when is_binary(Command) ->
 %%
 %%  Initialization.
 %%
-init({Upper, Device, LocalCall}) ->
+init({Device, Password, Call}) ->
+    {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend]),
+    {ok, RecvChain} = ls1mcs_proto:make_recv_chain([Ls1pRecv]),
     self() ! {initialize},
-    {ok, #state{upper = Upper, device = Device, local_call = LocalCall}}.
+    {ok, #state{send = SendChain, recv = RecvChain, device = Device, local_call = Call}}.
 
 
 %%
@@ -125,9 +138,10 @@ handle_call({invoke, Command}, _From, State = #state{port = Port}) ->
 %%
 %%  Send data to the TNC.
 %%
-handle_cast({send, Data}, State = #state{port = Port}) ->
-    ok = send_info(Port, Data),
-    {noreply, State};
+handle_cast({send, Frame}, State = #state{send = SendChain, port = Port}) ->
+    {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
+    [ ok = send_info(Port, BinFrame) || BinFrame <- BinFrames ],
+    {noreply, State#state{send = NewSendChain}};
 
 handle_cast(_Msg, State) ->
     {stop, undefined, State}.
@@ -136,10 +150,7 @@ handle_cast(_Msg, State) ->
 %%
 %%  Initialize COM port and sync with the TNC.
 %%
-handle_info({initialize}, State = #state{upper = Upper, device = Device, local_call = LocalCall}) ->
-    ls1mcs_protocol:await(Upper),
-    lager:debug("Upper protocol started"),
-
+handle_info({initialize}, State = #state{device = Device, local_call = LocalCall}) ->
     ok = receive after ?RESTART_DELAY -> ok end,
     {ok, Port} = uart:open(Device, ?UART_OPTIONS),
     ok = enter_hostmode(Port),
@@ -153,10 +164,10 @@ handle_info({initialize}, State = #state{upper = Upper, device = Device, local_c
 %%
 %%  Check, if incoming messages arrived.
 %%
-handle_info({query_input}, State = #state{upper = Upper, port = Port}) ->
-    ok = query_all_input(Port, Upper),
+handle_info({query_input}, State = #state{recv = RecvChain, port = Port}) ->
+    {ok, NewRecvChain} = query_all_input(Port, RecvChain),
     _TRef = erlang:send_after(?QUERY_DELAY, self(), {query_input}),
-    {noreply, State}.
+    {noreply, State#state{recv = NewRecvChain}}.
 
 
 %%
@@ -330,15 +341,15 @@ enter_hostmode(Port) ->
 %%  Fetches all pending incoming messages and
 %%  sends them to the upper protocol layer.
 %%
-query_all_input(Port, Upper) ->
+query_all_input(Port, RecvChain) ->
     case send_cmd(Port, <<"G">>) of
         {ok, ?HM_CODE_OK} ->
             % OK, no data available on the link.
-            ok;
+            {ok, RecvChain};
         {ok, ?HM_CODE_OK_MSG} ->
             {ok, Msg} = read_zstr(Port),
             lager:warning("G responded OK with message ~p", [Msg]),
-            ok;
+            {ok, RecvChain};
         {ok, ?HM_CODE_FAILURE} ->
             {ok, Msg} = read_zstr(Port),
             lager:error("G failed with message ~p", [Msg]),
@@ -346,28 +357,32 @@ query_all_input(Port, Upper) ->
         {ok, ?HM_CODE_STATUS} ->
             {ok, Msg} = read_zstr(Port),
             lager:info("G responded with status message ~p", [Msg]),
-            query_all_input(Port, Upper);
+            query_all_input(Port, RecvChain);
         {ok, ?HM_CODE_MHDR} ->
             {ok, Msg} = read_zstr(Port),
             lager:debug("G responded with monitored header ~p", [Msg]),
-            query_all_input(Port, Upper);
+            query_all_input(Port, RecvChain);
         {ok, ?HM_CODE_MHDR_MSG} ->
             {ok, Msg} = read_zstr(Port),
             lager:debug("G responded with monitored header ~p, info follows", [Msg]),
-            ok = query_info(Port, Upper),
-            query_all_input(Port, Upper)
+            ok = query_info(Port, RecvChain),
+            query_all_input(Port, RecvChain)
     end.
 
-query_info(Port, Upper) ->
+query_info(Port, RecvChain) ->
     case send_cmd(Port, <<"G">>) of
         {ok, ?HM_CODE_MON_INFO} ->
             {ok, Message} = read_lstr(Port),
             lager:debug("Monitored info received: ~p", [Message]),
-            ok = ls1mcs_protocol:received(Upper, Message);
+            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
+            ok = ls1mcs_sat_link:recv(RecvFrames),
+            {ok, NewRecvChain};
         {ok, ?HM_CODE_CON_INFO} ->
             {ok, Message} = read_lstr(Port),
             lager:warn("Connected info received: ~p", [Message]),
-            ok = ls1mcs_protocol:received(Upper, Message)
+            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
+            ok = ls1mcs_sat_link:recv(RecvFrames),
+            {ok, NewRecvChain}
     end.
 
 

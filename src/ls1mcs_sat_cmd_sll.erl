@@ -35,7 +35,7 @@
 %%  Registers this event handler to the SAT Link.
 %%
 register() ->
-    ok = ls1mcs_sat_link:add_frame_handler(?MODULE, {}).
+    ok = ls1mcs_sat_link:add_recv_handler(?MODULE, {}).
 
 
 

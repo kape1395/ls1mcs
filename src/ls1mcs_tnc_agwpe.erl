@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 %%
 %%  Interface with soundmodem via TCP/IP using AGWPE protocol.
 %%
@@ -13,10 +29,10 @@
 %%  > Laurynas M
 %%
 -module(ls1mcs_tnc_agwpe).
--compile([{parse_transform, lager_transform}]).
+-behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
--behaviour(ls1mcs_protocol).
--export([start_link/5, send/2, recv/2]).
+-compile([{parse_transform, lager_transform}]).
+-export([start_link/5, send/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -37,23 +53,18 @@
 %%    * `{call, Call = NOCALL}` - Our (ground station) call sign
 %%    * `{peer, Peer = NOCALL}` - Peer (satellite) call sign.
 %%
-start_link(Name, ConnHost, ConnPort, Recv, Opts) ->
-    Args = {ConnHost, ConnPort, Recv, Opts},
-    gen_server:start_link({via, gproc, Name}, ?MODULE, Args, []).
+start_link(Name, ConnHost, ConnPort, Password, Opts) ->
+    Args = {ConnHost, ConnPort, Password, Opts},
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, Args, []),
+    ok = ls1mcs_tnc:register(?MODULE, {via, gproc, Name}),
+    {ok, Pid}.
 
 
 %%
 %%  Send data via a soundmodem.
 %%
-send(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
-
-
-%%
-%%  Not used here.
-%%
-recv(_Ref, _Data) ->
-    ok.
+send(Name, Frame) ->
+    gen_server:cast({via, gproc, Name}, {send, Frame}).
 
 
 
@@ -71,7 +82,8 @@ recv(_Ref, _Data) ->
 
 
 -record(state, {
-    recv,       %% Receiver and its state.
+    send,       %% Sending protocol chain.
+    recv,       %% Receiving protocol chain.
     port,       %% AGWPE port.
     call,       %% Call of the ground station.
     peer,       %% Call of the sattelite.
@@ -90,7 +102,11 @@ recv(_Ref, _Data) ->
 %%
 %%
 %%
-init({ConnHost, ConnPort, Recv, Opts}) ->
+init({ConnHost, ConnPort, Password, Opts}) ->
+    {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
+    {ok, Recv} = ls1mcs_proto:make_recv_chain([Ls1pRecv]),
     self() ! {initialize, ConnHost, ConnPort},
     self() ! {tick},
     Defaults = #{port => 0, call => <<"NOCALL">>, peer => <<"NOCALL">>},
@@ -102,6 +118,7 @@ init({ConnHost, ConnPort, Recv, Opts}) ->
         pass := Pass
     } = maps:merge(Defaults, Opts),
     State = #state{
+        send = Send,
         recv = Recv,
         port = Port,
         call = Call,
@@ -122,9 +139,10 @@ handle_call(_Message, _From, State) ->
 %%
 %%  Send data to the RS232 port.
 %%
-handle_cast({send, Data}, State = #state{port = Port, call = Call, sock = Sock}) ->
-    ok = send_frame(agwpe_send_unproto_info(Port, Call, Data), Sock),
-    {noreply, State}.
+handle_cast({send, Frame}, State = #state{send = SendChain, port = Port, call = Call, sock = Sock}) ->
+    {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
+    [ ok = send_frame(agwpe_send_unproto_info(Port, Call, F), Sock) || F <- BinFrames ],
+    {noreply, State#state{send = NewSendChain}}.
 
 
 %%
@@ -206,7 +224,7 @@ handle_received(Received, State) ->
 %%
 %%  Process received frame.
 %%
-handle_frame(#agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = Recv}) ->
+handle_frame(#agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = RecvChain}) ->
     <<
         Pid:8/unsigned,
         AX25SrcAddr:7/binary,
@@ -219,8 +237,9 @@ handle_frame(#agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = Re
         "AGWPE raw unproto (processed): pid=~p, src=~p, dst=~p, ctl=~p, pid=~p, payload=~p",
         [Pid, AX25SrcAddr, AX25DstAddr, AX25Control, AX25PID, AX25Payload]
     ),
-    {ok, NewRecv} = ls1mcs_protocol:recv(Recv, AX25Payload),
-    {ok, State#state{recv = NewRecv}};
+    {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(AX25Payload, RecvChain),
+    ok = ls1mcs_sat_link:recv(RecvFrames),
+    {ok, State#state{recv = NewRecvChain}};
 
 handle_frame(#agwpe_frame{data_kind = $U, data = Data}, State) ->
     [Header | _] = binary:split(Data, <<13>>),

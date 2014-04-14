@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 %%
 %%  Uses TNC with TAPR EPROM in a KISS mode to send and receive data.
 %%  Designed to work with TNC2H-DK9JS.
@@ -18,10 +34,10 @@
 %%  {ok, Port} = uart:open("/dev/ttyUSB0", [{baud, 9600}, {csize, 7}, {parity, even}, {mode, binary}]).
 %%
 -module(ls1mcs_tnc_tapr_kiss).
--compile([{parse_transform, lager_transform}]).
+-behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
--behaviour(ls1mcs_protocol).
--export([start_link/3, send/2, received/2, reenter_kiss_mode/1]).
+-compile([{parse_transform, lager_transform}]).
+-export([start_link/5, send/2, reenter_kiss_mode/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -40,22 +56,17 @@
 %%
 %%
 %%
-start_link(Name, Upper, Device) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Upper, Device}, []).
+start_link(Name, Device, Password, Call, Peer) ->
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call, Peer}, []),
+    ok = ls1mcs_tnc:register(?MODULE, {via, gproc, Name}),
+    {ok, Pid}.
 
 
 %%
 %%
 %%
-send(Ref, Data) when is_binary(Data) ->
-    gen_server:cast({via, gproc, Ref}, {send, Data}).
-
-
-%%
-%%  Not used here.
-%%
-received(_Ref, _Data) ->
-    ok.
+send(Name, Frame) ->
+    gen_server:cast({via, gproc, Name}, {send, Frame}).
 
 
 %%
@@ -71,7 +82,8 @@ reenter_kiss_mode(Ref) ->
 %% =============================================================================
 
 -record(state, {
-    upper,      %% Upper protocol ref.
+    send,       %% Sending protocol chain.
+    recv,       %% Receiving protocol chain.
     port        %% UART port.
 }).
 
@@ -84,9 +96,17 @@ reenter_kiss_mode(Ref) ->
 %%
 %%
 %%
-init({Upper, Device}) ->
+init({Device, Password, Call, Peer}) ->
+    {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Ax25Send} = ls1mcs_proto_ax25:make_ref(Call, Peer, tnc),
+    {ok, Ax25Recv} = ls1mcs_proto_ax25:make_ref(Call, Peer, tnc),
+    {ok, KissSend} = ls1mcs_proto_kiss:make_ref(),
+    {ok, KissRecv} = ls1mcs_proto_kiss:make_ref(),
+    {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend, Ax25Send, KissSend]),
+    {ok, RecvChain} = ls1mcs_proto:make_recv_chain([KissRecv, Ax25Recv, Ls1pRecv]),
     self() ! {initialize, Device},
-    {ok, #state{upper = Upper}}.
+    {ok, #state{send = SendChain, recv = RecvChain}}.
 
 
 %%
@@ -101,18 +121,18 @@ handle_call({reenter_kiss_mode}, _From, State = #state{port = Port}) ->
 
 
 %%
-%%  Send data to the RS232 port.
+%%  Send frame to the RS232 port.
 %%
-handle_cast({send, Data}, State = #state{port = Port}) ->
-    ok = uart:send(Port, Data),
-    {noreply, State}.
+handle_cast({send, Frame}, State = #state{send = SendChain, port = Port}) ->
+    {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
+    [ ok = uart:send(Port, BinFrame) || BinFrame <- BinFrames ],
+    {noreply, State#state{send = NewSendChain}}.
 
 
 %%
 %%  Deffered initialization.
 %%
-handle_info({initialize, Device}, State = #state{upper = Upper}) ->
-    ls1mcs_protocol:await(Upper),
+handle_info({initialize, Device}, State) ->
     ok = receive after ?RESTART_DELAY -> ok end,
     {ok, Port} = uart:open(Device, ?UART_OPTIONS),
     case check_kiss_mode(Port) of
@@ -132,16 +152,18 @@ handle_info({initialize, Device}, State = #state{upper = Upper}) ->
 %%
 %%  Receive cycle.
 %%
-handle_info({recv}, State = #state{port = Port, upper = Upper}) ->
+handle_info({recv}, State = #state{recv = RecvChain, port = Port}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
         {ok, RecvIoList} ->
             RecvBinary = iolist_to_binary(RecvIoList),
-            ok = ls1mcs_protocol:received(Upper, RecvBinary),
-            self() ! {recv};
+            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(RecvBinary, RecvChain),
+            ok = ls1mcs_sat_link:recv(RecvFrames),
+            self() ! {recv},
+            {noreply, State#state{recv = NewRecvChain}};
         {error, timeout} ->
-            self() ! {recv}
-    end,
-    {noreply, State}.
+            self() ! {recv},
+            {noreply, State}
+    end.
 
 
 %%
