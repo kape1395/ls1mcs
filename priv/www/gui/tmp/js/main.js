@@ -216,8 +216,14 @@ function ls1mcs_immcmds_render(commands) {
         rows += "<tr>";
         rows += "<td>" + c.id + "</td>";
         rows += "<td>" + c.spec;
+        rows += "("
+        for (var a = 0; c.args != null && a < c.args.length; a++) {
+            if (a > 0) rows += ", ";
+            rows += c.args[a].name + "=" + c.args[a].value;
+        }
+        rows += ")"
         if (c._links.photo != undefined) {
-            rows += " (<a href='" + c._links.photo.href + "' target='_blank'>photo</a>)"
+            rows += " [<a href='" + c._links.photo.href + "' target='_blank'>photo</a>]"
         }
         rows += "</td>";
         rows += "<td>" + c.status + "</td>";
