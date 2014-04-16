@@ -78,14 +78,16 @@ make_recv_chain(ProtoRefs) ->
 %%  Send a frame via the Chain.
 %%
 send(Ls1pCmdFrame, Chain) when is_record(Ls1pCmdFrame, ls1p_cmd_frame)->
-    {ok, _EndFrames, _NewChain} = process_via_chain(Chain, Ls1pCmdFrame, send).
+    {ok, NewChain, EndFrames} = process_via_chain(Chain, Ls1pCmdFrame, send),
+    {ok, EndFrames, NewChain}.
 
 
 %%
 %%  Receive a data via the Chain.
 %%
 recv(Data, Chain) ->
-    {ok, _Ls1pFrames, _NewChain} = process_via_chain(Chain, Data, recv).
+    {ok, NewChain, Ls1pFrames} = process_via_chain(Chain, Data, recv),
+    {ok, Ls1pFrames, NewChain}.
 
 
 

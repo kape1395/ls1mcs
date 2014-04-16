@@ -56,7 +56,7 @@
 start_link(Name, ConnHost, ConnPort, Password, Opts) ->
     Args = {ConnHost, ConnPort, Password, Opts},
     {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, Args, []),
-    ok = ls1mcs_tnc:register(?MODULE, {via, gproc, Name}),
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
 
@@ -152,7 +152,7 @@ handle_info({initialize, ConnHost, ConnPort}, State) ->
     timer:sleep(1000), %% Delay for restarts.
     ConnOpts = [binary, {packet, raw}, {active, true}],
     {ok, Sock} = gen_tcp:connect(ConnHost, ConnPort, ConnOpts, ?TIMEOUT),
-    NewState = handle_setup(State#state{sock = Sock, buff = <<>>}),
+    {ok, NewState} = handle_setup(State#state{sock = Sock, buff = <<>>}),
     {noreply, NewState};
 
 %%
@@ -161,7 +161,7 @@ handle_info({initialize, ConnHost, ConnPort}, State) ->
 handle_info({tick}, State = #state{sock = Sock}) ->
     ok = send_frame(agwpe_ask_port_info(), Sock),
     erlang:send_after(?TICK, self(), {tick}),
-    {ok, State};
+    {noreply, State};
 
 %%
 %%  Receive data.
@@ -265,6 +265,7 @@ handle_frame(Frame, State) ->
 %%
 send_frame(Frame, Sock) ->
     FrameBin = encode_frame(Frame),
+    lager:debug("Sending AGWPE frame ~p", [Frame]),
     ok = gen_tcp:send(Sock, FrameBin).
 
 
