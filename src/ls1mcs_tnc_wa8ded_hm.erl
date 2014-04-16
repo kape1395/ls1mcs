@@ -73,7 +73,9 @@
 %%  ls1mcs_tnc_wa8ded_hm:send({n, l, test}, <<"Hello world!">>).
 %%
 start_link(Name, Device, Password, Call) ->
-    gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call}, []).
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call}, []),
+    ok = ls1mcs_tnc:register(?MODULE, Name),
+    {ok, Pid}.
 
 
 %%

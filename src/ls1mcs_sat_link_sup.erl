@@ -49,8 +49,20 @@ init({LinkOpts}) ->
     Ls1pPassword = proplists:get_value(ls1p_password, LinkOpts),
     ThisCallSign = proplists:get_value(this_callsign, LinkOpts),
     PeerCallSign = proplists:get_value(peer_callsign, LinkOpts),
-    TncName = {n, l, ls1mcs_sat_link_tnc},
-    {TncMod, TncArgs} = case proplists:get_value(tnc, LinkOpts) of
+    TncCfgs = proplists:get_value(tncs, LinkOpts, []),
+    TncNums = lists:seq(1, length(TncCfgs)),
+    TncSpecs = [
+        tnc_spec(C, N, Ls1pPassword, ThisCallSign, PeerCallSign)
+        || {C, N} <- lists:zip(TncCfgs, TncNums)
+    ],
+    PubSpec = {pub, {ls1mcs_sat_link_pub, start_link, []}, permanent, 5000, worker, [ls1mcs_sat_link_pub]},
+    HubSpec = {hub, {ls1mcs_sat_link_hub, start_link, []}, permanent, 5000, worker, [ls1mcs_sat_link_hub]},
+    {ok, {{one_for_all, 100, 10}, [PubSpec, HubSpec | TncSpecs]}}.
+
+
+tnc_spec(TncCfg, Number, Ls1pPassword, ThisCallSign, PeerCallSign) ->
+    TncName = {n, l, {ls1mcs_sat_link_tnc, Number}},
+    {TncMod, TncArgs} = case TncCfg of
         {tnc_wa8ded_hostmode, TncOpts} ->
             Device = proplists:get_value(device, TncOpts),
             {ls1mcs_tnc_wa8ded_hm, [TncName, Device, Ls1pPassword, ThisCallSign]};
@@ -69,13 +81,13 @@ init({LinkOpts}) ->
             AgwpeUser = proplists:get_value(agwpe_user, TncOpts),
             AgwpePass = proplists:get_value(agwpe_pass, TncOpts),
             AgwpePort = proplists:get_value(agwpe_port, TncOpts),
-            AgwpeOpts = #{
-                port => AgwpePort,
-                call => ThisCallSign,
-                peer => PeerCallSign,
-                user => AgwpeUser,
-                pass => AgwpePass
-            },
+            AgwpeOpts = [
+                {port, AgwpePort},
+                {call, ThisCallSign},
+                {peer, PeerCallSign},
+                {user, AgwpeUser},
+                {pass, AgwpePass}
+            ],
             {ls1mcs_tnc_agwpe, [TncName, ConnHost, ConnPort, Ls1pPassword, AgwpeOpts]};
         {file, TncOpts} ->
             DataDir = proplists:get_value(data_dir, TncOpts),
@@ -83,10 +95,9 @@ init({LinkOpts}) ->
         {void, _TncOpts} ->
             {ls1mcs_tnc_void, [TncName]}
     end,
-    {ok, {{one_for_all, 100, 10}, [
-        {pub,  {ls1mcs_sat_link_pub, start_link, []}, permanent, 5000, worker, [ls1mcs_sat_link_pub]},
-        {hub,  {ls1mcs_sat_link_hub, start_link, []}, permanent, 5000, worker, [ls1mcs_sat_link_hub]},
-        {tnc,  {TncMod, start_link, TncArgs},         permanent, 5000, worker, [TncMod]}
-    ]}}.
-
+    {
+        {tnc, Number},
+        {TncMod, start_link, TncArgs},
+        permanent, 5000, worker, [TncMod]
+    }.
 

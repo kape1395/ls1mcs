@@ -36,7 +36,7 @@
 %%
 start_link(Name) ->
     {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {}, []),
-    ok = ls1mcs_tnc:register(?MODULE, {via, gproc, Name}),
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
 

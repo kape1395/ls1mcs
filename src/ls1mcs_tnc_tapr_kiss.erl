@@ -58,7 +58,7 @@
 %%
 start_link(Name, Device, Password, Call, Peer) ->
     {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call, Peer}, []),
-    ok = ls1mcs_tnc:register(?MODULE, {via, gproc, Name}),
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
 

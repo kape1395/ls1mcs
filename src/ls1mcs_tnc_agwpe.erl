@@ -109,22 +109,14 @@ init({ConnHost, ConnPort, Password, Opts}) ->
     {ok, Recv} = ls1mcs_proto:make_recv_chain([Ls1pRecv]),
     self() ! {initialize, ConnHost, ConnPort},
     self() ! {tick},
-    Defaults = #{port => 0, call => <<"NOCALL">>, peer => <<"NOCALL">>},
-    #{
-        port := Port,
-        call := Call,
-        peer := Peer,
-        user := User,
-        pass := Pass
-    } = maps:merge(Defaults, Opts),
     State = #state{
         send = Send,
         recv = Recv,
-        port = Port,
-        call = Call,
-        peer = Peer,
-        user = User,
-        pass = Pass
+        port = proplists:get_value(port, Opts, 0),
+        call = erlang:list_to_binary(proplists:get_value(call, Opts, "NOCALL")),
+        peer = erlang:list_to_binary(proplists:get_value(peer, Opts, "NOCALL")),
+        user = erlang:list_to_binary(proplists:get_value(user, Opts, "")),
+        pass = erlang:list_to_binary(proplists:get_value(pass, Opts, ""))
     },
     {ok, State}.
 
