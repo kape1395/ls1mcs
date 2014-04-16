@@ -115,19 +115,19 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%
 %%
 %%
-send_downlink(BlkSz, From, Till, StateData = #state{id = UsrCmdId, buf_id = BufId}) ->
-    SatCmd = #sat_cmd{
-        cmd_frame = #ls1p_cmd_frame{
-            addr = arm,
-            port = downlink,
-            ack = false,
-            data = <<BufId:8, BlkSz:8, From:16/little, Till:16/little>>
-        },
-        exp_dfc = Till - From
-    },
-    {ok, SatCmdId} = ls1mcs_usr_cmd:send_sat_cmd(?MODULE, UsrCmdId, SatCmd),
-    StateData#state{
-        last_cmd_id = SatCmdId
-    }.
+% send_downlink(BlkSz, From, Till, StateData = #state{id = UsrCmdId, buf_id = BufId}) ->
+%     SatCmd = #sat_cmd{
+%         cmd_frame = #ls1p_cmd_frame{
+%             addr = arm,
+%             port = downlink,
+%             ack = false,
+%             data = <<BufId:8, BlkSz:8, From:16/little, Till:16/little>>
+%         },
+%         exp_dfc = Till - From
+%     },
+%     {ok, SatCmdId} = ls1mcs_usr_cmd:send_sat_cmd(?MODULE, UsrCmdId, SatCmd),
+%     StateData#state{
+%         last_cmd_id = SatCmdId
+%     }.
 
 

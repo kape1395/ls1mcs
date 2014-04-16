@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 -module(ls1mcs_sup).
 -behaviour(supervisor).
 -export([start_link/2]).
@@ -26,27 +42,18 @@ start_link(LinkCfg, GPredictCfg) ->
 %% @doc Supervisor initialization (CB).
 %%
 init({LinkCfg, GPredictCfg}) ->
-    {LinkType, LinkOptions} = LinkCfg,
-
-    SLnkMod = ls1mcs_sat_link,
-    LSupMod = ls1mcs_sat_link_sup,  % Proto sup.
+    LinkMod = ls1mcs_sat_link_sup,
     SCmdMod = ls1mcs_sat_cmd_sup,
     UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
 
-    LinkRef = LSupMod:top_ref(),
-    SLnkName = {n, l, SLnkMod},
-    SLnkRef  = ls1mcs_protocol:make_ref(SLnkMod, SLnkName),
-
-    SLnkArgs = [SLnkName, LinkRef],
-    LSupArgs = [SLnkRef, LinkType, LinkOptions],
+    LinkArgs = [LinkCfg],
 
     ChildSpecs = [
         {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
-        {link,  {LSupMod,  start_link, LSupArgs}, permanent, 5000, supervisor, [LSupMod]},
+        {link,  {LinkMod,  start_link, LinkArgs}, permanent, 5000, supervisor, [LinkMod]},
         {scmd,  {SCmdMod,  start_link, []},       permanent, 5000, supervisor, [SCmdMod]},
-        {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]},
-        {slnk,  {SLnkMod,  start_link, SLnkArgs}, permanent, 5000, worker,     [SLnkMod]}
+        {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]}
     ],
 
     GPredictSpec = case GPredictCfg of
