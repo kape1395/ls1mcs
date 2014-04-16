@@ -51,13 +51,13 @@ init({LinkOpts}) ->
     PeerCallSign = proplists:get_value(peer_callsign, LinkOpts),
     TncName = {n, l, ls1mcs_sat_link_tnc},
     {TncMod, TncArgs} = case proplists:get_value(tnc, LinkOpts) of
-        {wa8ded_hostmode, TncOpts} ->
+        {tnc_wa8ded_hostmode, TncOpts} ->
             Device = proplists:get_value(device, TncOpts),
             {ls1mcs_tnc_wa8ded_hm, [TncName, Device, Ls1pPassword, ThisCallSign]};
-        {tapr_kiss, TncOpts} ->
+        {tnc_tapr_kiss, TncOpts} ->
             Device = proplists:get_value(device, TncOpts),
             {ls1mcs_tnc_tapr_kiss, [TncName, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
-        {mfj1270c_kiss, TncOpts} ->
+        {tnc_mfj1270c_kiss, TncOpts} ->
             Device = proplists:get_value(device, TncOpts),
             {ls1mcs_tnc_mfj1270c, [TncName, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
         {soundmodem_rs232, TncOpts} ->
