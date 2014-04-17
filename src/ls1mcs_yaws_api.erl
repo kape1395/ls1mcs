@@ -232,20 +232,39 @@ handle_request(["telemetry", "gs", "5646"], 'GET', _Arg) ->
 handle_request(["telemetry", "ham"], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO
 
-handle_request(["telemetry", "ham"], 'POST', Arg) ->
+%%
+%%  curl --request POST --data-binary "@14042014_1658.bin" "http://localhost:8000/ls1mcs/api/telemetry/ham/?t=json&m=preview"
+%%
+handle_request(["telemetry", "ham"], 'POST', Arg = #arg{headers = Headers}) ->
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(<<0:16>>, false),
+    {ok, Ax25Recv} = ls1mcs_proto_ax25:make_ref("NOCALL", "NOCALL", tnc),
+    {ok, KissRecv} = ls1mcs_proto_kiss:make_ref(),
+    {ok, RecvChain} = ls1mcs_proto:make_recv_chain([KissRecv, Ax25Recv, Ls1pRecv]),
     FileHandler = fun (RawBytes) ->
-        {ok, KissPayloads} = ls1mcs_proto_kiss:preview(RawBytes),
-        {ok, Ax25Payloads} = ls1mcs_proto_ax25:preview(KissPayloads),
-        {ok, Ls1pFrames}   = ls1mcs_proto_ls1p:preview(Ax25Payloads),
-        {ehtml, [
-            {body, [], [
-                {pre, [], [{code, [{id, "tm-data"}], jiffy:encode(json_list([F || F = #ls1p_tm_frame{} <- Ls1pFrames]))}]},
-                {script, [{src, "/ls1mcs/gui/tmp/js/vendor/jquery-1.8.3.min.js"}], []},
-                {script, [{type, "text/javascript"}], <<"$('#tm-data').html(JSON.stringify(JSON.parse($('#tm-data').html()), undefined, 4));">>}
-            ]}
-        ]}
+        {ok, RecvFrames, _NewRecvChain} = ls1mcs_proto:recv(RawBytes, RecvChain),
+        TmFrames = [ F || F = #ls1p_tm_frame{} <- RecvFrames ],
+        MediaType = case yaws_api:queryvar(Arg, "t") of
+            {ok, "json"} -> json;
+            _ -> html
+        end,
+        case MediaType of
+            json ->
+                respond(200, json_list(TmFrames));
+            html ->
+                {ehtml, [
+                    {body, [], [
+                        {pre, [], [{code, [{id, "tm-data"}], jiffy:encode(json_list(TmFrames))}]},
+                        {script, [{src, "/ls1mcs/gui/tmp/js/vendor/jquery-1.8.3.min.js"}], []},
+                        {script, [{type, "text/javascript"}], <<"$('#tm-data').html(JSON.stringify(JSON.parse($('#tm-data').html()), undefined, 4));">>}
+                    ]}
+                ]}
+        end
     end,
-    process_single_file(FileHandler, Arg);
+    case lists:prefix("multipart/form-data", yaws_api:get_header(Headers, content_type)) of
+        true  -> process_multipart_single_file(FileHandler, Arg);
+        false -> process_entity(FileHandler, Arg)
+    end;
+
 
 %%
 %%  Telemetry archive.
@@ -368,9 +387,9 @@ media_type_for_response(CmdFrame) ->
 
 
 %%
-%%  Single file upload.
+%%  Single file upload (multipart).
 %%
-process_single_file(HandlerFun, Arg = #arg{state = ArgState}) ->
+process_multipart_single_file(HandlerFun, Arg = #arg{state = ArgState}) ->
     State = case ArgState of
         undefined -> [];
         _ -> ArgState
@@ -391,6 +410,26 @@ process_single_file(HandlerFun, Arg = #arg{state = ArgState}) ->
         {error, Reason} ->
             lager:error("Unable to parse multipart POST, error=~p", [Reason]),
             respond_error(12321, <<"Failed to parse multipart POST.">>)
+    end.
+
+%%
+%%  Single file upload (multipart).
+%%
+process_entity(HandlerFun, #arg{state = ArgState, clidata = CliData}) ->
+    State = case ArgState of
+        undefined -> [];
+        _ -> ArgState
+    end,
+    case CliData of
+        {partial, Data} ->
+            {get_more, undefined, [Data | State]};
+        Data when is_binary(Data) ->
+            NewState = [Data | State],
+            FileContents = erlang:iolist_to_binary(lists:reverse(NewState)),
+            HandlerFun(FileContents);
+        {error, Reason} ->
+            lager:error("Unable to parse POST, error=~p", [Reason]),
+            respond_error(12121, <<"Failed to parse POST.">>)
     end.
 
 

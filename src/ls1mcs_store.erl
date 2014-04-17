@@ -277,12 +277,16 @@ add_ls1p_frame(Frame = #ls1p_data_frame{cref = {Epoch, CRef}}, Bytes, Timestamp)
     end,
     mnesia:activity(transaction, Activity);
 
-add_ls1p_frame(Frame = #ls1p_tm_frame{}, Bytes, Timestamp) ->
+add_ls1p_frame(Frame = #ls1p_tm_frame{recv = Recv}, Bytes, Timestamp) ->
     Id = mnesia:dirty_update_counter(ls1mcs_store_counter, tm, 1),
+    NewRecv = case Recv of
+        undefined -> Timestamp;
+        {_, _, _} -> Recv
+    end,
     Activity = fun () ->
         ok = mnesia:write(#ls1mcs_store_ls1p_tm{
             id = Id,
-            frame = Frame#ls1p_tm_frame{id = Id, recv = Timestamp},
+            frame = Frame#ls1p_tm_frame{id = Id, recv = NewRecv},
             bytes = Bytes,
             recv_time = Timestamp,
             source = gs

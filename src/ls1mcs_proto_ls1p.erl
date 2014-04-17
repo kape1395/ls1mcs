@@ -20,7 +20,7 @@
 -module(ls1mcs_proto_ls1p).
 -behaviour(ls1mcs_proto).
 -compile([{parse_transform, lager_transform}]).
--export([make_ref/2, preview/1]).
+-export([make_ref/2]).
 -export([init/1, send/2, recv/2]).
 -export([
     decode_tm/1, decode_photo_meta/1,
@@ -79,28 +79,6 @@ make_ref(Password, LogFrames) ->
     ls1mcs_proto:make_ref(?MODULE, {Password, LogFrames}).
 
 
-%%
-%%
-%%
-preview(Frame) when is_binary(Frame) ->
-    {ok, [Decoded]} = preview([Frame]),
-    {ok, Decoded};
-
-preview(Frames) when is_list(Frames) ->
-    DecodeFun = fun
-        (undefined) ->
-            undefined;
-        (Frame) ->
-            case catch decode(Frame) of
-                {ok, Decoded} ->
-                    Decoded;
-                _Error ->
-                    undefined
-            end
-    end,
-    {ok, lists:map(DecodeFun, Frames)}.
-
-
 
 %% =============================================================================
 %%  Internal data structures.
@@ -127,16 +105,16 @@ init({Password, LogFrames}) ->
 %%
 %%
 %%
-send(Frame, State = #state{pass = Password, log = LogFrames}) when is_record(Frame, ls1p_cmd_frame) ->
+send({Hdrs, Frame}, State = #state{pass = Password, log = LogFrames}) when is_record(Frame, ls1p_cmd_frame) ->
     {ok, DataBin} = encode(Frame, Password),
     {ok, _FrameWithCRef} = log_ls1p_frame(Frame, DataBin, LogFrames),
-    {ok, [DataBin], State}.
+    {ok, [{Hdrs, DataBin}], State}.
 
 
 %%
 %%
 %%
-recv(DataBin, State = #state{pass = Password, log = LogFrames}) when is_binary(DataBin) ->
+recv({Hdrs, DataBin}, State = #state{pass = Password, log = LogFrames}) when is_binary(DataBin) ->
     case check_signature(DataBin, Password) of
         {ok, Frame} when Password =/= undefined ->
             % Handles echoed command in the case when password is specified.
@@ -148,13 +126,21 @@ recv(DataBin, State = #state{pass = Password, log = LogFrames}) when is_binary(D
                     % Handles echoed command in the case when password is not specified.
                     lager:debug("ls1mcs_proto_ls1p: Dropping received (echoed?) command frame: ~p", [Frame]),
                     {ok, [], State};
+                {ok, Frame} when is_record(Frame, ls1p_tm_frame) ->
+                    lager:debug("ls1mcs_proto_ls1p: Decoded TM frame: ~p from ~p", [Frame, DataBin]),
+                    RecvTime = case proplists:get_value(time, Hdrs) of
+                        undefined -> erlang:now();
+                        T -> T
+                    end,
+                    {ok, FrameWithCRef} = log_ls1p_frame(Frame#ls1p_tm_frame{recv = RecvTime}, DataBin, LogFrames),
+                    {ok, [{Hdrs, FrameWithCRef}], State};
                 {ok, Frame} ->
                     lager:debug("ls1mcs_proto_ls1p: Decoded frame: ~p from ~p", [Frame, DataBin]),
                     {ok, FrameWithCRef} = log_ls1p_frame(Frame, DataBin, LogFrames),
-                    {ok, [FrameWithCRef], State}
+                    {ok, [{Hdrs, FrameWithCRef}], State}
             catch
                 ErrType:ErrCode ->
-                    lager:debug(
+                    lager:warning(
                         "ls1mcs_proto_ls1p: Received invalid frame: ~p, error=~p:~p, trace=~p",
                         [DataBin, ErrType, ErrCode, erlang:get_stacktrace()]
                     ),

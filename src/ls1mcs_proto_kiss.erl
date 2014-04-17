@@ -21,7 +21,7 @@
 -module(ls1mcs_proto_kiss).
 -behaviour(ls1mcs_proto).
 -compile([{parse_transform, lager_transform}]).
--export([make_ref/0, preview/1]).
+-export([make_ref/0]).
 -export([init/1, send/2, recv/2]).
 
 -define(FEND,   16#C0).
@@ -35,6 +35,13 @@
 -define(FT_TXtail,      4).
 -define(FT_FullDuplex,  5).
 -define(FT_SetHardware, 6).
+-define(FT_TIME,        9). % Non-standard frame, contains timestamp of the following data frame.
+
+%%
+%% calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
+%%
+-define(UNIX_BIRTH, 62167219200).
+-define(MEGA_SECS, 1000000).
 
 
 %% =============================================================================
@@ -48,26 +55,17 @@ make_ref() ->
     ls1mcs_proto:make_ref(?MODULE, {}).
 
 
-%%
-%%  Returns decoded frames.
-%%  Used for TM preview.
-%%
-preview(Data) when is_binary(Data) ->
-    preview(binary_to_list(Data));
-
-preview(Data) when is_list(Data) ->
-    {ok, Frames, _State} = decode(Data, {idle, []}),
-    {ok, Frames}.
-
-
 
 %% =============================================================================
 %%  Internal data structures.
 %% =============================================================================
 
 -record(state, {
-    name,
-    buff
+    name,       %% Current state name.
+    type,       %% Type of the current frame: data | time
+    part,       %% Partly decoded frame.
+    time,       %% Last date, as specified in a non-standard 09 frame.
+    frames      %% Decoded frames.
 }).
 
 
@@ -80,29 +78,42 @@ preview(Data) when is_list(Data) ->
 %%
 %%
 init({}) ->
-    {ok, #state{name = idle, buff = []}}.
+    {ok, init()}.
 
 
 %%
 %%
 %%
-send(Frame, State) when is_binary(Frame) ->
+send({Hdrs, Frame}, State) when is_binary(Frame) ->
     EncodedFrame = encode(Frame),
-    {ok, [EncodedFrame], State}.
+    {ok, [{Hdrs, EncodedFrame}], State}.
 
 
 %%
 %%
 %%
-recv(Frame, State = #state{name = Name, buff = Buff}) when is_binary(Frame) ->
-    {ok, DecodedFrames, {NewName, NewBuff}} = decode(binary_to_list(Frame), {Name, Buff}),
-    {ok, DecodedFrames, State#state{name = NewName, buff = NewBuff}}.
+recv({Hdrs, Body}, State) when is_binary(Body) ->
+    {ok, Frames, NewState} = decode(binary_to_list(Body), State),
+    {ok, [ {F ++ Hdrs, B} || {F, B} <- Frames ], NewState}.
 
 
 
 %% =============================================================================
 %%  Internal Functions.
 %% =============================================================================
+
+%%
+%%  Initializes the state.
+%%
+init() ->
+    #state{
+        name = idle,
+        type = undefined,
+        part = [],
+        time = undefined,
+        frames = []
+    }.
+
 
 %%
 %%  KISS escaping.
@@ -124,21 +135,71 @@ encode(Data) ->
 %%
 %%  Decode stream of bytes to KISS frames.
 %%
-decode(Data, {InitState, InitPartial}) ->
-    {State, Decoded, Partial} = lists:foldl(fun decode_fun/2, {InitState, [], InitPartial}, Data),
-    Frames = lists:reverse([ list_to_binary(lists:reverse(D)) || D <- Decoded]),
-    {ok, Frames, {State, Partial}}.
+decode(Data, State) ->
+    NewState = #state{frames = Frames} = lists:foldl(fun decode_byte/2, State#state{frames = []}, Data),
+    {ok, lists:reverse(Frames), NewState#state{frames = []}}.
 
-decode_fun(?FEND,    {idle,        Decoded, _Partial}) -> {frame_start, Decoded,              []};
-decode_fun(_Byte,    {idle,        Decoded, _Partial}) -> {idle,        Decoded,              []};
-decode_fun(?FT_DATA, {frame_start, Decoded, _Partial}) -> {frame_data,  Decoded,              []};
-decode_fun(?FEND,    {frame_start, Decoded, _Partial}) -> {frame_start, Decoded,              []};
-decode_fun(_Byte,    {frame_start, Decoded, _Partial}) -> {idle,        Decoded,              []};
-decode_fun(?FESC,    {frame_data,  Decoded, Partial})  -> {frame_esc,   Decoded,              Partial};
-decode_fun(?FEND,    {frame_data,  Decoded, Partial})  -> {frame_start, [Partial | Decoded],  []};
-decode_fun(Byte,     {frame_data,  Decoded, Partial})  -> {frame_data,  Decoded,              [Byte  | Partial]};
-decode_fun(?TFESC,   {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [?FESC | Partial]};
-decode_fun(?TFEND,   {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [?FEND | Partial]};
-decode_fun(Byte,     {frame_esc,   Decoded, Partial})  -> {frame_data,  Decoded,              [Byte  | Partial]}.
+decode_byte(?FEND, State = #state{name = idle}) -> State#state{name = frame_start};
+decode_byte(_Byte, State = #state{name = idle}) -> State#state{name = idle};
+
+decode_byte(?FT_DATA, State = #state{name = frame_start}) -> State#state{name = frame_data, type = data, part = []};
+decode_byte(?FT_TIME, State = #state{name = frame_start}) -> State#state{name = frame_data, type = time, part = []};
+decode_byte(?FEND,    State = #state{name = frame_start}) -> State#state{name = frame_start};
+decode_byte(_Byte,    State = #state{name = frame_start}) -> State#state{name = idle};
+
+decode_byte(?FEND, State = #state{name = frame_data})              -> frame_decoded(State);
+decode_byte(?FESC, State = #state{name = frame_data})              -> State#state{name = frame_esc};
+decode_byte(Byte,  State = #state{name = frame_data, part = Part}) -> State#state{part = [Byte | Part]};
+
+decode_byte(?TFESC, State = #state{name = frame_esc, part = Part}) -> State#state{name = frame_data, part = [?FESC | Part]};
+decode_byte(?TFEND, State = #state{name = frame_esc, part = Part}) -> State#state{name = frame_data, part = [?FEND | Part]};
+decode_byte(Byte,   State = #state{name = frame_esc, part = Part}) -> State#state{name = frame_data, part = [Byte  | Part]}.
+
+frame_decoded(State = #state{type = data, frames = Frames, part = Part, time = Time}) ->
+    Frame = {
+        [{time, Time}],
+        list_to_binary(lists:reverse(Part))
+    },
+    State#state{
+        name = frame_start,
+        frames = [Frame | Frames],
+        type = undefined,
+        part = [],
+        time = undefined
+    };
+frame_decoded(State = #state{type = time, part = Part}) ->
+    %%  Example date: <<"2014-04-14 17:07:39.750 UTC">>
+    %%  Example date: <<"2014-04-14 17:07:39.750 UTC;77,7;5,0;97;39,09°E;51,63°N">>
+    TimeBin = list_to_binary(lists:reverse(Part)),
+    Time = case TimeBin of
+        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, Sep:1/binary,
+          Hour:2/binary, ":", Min:2/binary,   ":", Sec:2/binary, Rest/binary>>
+          when Sep =:= <<" ">>; Sep =:= <<"T">>
+          ->
+            Date = {
+                {binary_to_integer(Year), binary_to_integer(Month), binary_to_integer(Day)},
+                {binary_to_integer(Hour), binary_to_integer(Min),   binary_to_integer(Sec)}
+            },
+            DateSecs = calendar:datetime_to_gregorian_seconds(Date) - ?UNIX_BIRTH,
+            [SubSecsWithZone | _] = binary:split(Rest, <<";">>),
+            case SubSecsWithZone of
+                <<".", MSec:3/binary, Zone/binary>> when Zone =:= <<"">>; Zone =:= <<"Z">>; Zone =:= <<" UTC">> ->
+                    {DateSecs div ?MEGA_SECS, DateSecs rem ?MEGA_SECS, binary_to_integer(MSec) * 1000};
+                <<".", USec:6/binary, Zone/binary>> when Zone =:= <<"">>; Zone =:= <<"Z">>; Zone =:= <<" UTC">> ->
+                    {DateSecs div ?MEGA_SECS, DateSecs rem ?MEGA_SECS, binary_to_integer(USec)};
+                _ ->
+                    lager:warning("Ignoring unknown time zone in date: ~p", [TimeBin]),
+                    {DateSecs div ?MEGA_SECS, DateSecs rem ?MEGA_SECS, 0}
+            end;
+        _ ->
+            lager:warning("Ignoring unknown timestamp: ~p", [TimeBin]),
+            undefined
+    end,
+    State#state{
+        name = frame_start,
+        type = undefined,
+        part = [],
+        time = Time
+    }.
 
 

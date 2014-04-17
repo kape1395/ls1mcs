@@ -207,10 +207,11 @@ encode({telemetry}) ->
 
 encode(#ls1p_tm_frame{id = Id, recv = Recv, data = Data}) ->
     #tm{time = Time, hk = Hk, att = Att} = ls1mcs_proto_ls1p:decode_tm(Data),
-    {[
-        links([
-            link(self, url(["telemetry", Id]))
-        ]),
+    Links = case Id of
+        undefined -> [];
+        _ -> [links([link(self, url(["telemetry", Id]))])]
+    end,
+    {Links ++ [
         {id, Id},
         {recv, encode_tstamp(Recv)},
         {time, Time},

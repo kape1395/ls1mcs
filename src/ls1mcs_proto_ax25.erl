@@ -25,7 +25,7 @@
 -module(ls1mcs_proto_ax25).
 -behaviour(ls1mcs_proto).
 -compile([{parse_transform, lager_transform}]).
--export([make_ref/3, preview/1]).
+-export([make_ref/3]).
 -export([init/1, send/2, recv/2]).
 -include("ls1mcs.hrl").
 
@@ -64,25 +64,6 @@ make_ref(Local, Remote, Mode) ->
     ls1mcs_proto:make_ref(?MODULE, {Local, Remote, Mode}).
 
 
-%%
-%%  Used for TM preview.
-%%
-preview(Frame) when is_binary(Frame) ->
-    {ok, [Decoded]} = preview([Frame]),
-    {ok, Decoded};
-
-preview(Frames) when is_list(Frames) ->
-    DecodeFun = fun (F) ->
-        case catch decode(F, tnc) of
-            {ok, #frame{data = Payload}} ->
-                Payload;
-            _Error ->
-                undefined
-        end
-    end,
-    {ok, lists:map(DecodeFun, Frames)}.
-
-
 
 %% =============================================================================
 %%  Internal data structures.
@@ -117,20 +98,20 @@ init({Local, Remote, Mode}) ->
 %%
 %%
 %%
-send(Data, State = #state{local = Local, remote = Remote, mode = Mode}) when is_binary(Data) ->
+send({Hdrs, Data}, State = #state{local = Local, remote = Remote, mode = Mode}) when is_binary(Data) ->
     Frame = #frame{
         dst = Remote,
         src = Local,
         data = Data
     },
     {ok, FrameBinary} = encode(Frame, Mode),
-    {ok, [FrameBinary], State}.
+    {ok, [ {Hdrs, D} || D <- FrameBinary ], State}.
 
 
 %%
 %%
 %%
-recv(Received, State = #state{data = Collected, mode = std = Mode}) when is_binary(Received) ->
+recv({Hdrs, Received}, State = #state{data = Collected, mode = std = Mode}) when is_binary(Received) ->
     {Reminder, Frames} = split_frames(<<Collected/binary, Received/binary>>),
 
     %%  Decode all frames and sent them to the upper level.
@@ -154,12 +135,12 @@ recv(Received, State = #state{data = Collected, mode = std = Mode}) when is_bina
             lager:warning("WARN: AX25: Buffer to big, several bytes dropped: input=~p", [StrippedReminder]),
             State#state{data = NewReminder}
     end,
-    {ok, FrameInfos, NewState};
+    {ok, [ {Hdrs, D} || D <- FrameInfos ], NewState};
 
-recv(Received, State = #state{mode = tnc = Mode}) ->
+recv({Hdrs, Received}, State = #state{mode = tnc = Mode}) ->
     case catch decode(Received, Mode) of
         {ok, #frame{data = FrameInfo}} ->
-            {ok, [FrameInfo], State};
+            {ok, [{Hdrs, FrameInfo}], State};
         Error ->
             lager:warning("WARN: AX25: Ignoring bad frame: error = ~p, input=~p", [Error, Received]),
             {ok, [], State}
