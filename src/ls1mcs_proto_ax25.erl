@@ -105,7 +105,7 @@ send({Hdrs, Data}, State = #state{local = Local, remote = Remote, mode = Mode}) 
         data = Data
     },
     {ok, FrameBinary} = encode(Frame, Mode),
-    {ok, [ {Hdrs, D} || D <- FrameBinary ], State}.
+    {ok, [{Hdrs, FrameBinary}], State}.
 
 
 %%
