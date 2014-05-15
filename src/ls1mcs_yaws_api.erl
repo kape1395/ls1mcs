@@ -196,7 +196,13 @@ handle_request(["telemetry"], 'GET', _Arg) ->
 %%  Telemetry collected by ground station.
 %%
 handle_request(["telemetry", "gs"], 'GET', Arg) ->
-    {ok, TMFrames} = ls1mcs_store:get_tm(all),
+    Query = case {yaws_api:queryvar(Arg, "from"), yaws_api:queryvar(Arg, "till")} of
+        {undefined,  undefined } -> all;
+        {{ok, From}, {ok, Till}} -> {time, parse_tstamp(From), parse_tstamp(Till)};
+        {undefined,  {ok, Till}} -> {time, undefined,          parse_tstamp(Till)};
+        {{ok, From}, undefined } -> {time, parse_tstamp(From), undefined}
+    end,
+    {ok, TMFrames} = ls1mcs_store:get_tm(Query),
     case yaws_api:queryvar(Arg, "t") of
         {ok, "txt"} ->
             respond(200, ?MEDIATYPE_TXT, erlang:iolist_to_binary(ls1mcs_yaws_txt:encode_list(TMFrames)));
@@ -431,5 +437,30 @@ process_entity(HandlerFun, #arg{state = ArgState, clidata = CliData}) ->
             lager:error("Unable to parse POST, error=~p", [Reason]),
             respond_error(12121, <<"Failed to parse POST.">>)
     end.
+
+
+%%
+%%  Decode timestamp.
+%%  calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
+%%  Eg. "2013/07/21 23:57:26".
+%%
+-define(UNIX_BIRTH, 62167219200).
+-define(MEGA_SECS, 1000000).
+parse_tstamp(undefined) ->
+    undefined;
+
+parse_tstamp(DateBin) ->
+    case DateBin of
+        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary>> ->
+            Hour = 0, Min = 0, Sec = 0, ok;
+        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, "T", Hour:2/binary, ":", Min:2/binary, ":", Sec:2/binary>> ->
+            ok
+    end,
+    Date = {
+        {binary_to_integer(Year), binary_to_integer(Month), binary_to_integer(Day)},
+        {binary_to_integer(Hour), binary_to_integer(Min), binary_to_integer(Sec)}
+    },
+    DateSecs = calendar:datetime_to_gregorian_seconds(Date) - ?UNIX_BIRTH,
+    {DateSecs div ?MEGA_SECS, DateSecs rem ?MEGA_SECS, 0}.
 
 
