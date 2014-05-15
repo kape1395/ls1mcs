@@ -194,6 +194,11 @@ handle_request(["telemetry"], 'GET', _Arg) ->
 
 %%
 %%  Telemetry collected by ground station.
+%%  Examples:
+%%
+%%      http://localhost:8000/ls1mcs/api/telemetry/gs
+%%      http://localhost:8000/ls1mcs/api/telemetry/gs?t=txt
+%%      http://localhost:8000/ls1mcs/api/telemetry/gs?from=2014-05-10&till=2014-05-13
 %%
 handle_request(["telemetry", "gs"], 'GET', Arg) ->
     Query = case {yaws_api:queryvar(Arg, "from"), yaws_api:queryvar(Arg, "till")} of
@@ -446,13 +451,16 @@ process_entity(HandlerFun, #arg{state = ArgState, clidata = CliData}) ->
 %%
 -define(UNIX_BIRTH, 62167219200).
 -define(MEGA_SECS, 1000000).
+parse_tstamp(TStamp) when is_list(TStamp) ->
+    parse_tstamp(erlang:list_to_binary(TStamp));
+
 parse_tstamp(undefined) ->
     undefined;
 
 parse_tstamp(DateBin) ->
     case DateBin of
         <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary>> ->
-            Hour = 0, Min = 0, Sec = 0, ok;
+            Hour = <<"00">>, Min = <<"00">>, Sec = <<"00">>, ok;
         <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, "T", Hour:2/binary, ":", Min:2/binary, ":", Sec:2/binary>> ->
             ok
     end,

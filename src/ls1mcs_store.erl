@@ -334,9 +334,9 @@ get_tm({time, From, Till}) ->
     MatchHead = #ls1mcs_store_ls1p_tm{source = gs, frame = '$1', recv_time = '$2', _ = '_'},
     Guards = case {From, Till} of
         {undefined, undefined} -> [];
-        {From,      undefined} -> [{'>=', '$2', From}];
-        {undefined, Till     } -> [{'<',  '$2', Till}];
-        {From,      Till     } -> [{'>=', '$2', From}, {'<', '$2', Till}]
+        {From,      undefined} -> [{'>=', '$2', {const, From}}];
+        {undefined, Till     } -> [{'<',  '$2', {const, Till}}];
+        {From,      Till     } -> [{'>=', '$2', {const, From}}, {'<', '$2', {const, Till}}]
     end,
     Frames = mnesia:dirty_select(ls1mcs_store_ls1p_tm, [{MatchHead, Guards, ['$1']}]),
     {ok, Frames}.
