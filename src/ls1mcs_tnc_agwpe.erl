@@ -32,7 +32,7 @@
 -behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/5, send/2]).
+-export([start_link/6, send/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -53,8 +53,8 @@
 %%    * `{call, Call = NOCALL}` - Our (ground station) call sign
 %%    * `{peer, Peer = NOCALL}` - Peer (satellite) call sign.
 %%
-start_link(Name, ConnHost, ConnPort, Password, Opts) ->
-    Args = {ConnHost, ConnPort, Password, Opts},
+start_link(Name, Direction, ConnHost, ConnPort, Password, Opts) ->
+    Args = {Direction, ConnHost, ConnPort, Password, Opts},
     {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, Args, []),
     ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
@@ -90,7 +90,9 @@ send(Name, Frame) ->
     user,       %% AGWPE Username.
     pass,       %% AGWPE Password.
     sock,       %% AGWPE TCP/IP Socket.
-    buff        %% Incomplete data frame received from the socket.
+    buff,       %% Incomplete data frame received from the socket.
+    uplink,     %% Handle uplink.
+    downlink    %% Handle downlink.
 }).
 
 
@@ -102,7 +104,7 @@ send(Name, Frame) ->
 %%
 %%
 %%
-init({ConnHost, ConnPort, Password, Opts}) ->
+init({Direction, ConnHost, ConnPort, Password, Opts}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
@@ -116,7 +118,9 @@ init({ConnHost, ConnPort, Password, Opts}) ->
         call = erlang:list_to_binary(proplists:get_value(call, Opts, "NOCALL")),
         peer = erlang:list_to_binary(proplists:get_value(peer, Opts, "NOCALL")),
         user = erlang:list_to_binary(proplists:get_value(user, Opts, "")),
-        pass = erlang:list_to_binary(proplists:get_value(pass, Opts, ""))
+        pass = erlang:list_to_binary(proplists:get_value(pass, Opts, "")),
+        uplink   = lists:member(Direction, [both, up,   uplink]),
+        downlink = lists:member(Direction, [both, down, downlink])
     },
     {ok, State}.
 
@@ -131,6 +135,10 @@ handle_call(_Message, _From, State) ->
 %%
 %%  Send data to the RS232 port.
 %%
+handle_cast({send, Frame}, State = #state{uplink = false}) ->
+    lager:debug("Discarding ~p, uplink disabled.", [Frame]),
+    {noreply, State};
+
 handle_cast({send, Frame}, State = #state{send = SendChain, port = Port, call = Call, sock = Sock}) ->
     {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
     [ ok = send_frame(agwpe_send_unproto_info(Port, Call, F), Sock) || F <- BinFrames ],
@@ -158,6 +166,10 @@ handle_info({tick}, State = #state{sock = Sock}) ->
 %%
 %%  Receive data.
 %%
+handle_info({tcp, Sock, RecvData}, State = #state{sock = Sock, downlink = false}) ->
+    lager:debug("Discarding ~p, downlink disabled.", [RecvData]),
+    {noreply, State};
+
 handle_info({tcp, Sock, RecvData}, State = #state{sock = Sock, buff = Buff}) ->
     lager:debug("Received: ~p", [RecvData]),
     {ok, NewState} = handle_received(<<Buff/binary, RecvData/binary>>, State),

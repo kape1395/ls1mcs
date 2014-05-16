@@ -21,7 +21,7 @@
 -behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/5, send/2]).
+-export([start_link/6, send/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -37,8 +37,8 @@
 %%
 %%
 %%
-start_link(Name, Device, Password, Call, Peer) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call, Peer}, []),
+start_link(Name, Direction, Device, Password, Call, Peer) ->
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Direction, Device, Password, Call, Peer}, []),
     ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
@@ -58,7 +58,9 @@ send(Name, Frame) ->
 -record(state, {
     send,       %% Sending protocol chain.
     recv,       %% Receiving protocol chain.
-    port        %% UART port.
+    port,       %% UART port.
+    uplink,     %% Handle uplink.
+    downlink    %% Handle downlink.
 }).
 
 
@@ -70,7 +72,7 @@ send(Name, Frame) ->
 %%
 %%
 %%
-init({Device, Password, Call, Peer}) ->
+init({Direction, Device, Password, Call, Peer}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ax25Send} = ls1mcs_proto_ax25:make_ref(Call, Peer, tnc),
@@ -80,7 +82,13 @@ init({Device, Password, Call, Peer}) ->
     {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend, Ax25Send, KissSend]),
     {ok, RecvChain} = ls1mcs_proto:make_recv_chain([KissRecv, Ax25Recv, Ls1pRecv]),
     self() ! {initialize, Device},
-    {ok, #state{send = SendChain, recv = RecvChain}}.
+    State = #state{
+        send     = SendChain,
+        recv     = RecvChain,
+        uplink   = lists:member(Direction, [both, up,   uplink]),
+        downlink = lists:member(Direction, [both, down, downlink])
+    },
+    {ok, State}.
 
 
 %%
@@ -93,6 +101,10 @@ handle_call(_Message, _From, State) ->
 %%
 %%  Send data to the RS232 port.
 %%
+handle_cast({send, Frame}, State = #state{uplink = false}) ->
+    lager:debug("Discarding ~p, uplink disabled.", [Frame]),
+    {noreply, State};
+
 handle_cast({send, Frame}, State = #state{send = SendChain, port = Port}) ->
     {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
     [ ok = uart:send(Port, BinFrame) || BinFrame <- BinFrames ],
@@ -111,8 +123,12 @@ handle_info({initialize, Device}, State) ->
 %%
 %%  Receive cycle.
 %%
-handle_info({recv}, State = #state{recv = RecvChain, port = Port}) ->
+handle_info({recv}, State = #state{recv = RecvChain, port = Port, downlink = Downlink}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
+        {ok, RecvIoList} when Downlink =:= false ->
+            lager:debug("Discarding ~p, downlink disabled.", [RecvIoList]),
+            self() ! {recv},
+            {noreply, State};
         {ok, RecvIoList} ->
             lager:debug("Received: ~p", [RecvIoList]),
             RecvBinary = iolist_to_binary(RecvIoList),

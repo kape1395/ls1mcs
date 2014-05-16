@@ -25,7 +25,7 @@
 -behaviour(ls1mcs_tnc).
 -behavour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/5, send/2, invoke/2]).
+-export([start_link/6, send/2, invoke/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
@@ -51,8 +51,8 @@
 %%  ls1mcs_tnc_mfj1270c:start_link({n, l, test}, {ls1mcs_tnc_mfj1270c, {n, l, test}}, "/dev/ttyUSB0").
 %%  ls1mcs_tnc_mfj1270c:send({n, l, test}, <<"Hello world!">>).
 %%
-start_link(Name, Device, Password, Call, Peer) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call, Peer}, []),
+start_link(Name, Direction, Device, Password, Call, Peer) ->
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Direction, Device, Password, Call, Peer}, []),
     ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
@@ -86,7 +86,9 @@ invoke(Ref, Command) when is_binary(Command) ->
     send,       %% Sending protocol chain.
     recv,       %% Receiving protocol chain.
     device,     %% Device we are working with ("/dev/ttyUSB0")
-    port        %% UART port.
+    port,       %% UART port.
+    uplink,     %% Handle uplink.
+    downlink    %% Handle downlink.
 }).
 
 
@@ -98,7 +100,7 @@ invoke(Ref, Command) when is_binary(Command) ->
 %%
 %%  Initialization.
 %%
-init({Device, Password, Call, Peer}) ->
+init({Direction, Device, Password, Call, Peer}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ax25Send} = ls1mcs_proto_ax25:make_ref(Call, Peer, tnc),
@@ -108,7 +110,14 @@ init({Device, Password, Call, Peer}) ->
     {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend, Ax25Send, KissSend]),
     {ok, RecvChain} = ls1mcs_proto:make_recv_chain([KissRecv, Ax25Recv, Ls1pRecv]),
     self() ! {initialize},
-    {ok, #state{send = SendChain, recv = RecvChain, device = Device}}.
+    State = #state{
+        send     = SendChain,
+        recv     = RecvChain,
+        device   = Device,
+        uplink   = lists:member(Direction, [both, up,   uplink]),
+        downlink = lists:member(Direction, [both, down, downlink])
+    },
+    {ok, State}.
 
 
 %%
@@ -122,6 +131,10 @@ handle_call({invoke, Command}, _From, State = #state{port = Port}) ->
 %%
 %%  Send data to the TNC.
 %%
+handle_cast({send, Frame}, State = #state{uplink = false}) ->
+    lager:debug("Discarding ~p, uplink disabled.", [Frame]),
+    {noreply, State};
+
 handle_cast({send, Frame}, State = #state{send = SendChain, port = Port}) ->
     {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
     [ ok = uart:send(Port, BinFrame) || BinFrame <- BinFrames ],
@@ -160,8 +173,12 @@ handle_info({initialize}, State = #state{device = Device}) ->
 %%
 %%  Receive cycle.
 %%
-handle_info({recv}, State = #state{port = Port, recv = RecvChain}) ->
+handle_info({recv}, State = #state{port = Port, recv = RecvChain, downlink = Downlink}) ->
     case uart:recv(Port, ?RECV_COUNT, ?RECV_TIMEOUT) of
+        {ok, RecvIoList} when Downlink =:= false ->
+            lager:debug("Discarding ~p, downlink disabled.", [RecvIoList]),
+            self() ! {recv},
+            {noreply, State};
         {ok, RecvIoList} ->
             RecvBinary = iolist_to_binary(RecvIoList),
             {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(RecvBinary, RecvChain),

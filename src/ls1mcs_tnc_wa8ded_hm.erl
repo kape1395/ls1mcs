@@ -25,7 +25,7 @@
 -behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/4, send/2, invoke/2]).
+-export([start_link/5, send/2, invoke/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
@@ -72,8 +72,8 @@
 %%  ls1mcs_tnc_wa8ded_hm:start_link({n, l, test}, {ls1mcs_tnc_wa8ded_hm, {n, l, test}}, "/dev/ttyUSB0", "LY2EN").
 %%  ls1mcs_tnc_wa8ded_hm:send({n, l, test}, <<"Hello world!">>).
 %%
-start_link(Name, Device, Password, Call) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Device, Password, Call}, []),
+start_link(Name, Direction, Device, Password, Call) ->
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Direction, Device, Password, Call}, []),
     ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
@@ -108,7 +108,9 @@ invoke(Ref, Command) when is_binary(Command) ->
     recv,       %% Receiving protocol chain.
     device,     %% Device we are working with (/dev/ttyUSB0)
     local_call, %% Local call (HAM)
-    port        %% UART port.
+    port,       %% UART port.
+    uplink,     %% Handle uplink.
+    downlink    %% Handle downlink.
 }).
 
 
@@ -120,13 +122,21 @@ invoke(Ref, Command) when is_binary(Command) ->
 %%
 %%  Initialization.
 %%
-init({Device, Password, Call}) ->
+init({Direction, Device, Password, Call}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend]),
     {ok, RecvChain} = ls1mcs_proto:make_recv_chain([Ls1pRecv]),
     self() ! {initialize},
-    {ok, #state{send = SendChain, recv = RecvChain, device = Device, local_call = Call}}.
+    State = #state{
+        send       = SendChain,
+        recv       = RecvChain,
+        device     = Device,
+        local_call = Call,
+        uplink     = lists:member(Direction, [both, up,   uplink]),
+        downlink   = lists:member(Direction, [both, down, downlink])
+    },
+    {ok, State}.
 
 
 %%
@@ -140,6 +150,10 @@ handle_call({invoke, Command}, _From, State = #state{port = Port}) ->
 %%
 %%  Send data to the TNC.
 %%
+handle_cast({send, Frame}, State = #state{uplink = false}) ->
+    lager:debug("Discarding ~p, uplink disabled.", [Frame]),
+    {noreply, State};
+
 handle_cast({send, Frame}, State = #state{send = SendChain, port = Port}) ->
     {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
     [ ok = send_info(Port, BinFrame) || BinFrame <- BinFrames ],
@@ -166,8 +180,8 @@ handle_info({initialize}, State = #state{device = Device, local_call = LocalCall
 %%
 %%  Check, if incoming messages arrived.
 %%
-handle_info({query_input}, State = #state{recv = RecvChain, port = Port}) ->
-    {ok, NewRecvChain} = query_all_input(Port, RecvChain),
+handle_info({query_input}, State = #state{recv = RecvChain, port = Port, downlink = Downlink}) ->
+    {ok, NewRecvChain} = query_all_input(Port, RecvChain, Downlink),
     _TRef = erlang:send_after(?QUERY_DELAY, self(), {query_input}),
     {noreply, State#state{recv = NewRecvChain}}.
 
@@ -343,7 +357,7 @@ enter_hostmode(Port) ->
 %%  Fetches all pending incoming messages and
 %%  sends them to the upper protocol layer.
 %%
-query_all_input(Port, RecvChain) ->
+query_all_input(Port, RecvChain, Downlink) ->
     case send_cmd(Port, <<"G">>) of
         {ok, ?HM_CODE_OK} ->
             % OK, no data available on the link.
@@ -359,32 +373,44 @@ query_all_input(Port, RecvChain) ->
         {ok, ?HM_CODE_STATUS} ->
             {ok, Msg} = read_zstr(Port),
             lager:info("G responded with status message ~p", [Msg]),
-            query_all_input(Port, RecvChain);
+            query_all_input(Port, RecvChain, Downlink);
         {ok, ?HM_CODE_MHDR} ->
             {ok, Msg} = read_zstr(Port),
             lager:debug("G responded with monitored header ~p", [Msg]),
-            query_all_input(Port, RecvChain);
+            query_all_input(Port, RecvChain, Downlink);
         {ok, ?HM_CODE_MHDR_MSG} ->
             {ok, Msg} = read_zstr(Port),
             lager:debug("G responded with monitored header ~p, info follows", [Msg]),
-            ok = query_info(Port, RecvChain),
-            query_all_input(Port, RecvChain)
+            ok = query_info(Port, RecvChain, Downlink),
+            query_all_input(Port, RecvChain, Downlink)
     end.
 
-query_info(Port, RecvChain) ->
+query_info(Port, RecvChain, Downlink) ->
     case send_cmd(Port, <<"G">>) of
         {ok, ?HM_CODE_MON_INFO} ->
             {ok, Message} = read_lstr(Port),
-            lager:debug("Monitored info received: ~p", [Message]),
-            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
-            ok = ls1mcs_sat_link:recv(RecvFrames),
-            {ok, NewRecvChain};
+            case Downlink of
+                true ->
+                    lager:debug("Monitored info received: ~p", [Message]),
+                    {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
+                    ok = ls1mcs_sat_link:recv(RecvFrames),
+                    {ok, NewRecvChain};
+                false ->
+                    lager:debug("Discarding monitored info ~p, downlink disabled.", [Message]),
+                    {ok, RecvChain}
+            end;
         {ok, ?HM_CODE_CON_INFO} ->
             {ok, Message} = read_lstr(Port),
-            lager:warn("Connected info received: ~p", [Message]),
-            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
-            ok = ls1mcs_sat_link:recv(RecvFrames),
-            {ok, NewRecvChain}
+            case Downlink of
+                true ->
+                    lager:warn("Connected info received: ~p", [Message]),
+                    {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
+                    ok = ls1mcs_sat_link:recv(RecvFrames),
+                    {ok, NewRecvChain};
+                false ->
+                    lager:debug("Discarding connected info ~p, downlink disabled.", [Message]),
+                    {ok, RecvChain}
+            end
     end.
 
 

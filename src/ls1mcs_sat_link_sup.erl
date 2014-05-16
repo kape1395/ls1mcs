@@ -64,18 +64,23 @@ tnc_spec(TncCfg, Number, Ls1pPassword, ThisCallSign, PeerCallSign) ->
     TncName = {n, l, {ls1mcs_sat_link_tnc, Number}},
     {TncMod, TncArgs} = case TncCfg of
         {tnc_wa8ded_hostmode, TncOpts} ->
-            Device = proplists:get_value(device, TncOpts),
-            {ls1mcs_tnc_wa8ded_hm, [TncName, Device, Ls1pPassword, ThisCallSign]};
+            Direction = proplists:get_value(direction, TncOpts, both),
+            Device    = proplists:get_value(device,    TncOpts),
+            {ls1mcs_tnc_wa8ded_hm, [TncName, Direction, Device, Ls1pPassword, ThisCallSign]};
         {tnc_tapr_kiss, TncOpts} ->
-            Device = proplists:get_value(device, TncOpts),
-            {ls1mcs_tnc_tapr_kiss, [TncName, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
+            Direction = proplists:get_value(direction, TncOpts, both),
+            Device    = proplists:get_value(device,    TncOpts),
+            {ls1mcs_tnc_tapr_kiss, [TncName, Direction, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
         {tnc_mfj1270c_kiss, TncOpts} ->
-            Device = proplists:get_value(device, TncOpts),
-            {ls1mcs_tnc_mfj1270c, [TncName, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
+            Direction = proplists:get_value(direction, TncOpts, both),
+            Device    = proplists:get_value(device,    TncOpts),
+            {ls1mcs_tnc_mfj1270c, [TncName, Direction, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
         {soundmodem_rs232, TncOpts} ->
-            Device = proplists:get_value(device, TncOpts),
-            {ls1mcs_tnc_smodem, [TncName, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
+            Direction = proplists:get_value(direction, TncOpts, both),
+            Device    = proplists:get_value(device,    TncOpts),
+            {ls1mcs_tnc_smodem, [TncName, Direction, Device, Ls1pPassword, ThisCallSign, PeerCallSign]};
         {soundmodem_agwpe, TncOpts} ->
+            Direction = proplists:get_value(direction,  TncOpts, both),
             ConnHost  = proplists:get_value(conn_host,  TncOpts),
             ConnPort  = proplists:get_value(conn_port,  TncOpts),
             AgwpeUser = proplists:get_value(agwpe_user, TncOpts),
@@ -88,7 +93,7 @@ tnc_spec(TncCfg, Number, Ls1pPassword, ThisCallSign, PeerCallSign) ->
                 {user, AgwpeUser},
                 {pass, AgwpePass}
             ],
-            {ls1mcs_tnc_agwpe, [TncName, ConnHost, ConnPort, Ls1pPassword, AgwpeOpts]};
+            {ls1mcs_tnc_agwpe, [TncName, Direction, ConnHost, ConnPort, Ls1pPassword, AgwpeOpts]};
         {file, TncOpts} ->
             DataDir = proplists:get_value(data_dir, TncOpts),
             {ls1mcs_tnc_file, [TncName, Ls1pPassword, DataDir]};
