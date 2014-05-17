@@ -46,6 +46,8 @@
 %%
 %%  =================
 %%
+%%  See `http://manpages.ubuntu.com/manpages/trusty/man1/predict.1.html` for alternative.
+%%
 -module(ls1mcs_gpredict).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).

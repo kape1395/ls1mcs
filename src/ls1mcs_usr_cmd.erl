@@ -1,3 +1,19 @@
+%/--------------------------------------------------------------------
+%| Copyright 2013-2014 Karolis Petrauskas
+%|
+%| Licensed under the Apache License, Version 2.0 (the "License");
+%| you may not use this file except in compliance with the License.
+%| You may obtain a copy of the License at
+%|
+%|     http://www.apache.org/licenses/LICENSE-2.0
+%|
+%| Unless required by applicable law or agreed to in writing, software
+%| distributed under the License is distributed on an "AS IS" BASIS,
+%| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%| See the License for the specific language governing permissions and
+%| limitations under the License.
+%\--------------------------------------------------------------------
+
 %%
 %%  User commands.
 %%  See issue/1 for the entry point.
@@ -102,7 +118,8 @@ groups() ->
         #usr_cmd_group{name = arduino, desc = <<"Arduino">>},
         #usr_cmd_group{name = eps,     desc = <<"EPS">>},
         %#usr_cmd_group{name = gps,     desc = <<"GPS">>},
-        #usr_cmd_group{name = helium,  desc = <<"Helium">>}
+        #usr_cmd_group{name = helium,  desc = <<"Helium">>},
+        #usr_cmd_group{name = misc,    desc = <<"Misc">>}
     ].
 
 
@@ -240,7 +257,19 @@ specs() ->
         ]},
         #usr_cmd_spec{group = helium, name = he_tx_prw, desc = <<"Set Helium TX Power Level">>, impl = Simple, params = [
             #usr_cmd_param{name = level, type = integer, desc = <<"Amplification level (00-FF)">>}
-        ]}
+        ]},
+
+        %%
+        %%  Misc commands.
+        %%
+        #usr_cmd_spec{group = misc, name = shed_ping, desc = <<"Scheduled ping">>,
+            impl = {ls1mcs_usr_cmd_scheduled, start_link, []},
+            params = [
+                #usr_cmd_param{name = from,  type = string,  desc = <<"From date (yyyy-MM-dd HH:mm:ss, UTC)">>},
+                #usr_cmd_param{name = till,  type = string,  desc = <<"Till date (yyyy-MM-dd HH:mm:ss, UTC)">>},
+                #usr_cmd_param{name = retry, type = integer, desc = <<"Retry interval (sec)">>}
+            ]
+        }
     ].
 
 

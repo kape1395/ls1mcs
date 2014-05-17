@@ -446,29 +446,8 @@ process_entity(HandlerFun, #arg{state = ArgState, clidata = CliData}) ->
 
 %%
 %%  Decode timestamp.
-%%  calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
-%%  Eg. "2013/07/21 23:57:26".
 %%
--define(UNIX_BIRTH, 62167219200).
--define(MEGA_SECS, 1000000).
-parse_tstamp(TStamp) when is_list(TStamp) ->
-    parse_tstamp(erlang:list_to_binary(TStamp));
-
-parse_tstamp(undefined) ->
-    undefined;
-
-parse_tstamp(DateBin) ->
-    case DateBin of
-        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary>> ->
-            Hour = <<"00">>, Min = <<"00">>, Sec = <<"00">>, ok;
-        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, "T", Hour:2/binary, ":", Min:2/binary, ":", Sec:2/binary>> ->
-            ok
-    end,
-    Date = {
-        {binary_to_integer(Year), binary_to_integer(Month), binary_to_integer(Day)},
-        {binary_to_integer(Hour), binary_to_integer(Min), binary_to_integer(Sec)}
-    },
-    DateSecs = calendar:datetime_to_gregorian_seconds(Date) - ?UNIX_BIRTH,
-    {DateSecs div ?MEGA_SECS, DateSecs rem ?MEGA_SECS, 0}.
+parse_tstamp(TStamp) ->
+    ls1mcs_utl:parse_tstamp(TStamp).
 
 

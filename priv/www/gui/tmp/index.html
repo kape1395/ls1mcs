@@ -29,6 +29,7 @@
                 <div id="main-tabs" class="tabbable">
                     <ul class="nav nav-tabs">
                         <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
+                        <li><a href="#scheduled-commands" data-toggle="tab">Scheduled Commands</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
                         <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
                         <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
@@ -177,6 +178,46 @@
                             </table>
                           </fieldset></form>
                         </div>
+
+                        <div id="scheduled-commands" class="tab-pane">
+                          <form><fieldset>
+                            <table id="schedcmd-send-table" class="table table-hover table-condensed">
+                                <caption>Scheduled commands</caption>
+                                <thead>
+                                    <tr>
+                                        <th>Id</th>
+                                        <th>Command</th>
+                                        <th>From (UTC)</th>
+                                        <th>Till (UTC)</th>
+                                        <th>Retry (sec)</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    <tr>
+                                        <td>&nbsp;</td>
+                                        <td>ping</td>
+                                        <td>
+                                            <input id="" type="text" list="schedcmd-exec_from" placeholder="yyyy-MM-dd HH:mm:ss">
+                                            <datalist id="schedcmd-exec_from">
+                                                <option value="yyyy-MM-dd HH:mm:s1">
+                                                <option value="yyyy-MM-dd HH:mm:s2">
+                                                <option value="yyyy-MM-dd HH:mm:s3">
+                                                <option value="yyyy-MM-dd HH:mm:s4">
+                                                <option value="yyyy-MM-dd HH:mm:s5">
+                                            </datalist>
+                                        </td>
+                                        <td><input id="" type="text" placeholder="yyyy-MM-dd HH:mm:ss"></td>
+                                        <td><input id="" type="text" value="5"></td>
+                                        <td>&nbsp;</td>
+                                        <td><a href="#">Issue</a></td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                          </fieldset></form>
+                        </div>
+
                         <div id="telemetry" class="tab-pane">
                             <a href="#telemetry-refresh">Refresh</a>
                             <a href="/ls1mcs/api/telemetry/gs?t=txt" target="_blank" class="pull-right">All data in TXT</a>
