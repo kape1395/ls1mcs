@@ -120,8 +120,8 @@ init({#usr_cmd{id = UsrCmdId, args = Args}}) ->
     #usr_cmd_arg{value = TillBin}  = lists:keyfind(till,  #usr_cmd_arg.name, Args),
     #usr_cmd_arg{value = RetryBin} = lists:keyfind(retry, #usr_cmd_arg.name, Args),
     Now = os:timestamp(),
-    FromDelay = timer:now_diff(Now, ls1mcs_utl:parse_tstamp(FromBin)) div 1000,
-    TillDelay = timer:now_diff(Now, ls1mcs_utl:parse_tstamp(TillBin)) div 1000,
+    FromDelay = timer:now_diff(ls1mcs_utl:parse_tstamp(FromBin), Now) div 1000,
+    TillDelay = timer:now_diff(ls1mcs_utl:parse_tstamp(TillBin), Now) div 1000,
     gen_fsm:send_event_after(FromDelay, start),
     gen_fsm:send_event_after(TillDelay, stop),
     StateData = #state{
@@ -208,7 +208,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%
 %%  Handle entry to the `executing` state.
 %%
-enter_executing(StateData = #state{id = UsrCmdId, sat_cmd_ids = SatCmdIds}) ->
+enter_executing(StateData = #state{id = UsrCmdId, retry = Retry, sat_cmd_ids = SatCmdIds}) ->
     SatCmd = #sat_cmd{
         cmd_frame = #ls1p_cmd_frame{
             addr = arm,
@@ -220,6 +220,7 @@ enter_executing(StateData = #state{id = UsrCmdId, sat_cmd_ids = SatCmdIds}) ->
     NewStateData = StateData#state{
         sat_cmd_ids = [SatCmdId | SatCmdIds]
     },
+    gen_fsm:send_event_after(Retry, retry),
     {next_state, executing, NewStateData}.
 
 

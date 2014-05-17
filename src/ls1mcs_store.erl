@@ -367,6 +367,15 @@ get_usr_cmds(all) ->
     Cmds = [ C || #ls1mcs_store_usr_cmd{cmd = C} <- Records ],
     {ok, Cmds};
 
+get_usr_cmds({ids, Ids}) ->
+    ReadFun = fun (Id) ->
+        case mnesia:dirty_read(ls1mcs_store_usr_cmd, Id) of
+            [#ls1mcs_store_usr_cmd{cmd = C}] -> C
+        end
+    end,
+    Cmds = lists:map(ReadFun, Ids),
+    {ok, Cmds};
+
 get_usr_cmds({id, Id}) ->   % TODO: Remove (use get_usr_cmd).
     case mnesia:dirty_read(ls1mcs_store_usr_cmd, Id) of
         [] ->

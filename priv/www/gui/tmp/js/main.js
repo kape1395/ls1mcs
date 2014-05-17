@@ -1,8 +1,9 @@
 
 function ls1mcs_init() {
     ls1mcs_immcmds_init();
-    ls1mcs_telemetry_init();
+    ls1mcs_schedcmd_init();
     ls1mcs_cmdlog_init();
+    ls1mcs_telemetry_init();
 }
 
 function api_url(resource) {
@@ -232,9 +233,10 @@ function ls1mcs_immcmds_render(commands) {
     $("#immcmd-list-table > tbody").html(rows);
 }
 
-/**
- *  Command log.
- */
+// =============================================================================
+//  Main tabs: "command log" tab
+// =============================================================================
+
 function ls1mcs_cmdlog_init() {
     $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
         ls1mcs_cmdlog_show();
@@ -294,6 +296,95 @@ function ls1mcs_cmdlog_render(commands) {
     }
     $("#command-log_table > tbody").html(rows);
 }
+
+
+// =============================================================================
+//  Main tabs: "scheduled command" tab
+// =============================================================================
+
+function ls1mcs_send_scheduled_command(command) {
+    $.ajax({
+        type: "POST",
+        url: api_url("command/scheduled"),
+        data: JSON.stringify(command),
+        success: function () {ls1mcs_schedcmd_load();},
+        dataType: "json"
+    });
+}
+
+function ls1mcs_schedcmd_init() {
+    $("html").on("click", "a[href='#scheduled-commands']", function () {
+        ls1mcs_schedcmd_show();
+    });
+    $("#schedcmd-list").on("click", "a[href='#chedcmd-refresh']", function () {
+        ls1mcs_schedcmd_show();
+    });
+    $("#schedcmd-list").on("click", "a[href='#schedcmd-issue']", function () {
+        var from  = $("#schedcmd-from").val();
+        var till  = $("#schedcmd-till").val();
+        var retry = parseInt($("#schedcmd-retry").val());
+        ls1mcs_send_scheduled_command(
+            {spec: "shed_ping", args: [
+                {name: "from",  value: from},
+                {name: "till",  value: till},
+                {name: "retry", value: retry}
+            ]}
+        );
+    });
+    $("#schedcmd-list").on("click", "a[href='#schedcmd-cancel']", function () {
+        var cmdId = $(this).closest("tr").data("id");
+        $.ajax({
+            type: "PUT",
+            url: api_url("command/scheduled/" + cmdId),
+            data: JSON.stringify({status: "canceled"}),
+            success: function () {ls1mcs_schedcmd_show();},
+            dataType: "json"
+        });
+    });
+    ls1mcs_schedcmd_show();
+}
+
+function ls1mcs_schedcmd_show() {
+    ls1mcs_schedcmd_load();
+    ls1mcs_pages_show_main();
+    $("#main-tabs > ul > li > a[href = '#scheduled-commands']").tab('show');
+}
+
+function ls1mcs_schedcmd_load() {
+    $.getJSON(api_url("command/scheduled"), function (data, textStatus, jqXHR) {
+        ls1mcs_schedcmd_render(data);
+    });
+}
+
+function ls1mcs_schedcmd_render(commands) {
+    commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
+    var rows = "";
+    var arg_by_name = function (name, args) {
+        for (a = 0; a < args.length; a++) {
+            if (args[a].name == name)
+                return args[a].value;
+        }
+        return undefined;
+    };
+    for (var i = 0; i < commands.length && i < 13; i++) {
+        var c = commands[i];
+        rows += "<tr data-id='" + c.id + "'>";
+        rows += "<td>" + c.id + "</td>";
+        rows += "<td>" + c.spec + "</td>";
+        rows += "<td>" + arg_by_name("from", c.args) + "</td>";
+        rows += "<td>" + arg_by_name("till", c.args) + "</td>";
+        rows += "<td>" + arg_by_name("retry", c.args) + "</td>";
+        rows += "<td>" + c.status + "</td>";
+        if (c.status == "issued") {
+            rows += "<td><a href='#schedcmd-cancel'>Cancel</a></td>";
+        } else {
+            rows += "<td>&nbsp;</td>";
+        }
+        rows += "</tr>";
+    }
+    $("#schedcmd-list > tbody").html(rows);
+}
+
 
 // =============================================================================
 //  Main tabs: "telemetry" tab

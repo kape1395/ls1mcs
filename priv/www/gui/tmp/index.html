@@ -30,9 +30,9 @@
                     <ul class="nav nav-tabs">
                         <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
                         <li><a href="#scheduled-commands" data-toggle="tab">Scheduled Commands</a></li>
+                        <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
                         <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
-                        <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
                     </ul>
                     <div class="tab-content">
                         <div id="immediate-commands" class="tab-pane">
@@ -181,8 +181,8 @@
 
                         <div id="scheduled-commands" class="tab-pane">
                           <form><fieldset>
-                            <table id="schedcmd-send-table" class="table table-hover table-condensed">
-                                <caption>Scheduled commands</caption>
+                            <table id="schedcmd-list" class="table table-hover table-condensed">
+                                <caption>Scheduled commands (<a href="#chedcmd-refresh">Refresh</a>)</caption>
                                 <thead>
                                     <tr>
                                         <th>Id</th>
@@ -195,10 +195,10 @@
                                     </tr>
                                     <tr>
                                         <td>&nbsp;</td>
-                                        <td>ping</td>
+                                        <td>sched_ping</td>
                                         <td>
-                                            <input id="" type="text" list="schedcmd-exec_from" placeholder="yyyy-MM-dd HH:mm:ss">
-                                            <datalist id="schedcmd-exec_from">
+                                            <input id="schedcmd-from" type="text" list="schedcmd-from-list" placeholder="yyyy-MM-dd HH:mm:ss">
+                                            <datalist id="schedcmd-from-list">
                                                 <option value="yyyy-MM-dd HH:mm:s1">
                                                 <option value="yyyy-MM-dd HH:mm:s2">
                                                 <option value="yyyy-MM-dd HH:mm:s3">
@@ -206,16 +206,31 @@
                                                 <option value="yyyy-MM-dd HH:mm:s5">
                                             </datalist>
                                         </td>
-                                        <td><input id="" type="text" placeholder="yyyy-MM-dd HH:mm:ss"></td>
-                                        <td><input id="" type="text" value="5"></td>
+                                        <td><input id="schedcmd-till" type="text" placeholder="yyyy-MM-dd HH:mm:ss"></td>
+                                        <td><input id="schedcmd-retry" type="text" value="3"></td>
                                         <td>&nbsp;</td>
-                                        <td><a href="#">Issue</a></td>
+                                        <td><a href="#schedcmd-issue">Issue</a></td>
                                     </tr>
                                 </thead>
                                 <tbody>
                                 </tbody>
                             </table>
                           </fieldset></form>
+                        </div>
+
+                        <div id="command-log" class="tab-pane">
+                            <table id="command-log_table" class="table table-hover table-condensed">
+                                <caption>Issued SAT Commands (<a href="#command-log_refresh">Refresh</a>, <a href="/ls1mcs/api/command/usr?t=txt">Export</a>)</caption>
+                                <thead>
+                                    <th>Id</th>
+                                    <th>Name</th>
+                                    <th>Args</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
                         </div>
 
                         <div id="telemetry" class="tab-pane">
@@ -278,26 +293,11 @@
                             </form>
                         </div>
 
-                        <div id="command-log" class="tab-pane">
-                            <table id="command-log_table" class="table table-hover table-condensed">
-                                <caption>Issued SAT Commands (<a href="#command-log_refresh">Refresh</a>, <a href="/ls1mcs/api/command/usr?t=txt">Export</a>)</caption>
-                                <thead>
-                                    <th>Id</th>
-                                    <th>Name</th>
-                                    <th>Args</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-
                     </div>
                 </div>
             </div>
             <div id="page-footer">
-                LS1-MCS, &copy; Karolis Petrauskas, 2013
+                LS1-MCS, &copy; Karolis Petrauskas, 2013-2014
             </div>
         </div>
         <script src="js/vendor/jquery-1.8.3.min.js"></script>

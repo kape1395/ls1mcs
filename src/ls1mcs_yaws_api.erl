@@ -147,6 +147,40 @@ handle_request(["command", "plan", _CommandPlanId], 'GET', _Arg) ->
 handle_request(["command", "plan", _CommandPlanId, "commmand"], 'GET', _Arg) ->
     respond(200, json_list([]));    % TODO
 
+%%
+%%  Scheduled command (RW).
+%%
+handle_request(["command", "scheduled"], 'GET', _Arg) ->
+    {ok, RunningCmdIds} = ls1mcs_usr_cmd_scheduled:get_running(),
+    {ok, RunningCmds} = ls1mcs_store:get_usr_cmds({ids, RunningCmdIds}),
+    respond(200, json_list(RunningCmds));
+
+handle_request(["command", "scheduled"], 'POST', Arg) ->
+    UserCmd = ls1mcs_yaws_json:decode(usr_cmd, jiffy:decode(Arg#arg.clidata)),
+    lager:debug("Issued scheduled command: ~p", [UserCmd]),
+    Now = erlang:now(),
+    {ok, UserCmdId} = ls1mcs_usr_cmd:issue(UserCmd#usr_cmd{
+        id = undefined,
+        immediate = true,
+        approved = Now,
+        issued = Now
+    }),
+    respond(200, json_self(usr_cmd, UserCmdId));
+
+handle_request(["command", "scheduled", Id], 'PUT', Arg) ->
+    Json = jiffy:decode(Arg#arg.clidata),
+    case Json of
+        {[{<<"status">>, <<"canceled">>}]} ->
+            UsrCmdId = ls1mcs_yaws_json:decode_integer(Id),
+            lager:notice("Canceling scheduled command id=~p", [Id]),
+            ls1mcs_usr_cmd_scheduled:cancel(UsrCmdId),
+            respond(200, <<"">>);
+        _ ->
+            lager:notice("Unrecognized update action ~p for scheduled command id=~p", [Json, Id]),
+            respond_error(400, <<"Unrecognized update action.">>)
+    end;
+
+
 %% -----------------------------------------------------------------------------
 %%  LS1P Frames
 %% -----------------------------------------------------------------------------
