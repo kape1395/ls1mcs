@@ -20,7 +20,7 @@
 %%
 -module(ls1mcs_usr_cmd).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1, issue/1, groups/0, specs/0, arg_val/2]).
+-export([start_link/1, issue/1, groups/0, specs/0, arg_value/4, arg_value/3]).
 -export([send_sat_cmd/3, set_status/2]).
 -export([sat_cmd_failed/2, sat_cmd_completed/2]).
 -include("ls1mcs.hrl").
@@ -274,9 +274,45 @@ specs() ->
 
 
 %%
-%%  Returns user command argument as an integer.
+%%  Returns user command argument.
 %%
-arg_val(Name, Args) ->
-    #usr_cmd_arg{name = Name, value = Value} = lists:keyfind(Name, #usr_cmd_arg.name, Args),
-    erlang:binary_to_integer(Value).
+arg_value(Name, Args, Type, Default) ->
+    case lists:keyfind(Name, #usr_cmd_arg.name, Args) of
+        #usr_cmd_arg{value = ValueBin} ->
+            arg_convert(ValueBin, Type);
+        false ->
+            Default
+    end.
+
+
+%%
+%%
+%%
+arg_value(Name, Args, Type) ->
+    case lists:keyfind(Name, #usr_cmd_arg.name, Args) of
+        #usr_cmd_arg{value = ValueBin} ->
+            Value = arg_convert(ValueBin, Type),
+            {ok, Value};
+        false ->
+            {error, not_found}
+    end.
+
+
+%%
+%%
+%%
+arg_convert(ValueBin, binary) ->
+    ValueBin;
+
+arg_convert(ValueBin, integer) ->
+    erlang:binary_to_integer(ValueBin);
+
+arg_convert(ValueBin, boolean) ->
+    case ValueBin of
+        <<"true">>  -> true;
+        <<"false">> -> false
+    end;
+
+arg_convert(ValueBin, tstamp) ->
+    ls1mcs_utl:parse_tstamp(ValueBin).
 

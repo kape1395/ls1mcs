@@ -341,7 +341,6 @@ function ls1mcs_schedcmd_init() {
             dataType: "json"
         });
     });
-    ls1mcs_schedcmd_show();
 }
 
 function ls1mcs_schedcmd_show() {

@@ -79,17 +79,8 @@ handle_request(["command", "usr", Id], 'GET', _Arg) ->
     end;
 
 handle_request(["command", "usr", Id, "photo"], 'GET', _Arg) ->
-    case ls1mcs_store:get_usr_cmd(ls1mcs_yaws_json:decode_integer(Id), all) of
-        {ok, #usr_cmd{spec = Spec}, SatCmds} when Spec =:= photo_data; Spec =:= dlnk_photo ->
-            Frames = [ {CmdFrame, DataFrames} ||
-                {
-                    _SatCmd,
-                    CmdFrame = #ls1p_cmd_frame{addr = arduino, port = photo_data},
-                    _AckFrame,
-                    DataFrames
-                } <- SatCmds
-            ],
-            {ok, PhotoContent} = ls1mcs_proto_ls1p:merged_response(Frames),
+    case ls1mcs_usr_cmd_photo:get_photo(ls1mcs_yaws_json:decode_integer(Id)) of
+        {ok, PhotoContent} ->
             respond(200, ?MEDIATYPE_JPEG, PhotoContent);
         {error, not_found} ->
             respond_error(404, <<"Command not found by id.">>)

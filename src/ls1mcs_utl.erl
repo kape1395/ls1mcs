@@ -39,6 +39,8 @@ parse_tstamp(DateBin) ->
     case DateBin of
         <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary>> ->
             Hour = <<"00">>, Min = <<"00">>, Sec = <<"00">>, ok;
+        <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, " ", Hour:2/binary, ":", Min:2/binary>> ->
+            Sec = <<"00">>, ok;
         <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, " ", Hour:2/binary, ":", Min:2/binary, ":", Sec:2/binary>> ->
             ok;
         <<Year:4/binary, "-", Month:2/binary, "-", Day:2/binary, "T", Hour:2/binary, ":", Min:2/binary, ":", Sec:2/binary>> ->

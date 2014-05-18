@@ -347,5 +347,6 @@ mk_sat_cmd(#usr_cmd{args = Args}, #usr_cmd_spec{name = SpecName}) ->
 %%  Returns user command argument as an integer.
 %%
 arg_val(Name, Args) ->
-    ls1mcs_usr_cmd:arg_val(Name, Args).
+    {ok, Value} = ls1mcs_usr_cmd:arg_value(Name, Args, integer),
+    Value.
 

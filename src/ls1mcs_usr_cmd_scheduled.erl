@@ -116,17 +116,17 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 init({#usr_cmd{id = UsrCmdId, args = Args}}) ->
     true = gproc:reg({p, l, ?MODULE}, UsrCmdId),
-    #usr_cmd_arg{value = FromBin}  = lists:keyfind(from,  #usr_cmd_arg.name, Args),
-    #usr_cmd_arg{value = TillBin}  = lists:keyfind(till,  #usr_cmd_arg.name, Args),
-    #usr_cmd_arg{value = RetryBin} = lists:keyfind(retry, #usr_cmd_arg.name, Args),
+    {ok, From}  = ls1mcs_usr_cmd:arg_value(from,  Args, tstamp),
+    {ok, Till}  = ls1mcs_usr_cmd:arg_value(till,  Args, tstamp),
+    {ok, Retry} = ls1mcs_usr_cmd:arg_value(retry, Args, integer),
     Now = os:timestamp(),
-    FromDelay = timer:now_diff(ls1mcs_utl:parse_tstamp(FromBin), Now) div 1000,
-    TillDelay = timer:now_diff(ls1mcs_utl:parse_tstamp(TillBin), Now) div 1000,
+    FromDelay = timer:now_diff(From, Now) div 1000,
+    TillDelay = timer:now_diff(Till, Now) div 1000,
     gen_fsm:send_event_after(FromDelay, start),
     gen_fsm:send_event_after(TillDelay, stop),
     StateData = #state{
         id = UsrCmdId,
-        retry = erlang:binary_to_integer(RetryBin) * 1000,
+        retry = Retry * 1000,
         sat_cmd_ids = []
     },
     {ok, waiting, StateData}.

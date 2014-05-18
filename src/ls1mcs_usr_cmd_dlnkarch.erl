@@ -83,7 +83,7 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 init({UsrCmd = #usr_cmd{id = UsrCmdId, args = Args}}) ->
     gen_fsm:send_event(self(), start),
-    BufId = ls1mcs_usr_cmd:arg_val(bufid, Args),
+    {ok, BufId} = ls1mcs_usr_cmd:arg_value(bufid, Args, integer),
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
