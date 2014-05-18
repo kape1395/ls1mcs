@@ -16,7 +16,12 @@
 
 %%
 %%  User command: dlnk_photo.
-%%  Downlinks photo metadata and downloads its content.
+%%
+%%  Downlinks photo metadata and downloads its content. This command can
+%%  also work without knowing the photo metadata (photo size).
+%%
+%%  The command switches to the manual mode, if manual download request
+%%  has been made or when download retries were exceeded.
 %%
 -module(ls1mcs_usr_cmd_photo).
 -behaviour(ls1mcs_usr_cmd).
@@ -38,7 +43,7 @@
 
 
 %%
-%%
+%%  Start this command.
 %%
 -spec start_link(#usr_cmd{}, #usr_cmd_spec{})
         -> {ok, pid()} | term().
@@ -69,6 +74,9 @@ get_missing(UsrCmdId) ->
     gen_fsm:sync_send_all_state_event(?REF(UsrCmdId), get_missing).
 
 
+%%
+%%  Returns photo content.
+%%
 get_photo(UsrCmdId) ->
     case ls1mcs_store:get_usr_cmd(UsrCmdId, all) of
         {ok, #usr_cmd{spec = Spec}, SatCmds} when Spec =:= photo_data; Spec =:= dlnk_photo ->
@@ -87,10 +95,12 @@ get_photo(UsrCmdId) ->
 
 
 %%
-%%  TODO: Implement handler.
+%%  Peform manual download of the photo data.
+%%  This action transfers the command to the manual mode.
 %%
-download(UsrCmdId, From, Till) ->
-    gen_fsm:send_event(?REF(UsrCmdId), {download, From, Till}).
+download(UsrCmdId, BlockFrom, BlockTill) ->
+    lager:debug("Got request to download blocks [~p, ~p) for usr_cmd_id=~p", [BlockFrom, BlockTill, UsrCmdId]),
+    gen_fsm:send_event(?REF(UsrCmdId), {download, BlockFrom, BlockTill}).
 
 
 
@@ -132,10 +142,10 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 init({UsrCmd = #usr_cmd{id = UsrCmdId, args = Args}}) ->
     true = gproc:reg({p, l, ?MODULE}, UsrCmdId),
-    Manual    = ls1mcs_usr_cmd:get_value(manual,     Args, boolean, false),
-    BlockSize = ls1mcs_usr_cmd:get_value(block_size, Args, integer, 210),
-    RetryMeta = ls1mcs_usr_cmd:get_value(retry_meta, Args, integer, 5),
-    RetryData = ls1mcs_usr_cmd:get_value(retry_data, Args, integer, 1),
+    Manual    = ls1mcs_usr_cmd:arg_value(manual,     Args, boolean, false),
+    BlockSize = ls1mcs_usr_cmd:arg_value(block_size, Args, integer, 210),
+    RetryMeta = ls1mcs_usr_cmd:arg_value(retry_meta, Args, integer, 5),
+    RetryData = ls1mcs_usr_cmd:arg_value(retry_data, Args, integer, 1),
 
     gen_fsm:send_event(self(), start),
     StateData = #state{
@@ -191,6 +201,10 @@ getting_meta({sat_cmd_status, SatCmdId, Status}, StateData) ->
     ),
     {next_state, getting_meta, StateData};
 
+getting_meta({download, BlockFrom, BlockTill}, StateData = #state{block_size = BlockSize}) ->
+    NewStateData = send_photo_data(BlockSize, BlockFrom, BlockTill, StateData),
+    {next_state, getting_data, NewStateData#state{mode = manual}};
+
 getting_meta(close, StateData) ->
     {stop, normal, StateData}.
 
@@ -207,57 +221,8 @@ getting_data({sat_cmd_status, SatCmdId, failed}, StateData = #state{last_cmd_id 
     end;
 
 getting_data({sat_cmd_status, SatCmdId, completed}, StateData = #state{last_cmd_id = SatCmdId}) ->
-    #state{
-        id = UsrCmdId,
-        photo_size = PhotoSize
-    } = StateData,
     lager:debug("Got photo_data response."),
-    %
-    %   Get collected data fragments.
-    %
-    PhotoDataPredicate = fun
-        (#sat_cmd{cmd_frame = #ls1p_cmd_frame{addr = arduino, port = photo_data}}) -> true;
-        (_) -> false
-    end,
-    Ls1pFramesFun = fun (#sat_cmd{id = SCId}) ->
-        CRef = ls1mcs_store:cref_from_sat_cmd_id(SCId),
-        {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
-        {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
-        {CmdFrame, DataFrames}
-    end,
-    Ls1pWithEOFFun = fun
-        (#ls1p_data_frame{eof = true},  _)    -> true;
-        (#ls1p_data_frame{eof = false}, Prev) -> Prev
-    end,
-    {ok, SatCmds} = ls1mcs_store:get_sat_cmds({usr_cmd, UsrCmdId}),
-    PhotoDataSatCmds = lists:filter(PhotoDataPredicate, SatCmds),
-    PhotoDataSatFrames = lists:map(Ls1pFramesFun, PhotoDataSatCmds),
-    PhotoDataHaveEOF = lists:fold(Ls1pWithEOFFun, false, lists:append([ DFs || {_CF, DFs} <- PhotoDataSatFrames ])),
-    {ok, Fragments} = ls1mcs_proto_ls1p:merged_response_fragments(PhotoDataSatFrames),
-    %
-    %   Find gaps in the data.
-    %
-    GetGapsFun = fun ({From, Till, _Data}, {LastTill, Gaps}) ->
-        case From > LastTill of
-            true -> {Till, [{LastTill, From - LastTill} | Gaps]};
-            false -> {Till, Gaps}
-        end
-    end,
-    UpdatedGaps = case PhotoSize of
-        undefined ->
-            {LastFragEnd, NewGaps} = lists:foldl(GetGapsFun, {0, []}, Fragments),
-            case PhotoDataHaveEOF of
-                true  -> NewGaps;
-                false -> [{LastFragEnd, undefined} | NewGaps]
-            end;
-        PhotoSize when is_integer(PhotoSize) ->
-            FragmentsWithEnd = lists:sort([{PhotoSize, PhotoSize, <<>>} | Fragments]),
-            {PhotoSize, NewGaps} = lists:foldl(GetGapsFun, {0, []}, FragmentsWithEnd),
-            NewGaps
-    end,
-    %
-    %   Download missing fragments (gaps).
-    %
+    {ok, UpdatedGaps} = collect_data_gaps(StateData),
     case download(StateData#state{data_gaps = lists:sort(UpdatedGaps)}) of
         {cont, NewStateData} -> {next_state, getting_data, NewStateData};
         {stop, NewStateData} -> {next_state, getting_data, NewStateData#state{mode = manual}};
@@ -271,6 +236,10 @@ getting_data({sat_cmd_status, SatCmdId, Status}, StateData) ->
     ),
     {next_state, getting_data, StateData};
 
+getting_data({download, BlockFrom, BlockTill}, StateData = #state{block_size = BlockSize}) ->
+    NewStateData = send_photo_data(BlockSize, BlockFrom, BlockTill, StateData),
+    {next_state, getting_data, NewStateData#state{mode = manual}};
+
 getting_data(close, StateData) ->
     {stop, normal, StateData}.
 
@@ -281,7 +250,8 @@ getting_data(close, StateData) ->
 completed(close, StateData) ->
     {stop, normal, StateData};
 
-completed(_Event, StateData) ->
+completed(Event, StateData) ->
+    lager:debug("Ignoring event in the completed state: ~p", [Event]),
     {next_state, completed, StateData}.
 
 
@@ -291,14 +261,15 @@ completed(_Event, StateData) ->
 handle_event(_Event, StateName, StateData = #state{}) ->
     {next_state, StateName, StateData}.
 
-handle_sync_event(get_missing, From, StateName, StateData = #state{data_gaps = DataGaps, block_size = BlockSize}) ->
+handle_sync_event(get_missing, From, StateName, StateData = #state{block_size = BlockSize}) ->
+    {ok, UpdatedGaps} = collect_data_gaps(StateData),
     GapsToBlocks = fun (Gap) ->
         {ok, BlockFrom, BlockTill} = gap_to_blocks(Gap, BlockSize),
         {BlockFrom, BlockTill}
     end,
-    MissingBlocks = lists:map(GapsToBlocks, DataGaps),
-    true = gen_fsm:reply(From, {ok, MissingBlocks}),
-    {next_state, StateName, StateData}.
+    MissingBlocks = lists:map(GapsToBlocks, UpdatedGaps),
+    gen_fsm:reply(From, {ok, MissingBlocks}),
+    {next_state, StateName, StateData#state{data_gaps = UpdatedGaps}}.
 
 handle_info(_Event, StateName, StateData = #state{}) ->
     {next_state, StateName, StateData}.
@@ -368,6 +339,61 @@ gap_to_blocks({From, Length}, BlockSize) ->
     BlockFrom = in_block(From, BlockSize),
     BlockTill = in_block(From + Length, BlockSize) + 1,
     {ok, BlockFrom, BlockTill}.
+
+
+%%
+%%  Collects data gaps.
+%%
+collect_data_gaps(StateData) ->
+    #state{
+        id = UsrCmdId,
+        photo_size = PhotoSize
+    } = StateData,
+    lager:debug("Got photo_data response."),
+    %
+    %   Get collected data fragments.
+    %
+    PhotoDataPredicate = fun
+        (#sat_cmd{cmd_frame = #ls1p_cmd_frame{addr = arduino, port = photo_data}}) -> true;
+        (_) -> false
+    end,
+    Ls1pFramesFun = fun (#sat_cmd{id = SCId}) ->
+        CRef = ls1mcs_store:cref_from_sat_cmd_id(SCId),
+        {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
+        {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
+        {CmdFrame, DataFrames}
+    end,
+    Ls1pWithEOFFun = fun
+        (#ls1p_data_frame{eof = true},  _)    -> true;
+        (#ls1p_data_frame{eof = false}, Prev) -> Prev
+    end,
+    {ok, SatCmds} = ls1mcs_store:get_sat_cmds({usr_cmd, UsrCmdId}),
+    PhotoDataSatCmds = lists:filter(PhotoDataPredicate, SatCmds),
+    PhotoDataSatFrames = lists:map(Ls1pFramesFun, PhotoDataSatCmds),
+    PhotoDataHaveEOF = lists:foldl(Ls1pWithEOFFun, false, lists:append([ DFs || {_CF, DFs} <- PhotoDataSatFrames ])),
+    {ok, Fragments} = ls1mcs_proto_ls1p:merged_response_fragments(PhotoDataSatFrames),
+    %
+    %   Find gaps in the data.
+    %
+    GetGapsFun = fun ({From, Till, _Data}, {LastTill, Gaps}) ->
+        case From > LastTill of
+            true -> {Till, [{LastTill, From - LastTill} | Gaps]};
+            false -> {Till, Gaps}
+        end
+    end,
+    UpdatedGaps = case PhotoSize of
+        undefined ->
+            {LastFragEnd, NewGaps} = lists:foldl(GetGapsFun, {0, []}, Fragments),
+            case PhotoDataHaveEOF of
+                true  -> NewGaps;
+                false -> [{LastFragEnd, undefined} | NewGaps]
+            end;
+        PhotoSize when is_integer(PhotoSize) ->
+            FragmentsWithEnd = lists:sort([{PhotoSize, PhotoSize, <<>>} | Fragments]),
+            {PhotoSize, NewGaps} = lists:foldl(GetGapsFun, {0, []}, FragmentsWithEnd),
+            NewGaps
+    end,
+    {ok, UpdatedGaps}.
 
 
 %%

@@ -276,6 +276,9 @@ specs() ->
 %%
 %%  Returns user command argument.
 %%
+arg_value(_Name, undefined, _Type, Default) ->
+    Default;
+
 arg_value(Name, Args, Type, Default) ->
     case lists:keyfind(Name, #usr_cmd_arg.name, Args) of
         #usr_cmd_arg{value = ValueBin} ->
@@ -288,6 +291,9 @@ arg_value(Name, Args, Type, Default) ->
 %%
 %%
 %%
+arg_value(_Name, undefined, _Type) ->
+    {error, not_found};
+
 arg_value(Name, Args, Type) ->
     case lists:keyfind(Name, #usr_cmd_arg.name, Args) of
         #usr_cmd_arg{value = ValueBin} ->

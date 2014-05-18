@@ -21,7 +21,7 @@
 -behaviour(ls1mcs_tnc).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1, send/2]).
+-export([start_link/2, send/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -34,8 +34,8 @@
 %%
 %%
 %%
-start_link(Name) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {}, []),
+start_link(Name, Password) ->
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Password}, []),
     ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
@@ -43,9 +43,8 @@ start_link(Name) ->
 %%
 %%
 %%
-send(_Name, Frame) ->
-    lager:info("ls1mcs_tnc_void: got request to send frame: ~p", [Frame]),
-    ok.
+send(Ref, Frame) ->
+    gen_server:call({via, gproc, Ref}, {send, Frame}).
 
 
 
@@ -53,7 +52,10 @@ send(_Name, Frame) ->
 %%  Internal data structures.
 %% =============================================================================
 
--record(state, {}).
+-record(state, {
+    send,
+    recv
+}).
 
 
 %% =============================================================================
@@ -64,15 +66,25 @@ send(_Name, Frame) ->
 %%
 %%
 %%
-init({}) ->
-    {ok, #state{}}.
+init({Password}) ->
+    {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
+    {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
+    {ok, Recv} = ls1mcs_proto:make_recv_chain([Ls1pRecv]),
+    State = #state{
+        send = Send,
+        recv = Recv
+    },
+    {ok, State}.
 
 
 %%
 %%
 %%
-handle_call(_Message, _From, State) ->
-    {stop, not_implemented, State}.
+handle_call({send, Frame}, _From, State = #state{send = SendChain}) ->
+    {ok, BinFrames, NewSendChain} = ls1mcs_proto:send(Frame, SendChain),
+    lager:info("Got request to send frame: ~p as ~p", [Frame, BinFrames]),
+    {reply, ok, State#state{send = NewSendChain}}.
 
 
 %%

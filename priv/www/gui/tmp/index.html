@@ -30,7 +30,7 @@
                     <ul class="nav nav-tabs">
                         <li><a href="#immediate-commands" data-toggle="tab">Immediate Commands</a></li>
                         <li><a href="#scheduled-commands" data-toggle="tab">Scheduled Commands</a></li>
-                        <li><a href="#download-photo" data-toggle="tab">Download Photo</a></li>
+                        <li><a href="#downlink-photo" data-toggle="tab">Download Photo</a></li>
                         <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
                         <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
@@ -219,44 +219,13 @@
                           </fieldset></form>
                         </div>
 
-                        <div id="download-photo" class="tab-pane">
+                        <div id="downlink-photo" class="tab-pane">
                           <form><fieldset>
-                          <!--
-                            <table id="schedcmd-list" class="table table-hover table-condensed">
-                                <caption>Scheduled commands (<a href="#chedcmd-refresh">Refresh</a>)</caption>
-                                <thead>
-                                    <tr>
-                                        <th>Id</th>
-                                        <th>Command</th>
-                                        <th>From (UTC)</th>
-                                        <th>Till (UTC)</th>
-                                        <th>Retry (sec)</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                    <tr>
-                                        <td>&nbsp;</td>
-                                        <td>sched_ping</td>
-                                        <td>
-                                            <input id="schedcmd-from" type="text" list="schedcmd-from-list" placeholder="yyyy-MM-dd HH:mm:ss">
-                                            <datalist id="schedcmd-from-list">
-                                                <option value="yyyy-MM-dd HH:mm:s1">
-                                                <option value="yyyy-MM-dd HH:mm:s2">
-                                                <option value="yyyy-MM-dd HH:mm:s3">
-                                                <option value="yyyy-MM-dd HH:mm:s4">
-                                                <option value="yyyy-MM-dd HH:mm:s5">
-                                            </datalist>
-                                        </td>
-                                        <td><input id="schedcmd-till" type="text" placeholder="yyyy-MM-dd HH:mm:ss"></td>
-                                        <td><input id="schedcmd-retry" type="text" value="3"></td>
-                                        <td>&nbsp;</td>
-                                        <td><a href="#schedcmd-issue">Issue</a></td>
-                                    </tr>
-                                </thead>
+                            <table id="dlnk_photo-list" class="table table-hover table-condensed">
+                                <caption>Photos being downloaded (<a href="#dlnk_photo-refresh">Refresh</a>)</caption>
                                 <tbody>
                                 </tbody>
                             </table>
-                            -->
                           </fieldset></form>
                         </div>
 

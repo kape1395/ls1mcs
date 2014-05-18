@@ -98,7 +98,7 @@ tnc_spec(TncCfg, Number, Ls1pPassword, ThisCallSign, PeerCallSign) ->
             DataDir = proplists:get_value(data_dir, TncOpts),
             {ls1mcs_tnc_file, [TncName, Ls1pPassword, DataDir]};
         {void, _TncOpts} ->
-            {ls1mcs_tnc_void, [TncName]}
+            {ls1mcs_tnc_void, [TncName, Ls1pPassword]}
     end,
     {
         {tnc, Number},

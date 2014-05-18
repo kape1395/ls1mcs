@@ -78,12 +78,34 @@ handle_request(["command", "usr", Id], 'GET', _Arg) ->
         {ok, []} -> respond_error(404, <<"Command not found by id.">>)
     end;
 
-handle_request(["command", "usr", Id, "photo"], 'GET', _Arg) ->
-    case ls1mcs_usr_cmd_photo:get_photo(ls1mcs_yaws_json:decode_integer(Id)) of
-        {ok, PhotoContent} ->
-            respond(200, ?MEDIATYPE_JPEG, PhotoContent);
-        {error, not_found} ->
-            respond_error(404, <<"Command not found by id.">>)
+handle_request(["command", "usr", Id, "photo"], 'GET', Arg) ->
+    UsrCmdId = ls1mcs_yaws_json:decode_integer(Id),
+    case yaws_api:queryvar(Arg, "t") of
+        {ok, "meta"} ->
+            {ok, Missing} = ls1mcs_usr_cmd_photo:get_missing(UsrCmdId),
+            JSon = [ {[{from, F}, {till, case T of undefined -> null; _ -> T end}]} || {F, T} <- Missing ],
+            respond(200, JSon);
+        _ ->
+            case ls1mcs_usr_cmd_photo:get_photo(UsrCmdId) of
+                {ok, PhotoContent} ->
+                    respond(200, ?MEDIATYPE_JPEG, PhotoContent);
+                {error, not_found} ->
+                    respond_error(404, <<"Command not found by id.">>)
+            end
+    end;
+
+handle_request(["command", "usr", Id, "photo", "download"], 'POST', Arg) ->
+    Json = jiffy:decode(Arg#arg.clidata),
+    case Json of
+        {[{<<"from">>, FromBin}, {<<"till">>, TillBin}]} ->
+            UsrCmdId = ls1mcs_yaws_json:decode_integer(Id),
+            From     = ls1mcs_yaws_json:decode_integer(FromBin),
+            Till     = ls1mcs_yaws_json:decode_integer(TillBin),
+            ls1mcs_usr_cmd_photo:download(UsrCmdId, From, Till),
+            respond(200, <<"">>);
+        _ ->
+            lager:notice("Unrecognized download action ~p for user command id=~p", [Json, Id]),
+            respond_error(400, <<"Unrecognized download action.">>)
     end;
 
 handle_request(["command", "usr", Id], 'PUT', Arg) ->
@@ -170,6 +192,11 @@ handle_request(["command", "scheduled", Id], 'PUT', Arg) ->
             lager:notice("Unrecognized update action ~p for scheduled command id=~p", [Json, Id]),
             respond_error(400, <<"Unrecognized update action.">>)
     end;
+
+handle_request(["command", "dlnk_photo"], 'GET', _Arg) ->
+    {ok, RunningCmdIds} = ls1mcs_usr_cmd_photo:get_running(),
+    {ok, RunningCmds} = ls1mcs_store:get_usr_cmds({ids, RunningCmdIds}),
+    respond(200, json_list(RunningCmds));
 
 
 %% -----------------------------------------------------------------------------

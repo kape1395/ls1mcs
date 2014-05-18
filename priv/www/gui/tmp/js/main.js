@@ -2,6 +2,7 @@
 function ls1mcs_init() {
     ls1mcs_immcmds_init();
     ls1mcs_schedcmd_init();
+    ls1mcs_dlnkphoto_init();
     ls1mcs_cmdlog_init();
     ls1mcs_telemetry_init();
 }
@@ -234,71 +235,6 @@ function ls1mcs_immcmds_render(commands) {
 }
 
 // =============================================================================
-//  Main tabs: "command log" tab
-// =============================================================================
-
-function ls1mcs_cmdlog_init() {
-    $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
-        ls1mcs_cmdlog_show();
-    });
-    $("#command-log").on("click", "a[href='#command-log_confirm']", function () {
-        if (window.confirm("Confirm, that command was executed successfully?")) {
-            var cmdId = $(this).closest("tr").data("id");
-            $.ajax({
-                type: "PUT",
-                url: api_url("command/usr/" + cmdId),
-                data: JSON.stringify({status: "confirmed"}),
-                success: function () {ls1mcs_cmdlog_show();},
-                dataType: "json"
-            });
-        }
-    });
-}
-
-function ls1mcs_cmdlog_show() {
-    ls1mcs_cmdlog_load();
-    ls1mcs_pages_show_main();
-    $("#main-tabs > ul > li > a[href = '#command-log']").tab('show');
-}
-
-function ls1mcs_cmdlog_load() {
-    $.getJSON(api_url("command/usr"), function (data, textStatus, jqXHR) {
-        ls1mcs_cmdlog_render(data);
-    });
-}
-
-function ls1mcs_cmdlog_render(commands) {
-    commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
-    var rows = "";
-    for (var i = 0; i < commands.length && i < 10000; i++) {
-        var c = commands[i];
-        rows += "<tr data-id='" + c.id + "'>";
-        rows += "<td>" + c.id + "</td>";
-        rows += "<td>" + c.spec + "</td>";
-        if (c.args == null) {
-            rows += "<td>&nbsp;</td>";
-        } else {
-            rows += "<td>";
-            for (var a = 0; a < c.args.length; a++) {
-                if (a > 0) rows += " ";
-                rows += c.args[a].name + "=" + c.args[a].value;
-            }
-            rows += "</td>";
-        }
-        rows += "<td>" + c.issued + "</td>";
-        rows += "<td>" + c.status + "</td>";
-        rows += "<td>";
-        if (c.status != "confirmed") {
-            rows += "<a href='#command-log_confirm'>Confirm</a>";
-        }
-        rows += "&nbsp;</td>";
-        rows += "</tr>";
-    }
-    $("#command-log_table > tbody").html(rows);
-}
-
-
-// =============================================================================
 //  Main tabs: "scheduled command" tab
 // =============================================================================
 
@@ -382,6 +318,175 @@ function ls1mcs_schedcmd_render(commands) {
         rows += "</tr>";
     }
     $("#schedcmd-list > tbody").html(rows);
+}
+
+
+// =============================================================================
+//  Main tabs: "Downlink photo" tab
+// =============================================================================
+
+function ls1mcs_dlnkphoto_download(cmdId, from, till) {
+    $.ajax({
+        type: "POST",
+        url: api_url("command/usr/" + cmdId + "/photo/download"),
+        data: JSON.stringify({from: from, till: till}),
+        success: function () {ls1mcs_dlnkphoto_show();},
+        dataType: "json"
+    });
+}
+
+function ls1mcs_dlnkphoto_init() {
+    $("html").on("click", "a[href='#downlink-photo']", function () {
+        ls1mcs_dlnkphoto_show();
+    });
+    $("#dlnk_photo-list").on("click", "a[href='#dlnk_photo-refresh']", function () {
+        ls1mcs_dlnkphoto_show();
+    });
+    $("#dlnk_photo-list").on("click", "a[href='#dlnk_photo-set_range']", function () {
+        var range = $(this).data("range");
+        var cmdId = $(this).closest("tr").data("id");
+        $("#dlnk_photo-list > tbody > tr[data-id='" + cmdId + "'] .dlnk_photo-download_range").val(range);
+    });
+    $("#dlnk_photo-list").on("click", "a[href='#dlnk_photo-download']", function () {
+        var cmdId = $(this).closest("tr").data("id");
+        var range = $("#dlnk_photo-list > tbody > tr[data-id='" + cmdId + "'] .dlnk_photo-download_range").val();
+        var rangeElems = range.split("-");
+        var from = rangeElems[0];
+        var till = rangeElems[1];
+        ls1mcs_dlnkphoto_download(cmdId, from, till);
+    });
+}
+
+function ls1mcs_dlnkphoto_show() {
+    ls1mcs_dlnkphoto_load();
+    ls1mcs_pages_show_main();
+    $("#main-tabs > ul > li > a[href = '#downlink-photo']").tab('show');
+}
+
+function ls1mcs_dlnkphoto_load() {
+    $.getJSON(api_url("command/dlnk_photo"), function (data, textStatus, jqXHR) {
+        ls1mcs_dlnkphoto_render(data);
+    });
+}
+
+function ls1mcs_dlnkphoto_load_meta(cmdId) {
+    $.getJSON(api_url("command/usr/" + cmdId + "/photo?t=meta"), function (data, textStatus, jqXHR) {
+        ls1mcs_dlnkphoto_render_meta(cmdId, data);
+    });
+}
+
+function ls1mcs_dlnkphoto_render(commands) {
+    commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
+    var rows = "";
+    var arg_by_name = function (name, args) {
+        for (a = 0; a < args.length; a++) {
+            if (args[a].name == name)
+                return args[a].value;
+        }
+        return undefined;
+    };
+    for (var i = 0; i < commands.length && i < 13; i++) {
+        var c = commands[i];
+        rows += "<tr data-id='" + c.id + "'><td>";
+        rows += "<div><span>Id: " + c.id + "</span></div>";
+        rows += "<div>"
+        rows += "<input type='text' class='dlnk_photo-download_range' placeholder='0-314'> ";
+        rows += "<a href='#dlnk_photo-download'>Download</a>";
+        rows += "</div>";
+        rows += "<div>Missing intervals: <span class='dlnk_photo-missing_count'>?</span><ul class='dlnk_photo-missing_list'></ul></div>";
+        rows += "</td><td>";
+        rows += "<img src='" + api_url("command/usr/" + c.id + "/photo") + "?dummy=" + new Date().getTime() + "'>";
+        rows += "</td></tr>";
+        ls1mcs_dlnkphoto_load_meta(c.id);
+    }
+    $("#dlnk_photo-list > tbody").html(rows);
+}
+
+function ls1mcs_dlnkphoto_render_meta(cmdId, data) {
+    var count = data.length;
+    var list = "";
+    for (i = 0; i < count; i++) {
+        var interval = data[i];
+        var tillValue;
+        var tillDesc;
+        if (interval.till == null) {
+            tillDesc = "?";
+            tillValue = interval.from + 350;
+        } else {
+            tillDesc = interval.till;
+            tillValue = interval.till;
+        }
+        list += "<li><a data-range='" + interval.from + "-" + tillValue + "' href='#dlnk_photo-set_range'>";
+        list += "" + interval.from + "-" + tillDesc;
+        list += "</a></li>";
+    }
+    $("#dlnk_photo-list > tbody > tr[data-id='" + cmdId + "'] .dlnk_photo-missing_count").html("" + count);
+    $("#dlnk_photo-list > tbody > tr[data-id='" + cmdId + "'] .dlnk_photo-missing_list").html(list);
+}
+
+
+// =============================================================================
+//  Main tabs: "command log" tab
+// =============================================================================
+
+function ls1mcs_cmdlog_init() {
+    $("#command-log").on("click", "a[href='#command-log_refresh']", function () {
+        ls1mcs_cmdlog_show();
+    });
+    $("#command-log").on("click", "a[href='#command-log_confirm']", function () {
+        if (window.confirm("Confirm, that command was executed successfully?")) {
+            var cmdId = $(this).closest("tr").data("id");
+            $.ajax({
+                type: "PUT",
+                url: api_url("command/usr/" + cmdId),
+                data: JSON.stringify({status: "confirmed"}),
+                success: function () {ls1mcs_cmdlog_show();},
+                dataType: "json"
+            });
+        }
+    });
+}
+
+function ls1mcs_cmdlog_show() {
+    ls1mcs_cmdlog_load();
+    ls1mcs_pages_show_main();
+    $("#main-tabs > ul > li > a[href = '#command-log']").tab('show');
+}
+
+function ls1mcs_cmdlog_load() {
+    $.getJSON(api_url("command/usr"), function (data, textStatus, jqXHR) {
+        ls1mcs_cmdlog_render(data);
+    });
+}
+
+function ls1mcs_cmdlog_render(commands) {
+    commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
+    var rows = "";
+    for (var i = 0; i < commands.length && i < 10000; i++) {
+        var c = commands[i];
+        rows += "<tr data-id='" + c.id + "'>";
+        rows += "<td>" + c.id + "</td>";
+        rows += "<td>" + c.spec + "</td>";
+        if (c.args == null) {
+            rows += "<td>&nbsp;</td>";
+        } else {
+            rows += "<td>";
+            for (var a = 0; a < c.args.length; a++) {
+                if (a > 0) rows += " ";
+                rows += c.args[a].name + "=" + c.args[a].value;
+            }
+            rows += "</td>";
+        }
+        rows += "<td>" + c.issued + "</td>";
+        rows += "<td>" + c.status + "</td>";
+        rows += "<td>";
+        if (c.status != "confirmed") {
+            rows += "<a href='#command-log_confirm'>Confirm</a>";
+        }
+        rows += "&nbsp;</td>";
+        rows += "</tr>";
+    }
+    $("#command-log_table > tbody").html(rows);
 }
 
 
