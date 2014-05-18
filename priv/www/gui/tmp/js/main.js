@@ -330,7 +330,7 @@ function ls1mcs_dlnkphoto_download(cmdId, from, till) {
         type: "POST",
         url: api_url("command/usr/" + cmdId + "/photo/download"),
         data: JSON.stringify({from: from, till: till}),
-        success: function () {ls1mcs_dlnkphoto_show();},
+        success: function () {},
         dataType: "json"
     });
 }
