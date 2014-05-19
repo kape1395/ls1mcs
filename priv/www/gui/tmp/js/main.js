@@ -355,6 +355,19 @@ function ls1mcs_dlnkphoto_init() {
         var till = rangeElems[1];
         ls1mcs_dlnkphoto_download(cmdId, from, till);
     });
+    $("#dlnk_photo-list").on("click", "a[href='#dlnk_photo-cancel']", function () {
+        var cmdId = $(this).closest("tr").data("id");
+        console.log("aaa");
+        if (window.confirm("Cancel photo download process " + cmdId + "?")) {
+            $.ajax({
+                type: "POST",
+                url: api_url("command/usr/" + cmdId + "/photo/cancel"),
+                data: JSON.stringify({reason: "user request"}),
+                success: function () {ls1mcs_dlnkphoto_show();},
+                dataType: "json"
+            });
+        }
+    });
 }
 
 function ls1mcs_dlnkphoto_show() {
@@ -388,7 +401,7 @@ function ls1mcs_dlnkphoto_render(commands) {
     for (var i = 0; i < commands.length && i < 13; i++) {
         var c = commands[i];
         rows += "<tr data-id='" + c.id + "'><td>";
-        rows += "<div><span>Id: " + c.id + "</span></div>";
+        rows += "<div><span>Id: " + c.id + "</span> [<a href='#dlnk_photo-cancel'>Cancel</a>]</div>";
         rows += "<div>"
         rows += "<input type='text' class='dlnk_photo-download_range' placeholder='0-314'> ";
         rows += "<a href='#dlnk_photo-download'>Download</a>";

@@ -108,6 +108,11 @@ handle_request(["command", "usr", Id, "photo", "download"], 'POST', Arg) ->
             respond_error(400, <<"Unrecognized download action.">>)
     end;
 
+handle_request(["command", "usr", Id, "photo", "cancel"], 'POST', _Arg) ->
+    UsrCmdId = ls1mcs_yaws_json:decode_integer(Id),
+    ls1mcs_usr_cmd_photo:close(UsrCmdId),
+    respond(200, <<"">>);
+
 handle_request(["command", "usr", Id], 'PUT', Arg) ->
     Json = jiffy:decode(Arg#arg.clidata),
     case Json of

@@ -31,9 +31,9 @@
 -include("ls1p.hrl").
 
 -define(REF(CmdFrameId), {via, gproc, {n, l, {?MODULE, CmdFrameId}}}).
--define(ACK_TIMEOUT,  3000).    % 3s    - time to wait for ack.
+-define(ACK_TIMEOUT,  4000).    % 4s    - time to wait for ack.
 -define(DATA_SI_DURA, 3000).    % 3s    - time to initialize sending on the SAT side.
--define(DATA_FS_DURA,  500).    % 0.3s  - time to send 1 data frame.
+-define(DATA_FS_DURA,  500).    % 0.5s  - time to send 1 data frame.
 
 
 
