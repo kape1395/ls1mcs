@@ -27,8 +27,7 @@ function ls1mcs_pages_show_main() {
 //  Main tabs: "immediate command" tab
 // =============================================================================
 
-function ls1mcs_send_immediate_command(command)
-{
+function ls1mcs_send_immediate_command(command) {
     $.ajax({
         type: "POST",
         url: api_url("command/immediate"),
@@ -37,11 +36,32 @@ function ls1mcs_send_immediate_command(command)
         dataType: "json"
     });
 }
+function ls1mcs_refresh_lasttm() {
+    $.getJSON(api_url("telemetry/gs/latest"), function (data, textStatus, jqXHR) {
+        var tmid = data.id;
+        var recv = data.recv;
+        var eps = data.hk.eps;
+        $("#immcmd__last_tm_recv")      .html("" + ls1mcs_format_time(recv) + " (" + tmid + ")");
+        $("#immcmd__last_tm_pv1")       .html("" + eps.pv_1);
+        $("#immcmd__last_tm_pv2")       .html("" + eps.pv_2);
+        $("#immcmd__last_tm_pv3")       .html("" + eps.pv_3);
+        $("#immcmd__last_tm_pc")        .html("" + eps.pc);
+        $("#immcmd__last_tm_bv")        .html("" + eps.bv);
+        $("#immcmd__last_tm_sc")        .html("" + eps.sc);
+        $("#immcmd__last_tm_tempob")    .html("" + eps.temp_OB);
+        $("#immcmd__last_tm_reset")     .html("" + eps.reset);
+        $("#immcmd__last_tm_bootcount") .html("" + eps.bootcount);
+        $("#immcmd__last_tm_ch50v1")    .html("" + eps.channel_status_50V1);
+        $("#immcmd__last_tm_ch50v2")    .html("" + eps.channel_status_50V2);
+        $("#immcmd__last_tm_ch50v3")    .html("" + eps.channel_status_50V3);
+        $("#immcmd__last_tm_ch33v1")    .html("" + eps.channel_status_33V1);
+        $("#immcmd__last_tm_ch33v2")    .html("" + eps.channel_status_33V2);
+        $("#immcmd__last_tm_ch33v3")    .html("" + eps.channel_status_33V3);
+    });
+}
+
 function ls1mcs_immcmds_init() {
     $("html").on("click", "a[href='#immediate-commands']", function () {
-        ls1mcs_immcmds_show();
-    });
-    $("#immediate-commands").on("click", "a[href='#immcmd__list_refresh']", function () {
         ls1mcs_immcmds_show();
     });
 
@@ -195,6 +215,18 @@ function ls1mcs_immcmds_init() {
             ]}
         );
     });
+
+
+    $("#immediate-commands").on("click", "a[href='#immcmd__list_refresh']", function () {
+        ls1mcs_immcmds_show();
+    });
+
+
+    $("#immcmd-last_tm").on("click", "a[href='#immcmd__last_tm_refresh']", function () {
+        ls1mcs_refresh_lasttm();
+    });
+    setInterval(ls1mcs_refresh_lasttm, 2000);
+
 
     ls1mcs_immcmds_show();
 }
@@ -542,4 +574,12 @@ function ls1mcs_upload_init() {
     });
 }
 
-
+// =============================================================================
+function ls1mcs_format_time(time) {
+    var split = time.replace("T", "&nbsp;").split(".");
+    if (split.length > 0) {
+        return split[0];
+    } else {
+        return time;
+    }
+}

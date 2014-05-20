@@ -306,9 +306,9 @@ handle_request(["telemetry", "gs"], 'GET', Arg) ->
     end;
 
 handle_request(["telemetry", "gs", "latest"], 'GET', _Arg) ->
-    case ls1mcs_store:get_tm(latest) of
-        {ok, [TMFrame]} -> respond(200, json_object(TMFrame));
-        {ok, []} -> respond_error(404, <<"Have no telemetry yet.">>)
+    case ls1mcs_telemetry:get_latest() of
+        {ok, TMFrame}      -> respond(200, json_object(TMFrame));
+        {error, not_found} -> respond_error(404, <<"Have no telemetry yet.">>)
     end;
 
 handle_request(["telemetry", "gs", "5646"], 'GET', _Arg) ->

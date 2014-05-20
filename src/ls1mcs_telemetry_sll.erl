@@ -15,10 +15,9 @@
 %\--------------------------------------------------------------------
 
 %%
-%%  SAT Link Listener for SAT Commands. It listens for LS1P Ack and Data frames
-%%  from the SAT Link and routes them to the corresponding SAT Command FSMs.
+%%  SAT Link Listener for maintaining latest telemetry.
 %%
--module(ls1mcs_sat_cmd_sll).
+-module(ls1mcs_telemetry_sll).
 -behaviour(gen_event).
 -compile([{parse_transform, lager_transform}]).
 -export([register/0]).
@@ -66,18 +65,14 @@ init({}) ->
 handle_event({sent, _Frame}, State) ->
     {ok, State};
 
-handle_event({recv, Frame}, State) when is_record(Frame, ls1p_ack_frame) ->
-    lager:debug("Received SAT Ack: ~p", [Frame]),
-    ok = ls1mcs_sat_cmd:received(Frame),
-    {ok, State};
-
-handle_event({recv, Frame}, State) when is_record(Frame, ls1p_data_frame) ->
-    lager:debug("Received SAT Data: ~p", [Frame]),
-    ok = ls1mcs_sat_cmd:received(Frame),
-    {ok, State};
-
 handle_event({recv, Frame}, State) when is_record(Frame, ls1p_tm_frame) ->
+    lager:debug("Received SAT TM: ~p", [Frame]),
+    ls1mcs_telemetry:received(Frame),
+    {ok, State};
+
+handle_event({recv, _Frame}, State) ->
     {ok, State}.
+
 
 
 %%

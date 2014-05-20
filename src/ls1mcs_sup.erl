@@ -46,6 +46,7 @@ init({LinkCfg, GPredictCfg}) ->
     SCmdMod = ls1mcs_sat_cmd_sup,
     UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
+    TmMod = ls1mcs_telemetry,
 
     LinkArgs = [LinkCfg],
 
@@ -53,7 +54,8 @@ init({LinkCfg, GPredictCfg}) ->
         {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
         {link,  {LinkMod,  start_link, LinkArgs}, permanent, 5000, supervisor, [LinkMod]},
         {scmd,  {SCmdMod,  start_link, []},       permanent, 5000, supervisor, [SCmdMod]},
-        {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]}
+        {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]},
+        {tm,    {TmMod,    start_link, []},       permanent, 5000, worker,     [TmMod]}
     ],
 
     GPredictSpec = case GPredictCfg of

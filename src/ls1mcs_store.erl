@@ -322,13 +322,22 @@ get_tm(latest) ->
     Activity = fun () ->
         case mnesia:last(ls1mcs_store_ls1p_tm) of
             '$end_of_table' ->
-                {ok, []};
+                {error, not_found};
             LastKey ->
-                [#ls1mcs_store_ls1p_tm{frame = Frame}] = mnesia:read(ls1mcs_store_ls1p_tm, LastKey),
-                {ok, [Frame]}
+                [#ls1mcs_store_ls1p_tm{frame = Last}] = mnesia:read(ls1mcs_store_ls1p_tm, LastKey),
+                MaxByRecvFun = fun (#ls1mcs_store_ls1p_tm{frame = F}, L) ->
+                    #ls1p_tm_frame{recv = RecvL} = L,
+                    #ls1p_tm_frame{recv = RecvF} = F,
+                    case RecvF > RecvL of
+                        true -> F;
+                        false -> L
+                    end
+                end,
+                Latest = mnesia:foldl(MaxByRecvFun, Last, ls1mcs_store_ls1p_tm),
+                {ok, Latest}
         end
     end,
-    mnesia:activity(transaction, Activity);
+    mnesia:activity(async_dirty, Activity);
 
 get_tm({time, From, Till}) ->
     MatchHead = #ls1mcs_store_ls1p_tm{source = gs, frame = '$1', recv_time = '$2', _ = '_'},
