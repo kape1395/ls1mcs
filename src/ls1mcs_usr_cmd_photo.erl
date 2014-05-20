@@ -385,7 +385,7 @@ collect_data_gaps(StateData) ->
         undefined ->
             {LastFragEnd, NewGaps} = lists:foldl(GetGapsFun, {0, []}, Fragments),
             case PhotoDataHaveEOF of
-                true  -> NewGaps;
+                true  -> [{LastFragEnd, undefined} | NewGaps]; % NOTE: was `NewGaps;`; adding last interval, because we can have EOF for eash dlnk command.
                 false -> [{LastFragEnd, undefined} | NewGaps]
             end;
         PhotoSize when is_integer(PhotoSize) ->
