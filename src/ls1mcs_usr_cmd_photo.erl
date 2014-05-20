@@ -27,7 +27,7 @@
 -behaviour(ls1mcs_usr_cmd).
 -behaviour(gen_fsm).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/2, get_running/0, close/1, get_missing/1, get_photo/1, download/3]).
+-export([start_link/2, start_link_resume/1, get_running/0, close/1, resume/1, get_missing/1, get_photo/1, download/3]).
 -export([sat_cmd_status/3]).
 -export([starting/2, getting_meta/2, getting_data/2, completed/2]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
@@ -49,7 +49,12 @@
         -> {ok, pid()} | term().
 
 start_link(UsrCmd = #usr_cmd{id = UsrCmdId}, _UsrCmdSpec) ->
-    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd}, []).
+    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd, start}, []).
+
+
+start_link_resume(UsrCmdId) ->
+    {ok, [UsrCmd]} = ls1mcs_store:get_usr_cmds({id, UsrCmdId}),
+    gen_fsm:start_link(?REF(UsrCmdId), ?MODULE, {UsrCmd, resume}, []).
 
 
 %%
@@ -65,6 +70,13 @@ get_running() ->
 %%
 close(UsrCmdId) ->
     gen_fsm:send_event(?REF(UsrCmdId), close).
+
+
+%%
+%%  Resume terminated process.
+%%
+resume(UsrCmdId) ->
+    ls1mcs_usr_cmd_sup:add({?MODULE, start_link_resume, [UsrCmdId]}).
 
 
 %%
@@ -140,14 +152,12 @@ sat_cmd_status(UsrCmdId, SatCmdId, Status) ->
 %%
 %%
 %%
-init({UsrCmd = #usr_cmd{id = UsrCmdId, args = Args}}) ->
+init({UsrCmd = #usr_cmd{id = UsrCmdId, args = Args}, StartMode}) ->
     true = gproc:reg({p, l, ?MODULE}, UsrCmdId),
     Manual    = ls1mcs_usr_cmd:arg_value(manual,     Args, boolean, false),
     BlockSize = ls1mcs_usr_cmd:arg_value(block_size, Args, integer, 210),
     RetryMeta = ls1mcs_usr_cmd:arg_value(retry_meta, Args, integer, 5),
     RetryData = ls1mcs_usr_cmd:arg_value(retry_data, Args, integer, 1),
-
-    gen_fsm:send_event(self(), start),
     StateData = #state{
         id = UsrCmdId,
         usr_cmd = UsrCmd,
@@ -156,7 +166,13 @@ init({UsrCmd = #usr_cmd{id = UsrCmdId, args = Args}}) ->
         retry_meta = RetryMeta,
         retry_data = RetryData
     },
-    {ok, starting, StateData}.
+    case StartMode of
+        start ->
+            gen_fsm:send_event(self(), start),
+            {ok, starting, StateData};
+        resume ->
+            {ok, getting_data, StateData#state{mode = manual}}
+    end.
 
 
 %%

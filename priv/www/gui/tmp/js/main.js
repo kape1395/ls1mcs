@@ -390,11 +390,22 @@ function ls1mcs_dlnkphoto_init() {
     });
     $("#dlnk_photo-list").on("click", "a[href='#dlnk_photo-cancel']", function () {
         var cmdId = $(this).closest("tr").data("id");
-        console.log("aaa");
         if (window.confirm("Cancel photo download process " + cmdId + "?")) {
             $.ajax({
                 type: "POST",
                 url: api_url("command/usr/" + cmdId + "/photo/cancel"),
+                data: JSON.stringify({reason: "user request"}),
+                success: function () {ls1mcs_dlnkphoto_show();},
+                dataType: "json"
+            });
+        }
+    });
+    $("#downlink-photo").on("click", "a[href='#dlnk_photo-resume']", function () {
+        var cmdId = $("#dlnk_photo-resume_id").val();
+        if (window.confirm("Resume download process " + cmdId + "?")) {
+            $.ajax({
+                type: "POST",
+                url: api_url("command/usr/" + cmdId + "/photo/resume"),
                 data: JSON.stringify({reason: "user request"}),
                 success: function () {ls1mcs_dlnkphoto_show();},
                 dataType: "json"
