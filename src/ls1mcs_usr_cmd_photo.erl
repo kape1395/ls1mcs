@@ -373,11 +373,16 @@ collect_data_gaps(StateData) ->
         (#sat_cmd{cmd_frame = #ls1p_cmd_frame{addr = arduino, port = photo_data}}) -> true;
         (_) -> false
     end,
-    Ls1pFramesFun = fun (#sat_cmd{id = SCId}) ->
+    Ls1pFramesFun = fun (#sat_cmd{id = SCId}, Collected) ->
         CRef = ls1mcs_store:cref_from_sat_cmd_id(SCId),
-        {ok, CmdFrame} = ls1mcs_store:get_ls1p_frame({cmd, CRef}),
-        {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
-        {CmdFrame, DataFrames}
+        case ls1mcs_store:get_ls1p_frame({cmd, CRef}) of
+            {ok, CmdFrame} ->
+                {ok, DataFrames} = ls1mcs_store:get_ls1p_frame({data, CRef}),
+                [{CmdFrame, DataFrames} | Collected];
+            {error, not_found} ->
+                lager:warning("Sat CMD ~p stil has no command frame.", [CRef]),
+                Collected
+        end
     end,
     Ls1pWithEOFFun = fun
         (#ls1p_data_frame{eof = true},  _)    -> true;
@@ -385,7 +390,7 @@ collect_data_gaps(StateData) ->
     end,
     {ok, SatCmds} = ls1mcs_store:get_sat_cmds({usr_cmd, UsrCmdId}),
     PhotoDataSatCmds = lists:filter(PhotoDataPredicate, SatCmds),
-    PhotoDataSatFrames = lists:map(Ls1pFramesFun, PhotoDataSatCmds),
+    PhotoDataSatFrames = lists:reverse(lists:foldl(Ls1pFramesFun, [], PhotoDataSatCmds)),
     PhotoDataHaveEOF = lists:foldl(Ls1pWithEOFFun, false, lists:append([ DFs || {_CF, DFs} <- PhotoDataSatFrames ])),
     {ok, Fragments} = ls1mcs_proto_ls1p:merged_response_fragments(PhotoDataSatFrames),
     %
