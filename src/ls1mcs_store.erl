@@ -50,6 +50,7 @@
 %%
 -spec start_link() -> {ok, pid()} | term().
 start_link() ->
+    ok = wait_for_tables(3600000),
     gen_server:start_link({local, ?MODULE}, ?MODULE, {}, []).
 
 
