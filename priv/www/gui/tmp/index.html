@@ -33,7 +33,7 @@
                         <li><a href="#downlink-photo" data-toggle="tab">Download Photo</a></li>
                         <li><a href="#command-log" data-toggle="tab">Command Log</a></li>
                         <li><a href="#telemetry" data-toggle="tab">Telemetry</a></li>
-                        <li><a href="#telemetry-ham" data-toggle="tab">HAM TM</a></li>
+                        <li><a href="#upload" data-toggle="tab">Upload</a></li>
                     </ul>
                     <div class="tab-content">
                         <div id="immediate-commands" class="tab-pane">
@@ -297,10 +297,11 @@
                             -->
                         </div>
 
-                        <div id="telemetry-ham" class="tab-pane">
-                            <form method="POST" target="_blank" enctype="multipart/form-data" action="/ls1mcs/api/telemetry/ham?mode=preview">
+                        <div id="upload" class="tab-pane">
+                            <form id="upload-form" method="POST" target="_blank" enctype="multipart/form-data" action="/dummy">
                                 <input type="file" name="file">
-                                <input type="submit" value="Submit">
+                                <input type="submit" id="upload-decode_tm"     value="Decode TM">
+                                <input type="submit" id="upload-import_frames" value="Import Frames">
                             </form>
                         </div>
 

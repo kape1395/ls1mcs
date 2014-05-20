@@ -212,6 +212,39 @@ handle_request(["ls1p_frame"], 'GET', _Arg) ->
     {ok, Frame} = ls1mcs_store:get_ls1p_frame({cmd, all}),
     respond(200, ls1mcs_yaws_json:encode_list(Frame));
 
+%%
+%%  curl --request POST --data-binary "@14042014_1658.bin" "http://localhost:8000/ls1mcs/api/ls1p_frame/?t=json&m=import"
+%%  NOTE: Very similar to "http://localhost:8000/ls1mcs/api/telemetry/ham/?t=json&m=preview"
+%%
+handle_request(["ls1p_frame"], 'POST', Arg = #arg{headers = Headers}) ->
+    {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(<<0:16>>, true),
+    {ok, Ax25Recv} = ls1mcs_proto_ax25:make_ref("NOCALL", "NOCALL", tnc),
+    {ok, KissRecv} = ls1mcs_proto_kiss:make_ref(),
+    {ok, RecvChain} = ls1mcs_proto:make_recv_chain([KissRecv, Ax25Recv, Ls1pRecv]),
+    FileHandler = fun (RawBytes) ->
+        {ok, RecvFrames, _NewRecvChain} = ls1mcs_proto:recv(RawBytes, RecvChain),
+        MediaType = case yaws_api:queryvar(Arg, "t") of
+            {ok, "json"} -> json;
+            _ -> html
+        end,
+        case MediaType of
+            json ->
+                respond(200, json_list(RecvFrames));
+            html ->
+                {ehtml, [
+                    {body, [], [
+                        {pre, [], [{code, [{id, "ls1p-data"}], jiffy:encode(json_list(RecvFrames))}]},
+                        {script, [{src, "/ls1mcs/gui/tmp/js/vendor/jquery-1.8.3.min.js"}], []},
+                        {script, [{type, "text/javascript"}], <<"$('#ls1p-data').html(JSON.stringify(JSON.parse($('#ls1p-data').html()), undefined, 4));">>}
+                    ]}
+                ]}
+        end
+    end,
+    case lists:prefix("multipart/form-data", yaws_api:get_header(Headers, content_type)) of
+        true  -> process_multipart_single_file(FileHandler, Arg);
+        false -> process_entity(FileHandler, Arg)
+    end;
+
 handle_request(["ls1p_frame", FrameId], 'GET', _Arg) ->
     CRef = ls1mcs_yaws_json:decode(cref, FrameId),
     case ls1mcs_store:get_ls1p_frame({cmd, CRef}) of

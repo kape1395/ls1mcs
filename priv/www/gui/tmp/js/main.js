@@ -5,6 +5,7 @@ function ls1mcs_init() {
     ls1mcs_dlnkphoto_init();
     ls1mcs_cmdlog_init();
     ls1mcs_telemetry_init();
+    ls1mcs_upload_init();
 }
 
 function api_url(resource) {
@@ -475,7 +476,7 @@ function ls1mcs_cmdlog_load() {
 function ls1mcs_cmdlog_render(commands) {
     commands.sort(function (a, b) { return (a.issued == b.issued) ? 0 : (a.issued > b.issued ? -1 : 1); });
     var rows = "";
-    for (var i = 0; i < commands.length && i < 10000; i++) {
+    for (var i = 0; i < commands.length && i < 1000; i++) {
         var c = commands[i];
         rows += "<tr data-id='" + c.id + "'>";
         rows += "<td>" + c.id + "</td>";
@@ -526,3 +527,19 @@ function ls1mcs_telemetry_load() {
 function ls1mcs_telemetry_render(telemetry) {
     $("#telemetry-data-latest").html(JSON.stringify(telemetry, undefined, 4));
 }
+
+
+// =============================================================================
+//  Main tabs: "upload" tab
+// =============================================================================
+
+function ls1mcs_upload_init() {
+    $("#upload-form").on("click", "#upload-decode_tm", function () {
+        $("#upload-form").attr("action", api_url("telemetry/ham?m=preview")).submit();
+    });
+    $("#upload-form").on("click", "#upload-import_frames", function () {
+        $("#upload-form").attr("action", api_url("ls1p_frame?m=import")).submit();
+    });
+}
+
+
