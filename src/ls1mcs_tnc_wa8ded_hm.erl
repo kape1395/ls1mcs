@@ -73,8 +73,7 @@
 %%  ls1mcs_tnc_wa8ded_hm:send({n, l, test}, <<"Hello world!">>).
 %%
 start_link(Name, Direction, Device, Password, Call) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Direction, Device, Password, Call}, []),
-    ok = ls1mcs_tnc:register(?MODULE, Name),
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Name, Direction, Device, Password, Call}, []),
     {ok, Pid}.
 
 
@@ -122,7 +121,7 @@ invoke(Ref, Command) when is_binary(Command) ->
 %%
 %%  Initialization.
 %%
-init({Direction, Device, Password, Call}) ->
+init({Name, Direction, Device, Password, Call}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, SendChain} = ls1mcs_proto:make_send_chain([Ls1pSend]),
@@ -136,6 +135,7 @@ init({Direction, Device, Password, Call}) ->
         uplink     = lists:member(Direction, [both, up,   uplink]),
         downlink   = lists:member(Direction, [both, down, downlink])
     },
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, State}.
 
 
@@ -183,7 +183,10 @@ handle_info({initialize}, State = #state{device = Device, local_call = LocalCall
 handle_info({query_input}, State = #state{recv = RecvChain, port = Port, downlink = Downlink}) ->
     {ok, NewRecvChain} = query_all_input(Port, RecvChain, Downlink),
     _TRef = erlang:send_after(?QUERY_DELAY, self(), {query_input}),
-    {noreply, State#state{recv = NewRecvChain}}.
+    {noreply, State#state{recv = NewRecvChain}};
+
+handle_info({gen_event_EXIT, _Handler, Reason}, State) ->
+    {stop, {sll_exit, Reason}, State}.
 
 
 %%
@@ -403,7 +406,7 @@ query_info(Port, RecvChain, Downlink) ->
             {ok, Message} = read_lstr(Port),
             case Downlink of
                 true ->
-                    lager:warn("Connected info received: ~p", [Message]),
+                    lager:warning("Connected info received: ~p", [Message]),
                     {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(Message, RecvChain),
                     ok = ls1mcs_sat_link:recv(RecvFrames),
                     {ok, NewRecvChain};

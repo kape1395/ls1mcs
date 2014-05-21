@@ -52,8 +52,7 @@
 %%  ls1mcs_tnc_mfj1270c:send({n, l, test}, <<"Hello world!">>).
 %%
 start_link(Name, Direction, Device, Password, Call, Peer) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Direction, Device, Password, Call, Peer}, []),
-    ok = ls1mcs_tnc:register(?MODULE, Name),
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Name, Direction, Device, Password, Call, Peer}, []),
     {ok, Pid}.
 
 
@@ -100,7 +99,7 @@ invoke(Ref, Command) when is_binary(Command) ->
 %%
 %%  Initialization.
 %%
-init({Direction, Device, Password, Call, Peer}) ->
+init({Name, Direction, Device, Password, Call, Peer}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ax25Send} = ls1mcs_proto_ax25:make_ref(Call, Peer, tnc),
@@ -117,6 +116,7 @@ init({Direction, Device, Password, Call, Peer}) ->
         uplink   = lists:member(Direction, [both, up,   uplink]),
         downlink = lists:member(Direction, [both, down, downlink])
     },
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, State}.
 
 
@@ -188,7 +188,10 @@ handle_info({recv}, State = #state{port = Port, recv = RecvChain, downlink = Dow
         {error, timeout} ->
             self() ! {recv},
             {noreply, State}
-    end.
+    end;
+
+handle_info({gen_event_EXIT, _Handler, Reason}, State) ->
+    {stop, {sll_exit, Reason}, State}.
 
 
 %%

@@ -54,9 +54,8 @@
 %%    * `{peer, Peer = NOCALL}` - Peer (satellite) call sign.
 %%
 start_link(Name, Direction, ConnHost, ConnPort, Password, Opts) ->
-    Args = {Direction, ConnHost, ConnPort, Password, Opts},
+    Args = {Name, Direction, ConnHost, ConnPort, Password, Opts},
     {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, Args, []),
-    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, Pid}.
 
 
@@ -104,7 +103,7 @@ send(Name, Frame) ->
 %%
 %%
 %%
-init({Direction, ConnHost, ConnPort, Password, Opts}) ->
+init({Name, Direction, ConnHost, ConnPort, Password, Opts}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
@@ -122,6 +121,7 @@ init({Direction, ConnHost, ConnPort, Password, Opts}) ->
         uplink   = lists:member(Direction, [both, up,   uplink]),
         downlink = lists:member(Direction, [both, down, downlink])
     },
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, State}.
 
 
@@ -173,7 +173,10 @@ handle_info({tcp, Sock, RecvData}, State = #state{sock = Sock, downlink = false}
 handle_info({tcp, Sock, RecvData}, State = #state{sock = Sock, buff = Buff}) ->
     lager:debug("Received: ~p", [RecvData]),
     {ok, NewState} = handle_received(<<Buff/binary, RecvData/binary>>, State),
-    {noreply, NewState}.
+    {noreply, NewState};
+
+handle_info({gen_event_EXIT, _Handler, Reason}, State) ->
+    {stop, {sll_exit, Reason}, State}.
 
 
 %%
@@ -246,13 +249,8 @@ handle_frame(Frame = #agwpe_frame{data_kind = $K, data = Data}, State = #state{r
             ok = ls1mcs_sat_link:recv(RecvFrames),
             {ok, State#state{recv = NewRecvChain}};
         _ ->
-            %% TODO: Example:
-            %%  <<
-            %%      0,
-            %%      249,78,170,116,236,172,176,
-            %%      13,59,239,248
-            %%  >>
-            lager:warn("AGWPE unknown AX25? frame: ~p", [Frame]),
+            %% TODO: Example data: <<0,249,78,170,116,236,172,176,13,59,239,248>>
+            lager:warning("AGWPE unknown AX25? frame: ~p", [Frame]),
             {ok, State}
     end;
 

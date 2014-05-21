@@ -35,8 +35,7 @@
 %%
 %%
 start_link(Name, Password) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Password}, []),
-    ok = ls1mcs_tnc:register(?MODULE, Name),
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Name, Password}, []),
     {ok, Pid}.
 
 
@@ -66,7 +65,7 @@ send(Ref, Frame) ->
 %%
 %%
 %%
-init({Password}) ->
+init({Name, Password}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
@@ -75,6 +74,7 @@ init({Password}) ->
         send = Send,
         recv = Recv
     },
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, State}.
 
 
@@ -97,8 +97,8 @@ handle_cast(_Message, State) ->
 %%
 %%
 %%
-handle_info(_Message, State) ->
-    {stop, not_implemented, State}.
+handle_info({gen_event_EXIT, _Handler, Reason}, State) ->
+    {stop, {sll_exit, Reason}, State}.
 
 
 %%

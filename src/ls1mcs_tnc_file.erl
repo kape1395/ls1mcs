@@ -40,8 +40,7 @@
 %%
 %%
 start_link(Name, Password, DataDir) ->
-    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Password, DataDir}, []),
-    ok = ls1mcs_tnc:register(?MODULE, Name),
+    {ok, Pid} = gen_server:start_link({via, gproc, Name}, ?MODULE, {Name, Password, DataDir}, []),
     {ok, Pid}.
 
 
@@ -73,7 +72,7 @@ send(Ref, Frame) ->
 %%
 %%
 %%
-init({Password, DataDir}) ->
+init({Name, Password, DataDir}) ->
     {ok, Ls1pSend} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Ls1pRecv} = ls1mcs_proto_ls1p:make_ref(Password, true),
     {ok, Send} = ls1mcs_proto:make_send_chain([Ls1pSend]),
@@ -85,6 +84,7 @@ init({Password, DataDir}) ->
         send = Send,
         recv = Recv
     },
+    ok = ls1mcs_tnc:register(?MODULE, Name),
     {ok, State}.
 
 
@@ -129,7 +129,10 @@ handle_info({resp_scan_timer}, State = #state{data_dir = DataDir, recv = RecvCha
     end,
     NewRecvChain = lists:foldl(ProcessFun, RecvChain, Filenames),
     setup_scan_timer(),
-    {noreply, State#state{recv = NewRecvChain}}.
+    {noreply, State#state{recv = NewRecvChain}};
+
+handle_info({gen_event_EXIT, _Handler, Reason}, State) ->
+    {stop, {sll_exit, Reason}, State}.
 
 
 %%
