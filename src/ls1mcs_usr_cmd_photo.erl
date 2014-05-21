@@ -365,7 +365,6 @@ collect_data_gaps(StateData) ->
         id = UsrCmdId,
         photo_size = PhotoSize
     } = StateData,
-    lager:debug("Got photo_data response."),
     %
     %   Get collected data fragments.
     %

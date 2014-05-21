@@ -228,22 +228,33 @@ handle_received(Received, State) ->
 %%
 %%  Process received frame.
 %%
-handle_frame(#agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = RecvChain}) ->
-    <<
-        Pid:8/unsigned,
-        AX25SrcAddr:7/binary,
-        AX25DstAddr:7/binary,
-        AX25Control:8/unsigned,
-        AX25PID:8/unsigned,
-        AX25Payload/binary
-    >> = Data,
-    lager:debug(
-        "AGWPE raw unproto (processed): pid=~p, src=~p, dst=~p, ctl=~p, pid=~p, payload=~p",
-        [Pid, AX25SrcAddr, AX25DstAddr, AX25Control, AX25PID, AX25Payload]
-    ),
-    {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(AX25Payload, RecvChain),
-    ok = ls1mcs_sat_link:recv(RecvFrames),
-    {ok, State#state{recv = NewRecvChain}};
+handle_frame(Frame = #agwpe_frame{data_kind = $K, data = Data}, State = #state{recv = RecvChain}) ->
+    case Data of
+        <<
+            Pid:8/unsigned,
+            AX25SrcAddr:7/binary,
+            AX25DstAddr:7/binary,
+            AX25Control:8/unsigned,
+            AX25PID:8/unsigned,
+            AX25Payload/binary
+        >> ->
+            lager:debug(
+                "AGWPE raw unproto (processed): pid=~p, src=~p, dst=~p, ctl=~p, pid=~p, payload=~p",
+                [Pid, AX25SrcAddr, AX25DstAddr, AX25Control, AX25PID, AX25Payload]
+            ),
+            {ok, RecvFrames, NewRecvChain} = ls1mcs_proto:recv(AX25Payload, RecvChain),
+            ok = ls1mcs_sat_link:recv(RecvFrames),
+            {ok, State#state{recv = NewRecvChain}};
+        _ ->
+            %% TODO: Example:
+            %%  <<
+            %%      0,
+            %%      249,78,170,116,236,172,176,
+            %%      13,59,239,248
+            %%  >>
+            lager:warn("AGWPE unknown AX25? frame: ~p", [Frame]),
+            {ok, State}
+    end;
 
 handle_frame(#agwpe_frame{data_kind = $U, data = Data}, State) ->
     [Header | _] = binary:split(Data, <<13>>),
