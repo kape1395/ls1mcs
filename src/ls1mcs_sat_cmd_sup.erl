@@ -32,9 +32,7 @@
 %%  Create this supervisor.
 %%
 start_link() ->
-    {ok, Pid} = supervisor:start_link({local, ?MODULE}, ?MODULE, {}),
-    ok = ls1mcs_sat_cmd_sll:register(),
-    {ok, Pid}.
+    supervisor:start_link({local, ?MODULE}, ?MODULE, {}).
 
 
 %%

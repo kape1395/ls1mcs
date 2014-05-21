@@ -43,7 +43,8 @@ start_link(LinkCfg, GPredictCfg) ->
 %%
 init({LinkCfg, GPredictCfg}) ->
     LinkMod = ls1mcs_sat_link_sup,
-    SCmdMod = ls1mcs_sat_cmd_sup,
+    SCmdSup = ls1mcs_sat_cmd_sup,
+    SCmdMgr = ls1mcs_sat_cmd_mgr,
     UCmdMod = ls1mcs_usr_cmd_sup,
     StoreMod = ls1mcs_store,
     TmMod = ls1mcs_telemetry,
@@ -53,7 +54,8 @@ init({LinkCfg, GPredictCfg}) ->
     ChildSpecs = [
         {store, {StoreMod, start_link, []},       permanent, 5000, worker,     [StoreMod]},
         {link,  {LinkMod,  start_link, LinkArgs}, permanent, 5000, supervisor, [LinkMod]},
-        {scmd,  {SCmdMod,  start_link, []},       permanent, 5000, supervisor, [SCmdMod]},
+        {scsup, {SCmdSup,  start_link, []},       permanent, 5000, supervisor, [SCmdSup]},
+        {scmgr, {SCmdMgr,  start_link, []},       permanent, 5000, worker,     [SCmdMgr]},
         {ucmd,  {UCmdMod,  start_link, []},       permanent, 5000, supervisor, [UCmdMod]},
         {tm,    {TmMod,    start_link, []},       permanent, 5000, worker,     [TmMod]}
     ],

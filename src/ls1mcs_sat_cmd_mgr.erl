@@ -15,12 +15,12 @@
 %\--------------------------------------------------------------------
 
 %%
+%%  Monitors sat link listener.
 %%
-%%
--module(ls1mcs_telemetry).
+-module(ls1mcs_sat_cmd_mgr).
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/0, received/1, get_latest/0]).
+-export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -include("ls1mcs.hrl").
 
@@ -34,21 +34,7 @@
 %%
 %%
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, {}, []).
-
-
-%%
-%%
-%%
-received(Frame) ->
-    gen_server:cast(?MODULE, {received, Frame}).
-
-
-%%
-%%
-%%
-get_latest() ->
-    gen_server:call(?MODULE, {get_latest}).
+    {ok, _Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, {}, []).
 
 
 
@@ -56,11 +42,8 @@ get_latest() ->
 %%  Internal data structures.
 %% =============================================================================
 
-
 -record(state, {
-    latest
 }).
-
 
 
 %% =============================================================================
@@ -72,42 +55,22 @@ get_latest() ->
 %%
 %%
 init({}) ->
-    ls1mcs_telemetry_sll:register(),
-    Latest = case ls1mcs_store:get_tm(latest) of
-        {error, not_found} -> undefined;
-        {ok, TmFrame} -> TmFrame
-    end,
-    State = #state{
-        latest = Latest
-    },
-    {ok, State}.
+    ok = ls1mcs_sat_cmd_sll:register(),
+    {ok, #state{}}.
 
 
 %%
 %%
 %%
-handle_call({get_latest}, _From, State = #state{latest = Latest}) ->
-    Reply = case Latest of
-        undefined ->
-            {error, not_found};
-        _ ->
-            {ok, Latest}
-    end,
-    {reply, Reply, State}.
+handle_call(_Message, _From, State) ->
+    {reply, not_implemented, State}.
 
 
 %%
 %%
 %%
-handle_cast({received, NewTM = #ls1p_tm_frame{recv = NewRecv}}, State = #state{latest = Latest}) ->
-    case Latest of
-        undefined ->
-            {noreply, State#state{latest = NewTM}};
-        #ls1p_tm_frame{recv = LastRecv} when NewRecv > LastRecv ->
-            {noreply, State#state{latest = NewTM}};
-        _ ->
-            {noreply, State}
-    end.
+handle_cast(_Message, State) ->
+    {stop, not_implemented, State}.
 
 
 %%
