@@ -62,7 +62,8 @@ init({}) ->
 %%
 %%  Handle events, published by the SAT Link.
 %%
-handle_event({sent, _Frame}, State) ->
+handle_event({sent, Frame}, State) ->
+    lager:debug("Ignoring sent frame: ~p", [Frame]),
     {ok, State};
 
 handle_event({recv, Frame}, State) when is_record(Frame, ls1p_tm_frame) ->
@@ -70,7 +71,8 @@ handle_event({recv, Frame}, State) when is_record(Frame, ls1p_tm_frame) ->
     ls1mcs_telemetry:received(Frame),
     {ok, State};
 
-handle_event({recv, _Frame}, State) ->
+handle_event({recv, Frame}, State) ->
+    lager:debug("Ignoring recv frame: ~p", [Frame]),
     {ok, State}.
 
 
